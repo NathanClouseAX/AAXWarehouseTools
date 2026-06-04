@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSLabelCaptureRenderController</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// SysOperation controller for the label-capture render batch (plan WP-2.4 / REQ-B-7).
+/// Runs <c>AAXWHSLabelCaptureRenderService.process</c>; batch-retryable for transient errors.
+/// </summary>
+public final class AAXWHSLabelCaptureRenderController extends SysOperationServiceController implements BatchRetryable
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>new</Name>
+				<Source><![CDATA[
+    private void new(IdentifierName _className, IdentifierName _methodName, SysOperationExecutionMode _executionMode)
+    {
+        super(_className, _methodName, _executionMode);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates a controller wired to <c>AAXWHSLabelCaptureRenderService.process</c>.
+    /// </summary>
+    /// <param name = "_executionMode">The SysOperation execution mode.</param>
+    /// <returns>A new <c>AAXWHSLabelCaptureRenderController</c> instance.</returns>
+    public static AAXWHSLabelCaptureRenderController construct(SysOperationExecutionMode _executionMode = SysOperationExecutionMode::Synchronous)
+    {
+        AAXWHSLabelCaptureRenderController controller =
+            new AAXWHSLabelCaptureRenderController(
+                classStr(AAXWHSLabelCaptureRenderService),
+                methodStr(AAXWHSLabelCaptureRenderService, process),
+                _executionMode);
+
+        return controller;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>caption</Name>
+				<Source><![CDATA[
+    [Hookable(false)]
+    public ClassDescription caption()
+    {
+        return "@AAXWarehouseTools:CaptureRenderBatch";
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmDialogCaption</Name>
+				<Source><![CDATA[
+    [Hookable(false)]
+    public LabelType parmDialogCaption(LabelType _dialogCaption = dialogCaption)
+    {
+        // The dialog title is based on the caption.
+        return this.caption();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isRetryable</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Marks the batch task retryable for transient exceptions.
+    /// </summary>
+    /// <returns><c>true</c>.</returns>
+    [Hookable(false)]
+    public boolean isRetryable()
+    {
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>canRunInNewSession</Name>
+				<Source><![CDATA[
+    [Hookable(false)]
+    protected boolean canRunInNewSession()
+    {
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    public static void main(Args _args)
+    {
+        AAXWHSLabelCaptureRenderController controller = AAXWHSLabelCaptureRenderController::construct();
+        controller.parmArgs(_args);
+        controller.startOperation();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

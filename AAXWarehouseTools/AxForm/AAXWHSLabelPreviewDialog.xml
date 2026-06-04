@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
+	<Name>AAXWHSLabelPreviewDialog</Name>
+	<SourceCode>
+		<Methods xmlns="">
+			<Method>
+				<Name>classDeclaration</Name>
+				<Source><![CDATA[
+[Form]
+public class AAXWHSLabelPreviewDialog extends FormRun
+{
+    // Contract with AAXWHSLabelPreviewController: args().parmObject() is an
+    // AAXWHSLabelPreviewContext (parmPngList()->List of container, parmFinalZpl()->str,
+    // parmBadgeText()->str). REQ-A-6/A-7/A-8, F27, U-5.
+    AAXWHSLabelPreviewContext   context;
+    List                        pngs;           // List of container, one PNG per ^XA..^XZ block
+    int                         currentIndex;   // 1-based page index
+    str                         currentUrl;     // temp-store URL of the page on display
+    Map                         pageUrls;       // REQ-A-7: lazy per-page temp-store URLs (Integer -> String)
+}
+]]></Source>
+			</Method>
+			<Method>
+				<Name>init</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Reads the preview context from the caller, shows the first label image and the final ZPL.
+    /// </summary>
+    public void init()
+    {
+        super();
+
+        // F27 temp-store URLs are short-lived; generate each page lazily on navigation (REQ-A-7).
+        pageUrls = new Map(Types::Integer, Types::String);
+
+        context = element.args().parmObject() as AAXWHSLabelPreviewContext;
+        if (!context)
+        {
+            return;
+        }
+
+        pngs = context.parmPngList();
+
+        // Badge near the image: "Live record: %1" or "Sample data" (REQ-A-7).
+        BadgeText.text(context.parmBadgeText());
+
+        // Read-only multiline ZPL field is the copy surface (CopyZpl affordance, REQ-A-7).
+        ZplText.text(context.parmFinalZpl());
+
+        currentIndex = 1;
+        this.showPage(currentIndex);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>showPage</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Displays the requested label page, uploading its PNG to temp store lazily (REQ-A-7).
+    /// </summary>
+    /// <param name = "_page">The 1-based page (label block) to display.</param>
+    public void showPage(int _page)
+    {
+        int total = pngs ? pngs.elements() : 0;
+        if (total == 0)
+        {
+            return;
+        }
+
+        if (_page < 1)
+        {
+            _page = 1;
+        }
+        else if (_page > total)
+        {
+            _page = total;
+        }
+
+        currentIndex = _page;
+        currentUrl   = this.urlForPage(_page);
+
+        // Bind the image control to the page's temp-store URL (proven URL-image pattern,
+        // RetailMediaImageViewer / EcoResProductImage: imageLocation(URL) + normalImage(url)).
+        PreviewImage.imageLocation(SysImageLocation::URL);
+        PreviewImage.normalImage(currentUrl);
+
+        // Pager text: "Label %1 of %2".
+        PagerText.text(strFmt("@AAXWarehouseTools:LabelNofM", _page, total));
+
+        // Prev/Next only meaningful for multi-label ZPL.
+        PrevPageButton.visible(total > 1);
+        NextPageButton.visible(total > 1);
+        PrevPageButton.enabled(_page > 1);
+        NextPageButton.enabled(_page < total);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>urlForPage</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the temp-store URL for a label page, uploading the PNG on first request (REQ-A-7).
+    /// </summary>
+    /// <param name = "_page">The 1-based page (label block).</param>
+    /// <returns>The temp-store URL for the page, or an empty string on failure.</returns>
+    private str urlForPage(int _page)
+    {
+        // F27 temp-store URLs are short-lived: cache per page and (re)generate on navigation
+        // so a page opened after a delay still renders (no expired-URL 404).
+        if (pageUrls.exists(_page))
+        {
+            str cached = pageUrls.lookup(_page);
+            if (cached)
+            {
+                return cached;
+            }
+        }
+
+        // List enumerator: walk to the _page-th container (1-based).
+        ListEnumerator listEnumerator = pngs.getEnumerator();
+        int idx = 0;
+        container pngContainer = conNull();
+        while (listEnumerator.moveNext())
+        {
+            idx++;
+            if (idx == _page)
+            {
+                pngContainer = listEnumerator.current();
+                break;
+            }
+        }
+
+        str url = '';
+        if (conLen(pngContainer) > 0)
+        {
+            // container -> Stream (already-authored helper) -> temp store (F27, stream-only).
+            System.IO.MemoryStream stream = AAXZplRenderService::pngContainerToStream(pngContainer);
+            if (stream)
+            {
+                url = File::SendFileToTempStore(stream, strFmt('LabelPreview_%1.png', _page));
+            }
+        }
+
+        pageUrls.insert(_page, url);
+        return url;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>downloadCurrentPage</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Opens the current page's PNG in the browser so the user can download it (REQ-A-7).
+    /// </summary>
+    public void downloadCurrentPage()
+    {
+        // Proven download pattern (File.SendFileToUser / WhsExternalServiceInstances):
+        // new Browser().navigate(url, false, false).
+        if (currentUrl)
+        {
+            new Browser().navigate(currentUrl, false, false);
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+		<DataSources xmlns="" />
+		<DataControls xmlns="">
+			<Control>
+				<Name>PrevPageButton</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+    /// <summary>Navigates to the previous label page.</summary>
+    public void clicked()
+    {
+        super();
+        element.showPage(currentIndex - 1);
+    }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>NextPageButton</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+    /// <summary>Navigates to the next label page.</summary>
+    public void clicked()
+    {
+        super();
+        element.showPage(currentIndex + 1);
+    }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>DownloadPngButton</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+    /// <summary>Downloads the currently displayed PNG.</summary>
+    public void clicked()
+    {
+        super();
+        element.downloadCurrentPage();
+    }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+		</DataControls>
+		<Members xmlns="" />
+	</SourceCode>
+	<DataSources />
+	<Design>
+		<Caption xmlns="">@AAXWarehouseTools:LabelPreviewDialogCaption</Caption>
+		<DialogSize xmlns="">Large</DialogSize>
+		<Pattern xmlns="">Custom</Pattern>
+		<Style xmlns="">Dialog</Style>
+		<Controls xmlns="">
+			<AxFormControl xmlns=""
+				i:type="AxFormActionPaneControl">
+				<Name>MainActionPane</Name>
+				<Type>ActionPane</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormActionPaneTabControl">
+						<Name>ActionPaneTab</Name>
+						<Type>ActionPaneTab</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormButtonGroupControl">
+								<Name>NavigationGroup</Name>
+								<Type>ButtonGroup</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Controls>
+									<AxFormControl xmlns=""
+										i:type="AxFormButtonControl">
+										<Name>PrevPageButton</Name>
+										<AutoDeclaration>Yes</AutoDeclaration>
+										<Text>@AAXWarehouseTools:PreviewPrevPage</Text>
+										<Type>Button</Type>
+										<FormControlExtension
+											i:nil="true" />
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormButtonControl">
+										<Name>NextPageButton</Name>
+										<AutoDeclaration>Yes</AutoDeclaration>
+										<Text>@AAXWarehouseTools:PreviewNextPage</Text>
+										<Type>Button</Type>
+										<FormControlExtension
+											i:nil="true" />
+									</AxFormControl>
+								</Controls>
+								<Caption>@AAXWarehouseTools:LabelNofM</Caption>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormButtonGroupControl">
+								<Name>FileGroup</Name>
+								<Type>ButtonGroup</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Controls>
+									<AxFormControl xmlns=""
+										i:type="AxFormButtonControl">
+										<Name>DownloadPngButton</Name>
+										<AutoDeclaration>Yes</AutoDeclaration>
+										<Text>@AAXWarehouseTools:DownloadPng</Text>
+										<Type>Button</Type>
+										<FormControlExtension
+											i:nil="true" />
+									</AxFormControl>
+								</Controls>
+								<Caption>@AAXWarehouseTools:DownloadPng</Caption>
+							</AxFormControl>
+						</Controls>
+						<Caption>@AAXWarehouseTools:GenerateLabelPreview</Caption>
+					</AxFormControl>
+				</Controls>
+				<Caption>@AAXWarehouseTools:GenerateLabelPreview</Caption>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>BodyGroup</Name>
+				<HeightMode>SizeToAvailable</HeightMode>
+				<Type>Group</Type>
+				<WidthMode>SizeToAvailable</WidthMode>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormStaticTextControl">
+						<Name>BadgeText</Name>
+						<AllowEdit>No</AllowEdit>
+						<AutoDeclaration>Yes</AutoDeclaration>
+						<Type>StaticText</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<ShowLabel>No</ShowLabel>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStaticTextControl">
+						<Name>PagerText</Name>
+						<AllowEdit>No</AllowEdit>
+						<AutoDeclaration>Yes</AutoDeclaration>
+						<Type>StaticText</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<ShowLabel>No</ShowLabel>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormGroupControl">
+						<Name>ImageGroup</Name>
+						<HeightMode>SizeToAvailable</HeightMode>
+						<Type>Group</Type>
+						<WidthMode>SizeToAvailable</WidthMode>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormImageControl">
+								<Name>PreviewImage</Name>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<HeightMode>SizeToAvailable</HeightMode>
+								<Type>Image</Type>
+								<WidthMode>SizeToAvailable</WidthMode>
+								<FormControlExtension
+									i:nil="true" />
+								<ShowLabel>No</ShowLabel>
+							</AxFormControl>
+						</Controls>
+						<ArrangeMethod>Vertical</ArrangeMethod>
+						<FrameType>None</FrameType>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormGroupControl">
+						<Name>ZplGroup</Name>
+						<HeightMode>SizeToAvailable</HeightMode>
+						<Type>Group</Type>
+						<WidthMode>SizeToAvailable</WidthMode>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>ZplText</Name>
+								<AllowEdit>No</AllowEdit>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<HeightMode>SizeToAvailable</HeightMode>
+								<Type>String</Type>
+								<WidthMode>SizeToAvailable</WidthMode>
+								<FormControlExtension
+									i:nil="true" />
+								<MultiLine>Yes</MultiLine>
+								<ShowLabel>No</ShowLabel>
+							</AxFormControl>
+						</Controls>
+						<ArrangeMethod>Vertical</ArrangeMethod>
+						<Caption>@AAXWarehouseTools:CopyZpl</Caption>
+					</AxFormControl>
+				</Controls>
+				<ArrangeMethod>Vertical</ArrangeMethod>
+				<FrameType>None</FrameType>
+			</AxFormControl>
+		</Controls>
+	</Design>
+	<Parts />
+</AxForm>

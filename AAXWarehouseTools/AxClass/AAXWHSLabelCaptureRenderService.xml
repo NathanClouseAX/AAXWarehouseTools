@@ -1,0 +1,482 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSLabelCaptureRenderService</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// SysOperation service that renders captured ZPL staging rows to PNGs and attaches them to the
+/// originating Work record (plan WP-2.4 / REQ-B-7).
+/// </summary>
+/// <remarks>
+/// Cross-company pickup of <c>Pending</c> rows (ordered by RecId); per-company chunks run inside a
+/// <c>changecompany</c> block so the DocuType creation and attachment happen in the row's company
+/// (DR-9, F26). Each row is processed in its own try/catch with short, OCC-retryable state-transition
+/// transactions only (never a whole-chunk transaction) so a single failure isolates to that row (REQ-B-7).
+/// A snapshotted WorkId that no longer resolves to a <c>WHSWorkTable</c> record yields a terminal
+/// <c>Done</c> with the "work no longer exists" note — never <c>Error</c>/<c>Poison</c> (DR-10, F8/F25).
+/// </remarks>
+public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>process</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Renders and attaches all currently <c>Pending</c> captured labels across every legal entity.
+    /// </summary>
+    /// <param name = "_contract">Chunk size and maximum-retry settings (REQ-B-7).</param>
+    public void process(AAXWHSLabelCaptureRenderContract _contract)
+    {
+        int chunkSize  = _contract.parmChunkSize() > 0 ? _contract.parmChunkSize() : 50;
+        int maxRetries = _contract.parmMaxRetries() > 0 ? _contract.parmMaxRetries() : 3;
+
+        // Group Pending rows by company WITHOUT holding a transaction or a cursor across companies.
+        // We collect only RecIds (ordered by RecId) so the actual work runs per-row in its own
+        // transaction inside the row's company (DR-9).
+        Map companyToRecIds = this.collectPendingRecIdsByCompany();
+
+        MapEnumerator companyEnumerator = companyToRecIds.getEnumerator();
+        while (companyEnumerator.moveNext())
+        {
+            this.processCompany(companyEnumerator.currentKey(), companyEnumerator.currentValue(), chunkSize, maxRetries);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>processCompany</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Processes one legal entity's captured rows inside a <c>changecompany</c> block so the
+    /// per-company gate re-check, DocuType creation and attachment all run in the row's company
+    /// (DR-9, F26).
+    /// </summary>
+    /// <param name = "_dataAreaId">The legal entity to switch into.</param>
+    /// <param name = "_recIds">The staging RecIds captured in that company, in pickup order.</param>
+    /// <param name = "_chunkSize">Maximum rows per processing pass.</param>
+    /// <param name = "_maxRetries">Maximum render attempts before a row becomes <c>Poison</c>.</param>
+    private void processCompany(DataAreaId _dataAreaId, List _recIds, int _chunkSize, int _maxRetries)
+    {
+        changecompany (_dataAreaId)
+        {
+            // Re-check the gate per company; this also flips an expired toggle Off (F18 batch side).
+            if (!WHSParameters::find().aaxIsPreviewToWorkAttachmentEnabled())
+            {
+                return;
+            }
+
+            // Idempotent per-company DocuType setup (F26 — attach throws without it).
+            AAXWHSLabelAttachmentService::ensureDocuType();
+
+            this.processCompanyRows(_recIds, _chunkSize, _maxRetries);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>collectPendingRecIdsByCompany</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Scans <c>Pending</c> staging rows cross-company (ordered by RecId) and groups their RecIds
+    /// by <c>DataAreaId</c>. No transaction is held — the heavy work runs per row afterwards (DR-9).
+    /// </summary>
+    /// <returns>A <c>Map</c> of <c>DataAreaId</c> to a <c>List</c> of staging RecIds.</returns>
+    private Map collectPendingRecIdsByCompany()
+    {
+        Map                         companyToRecIds = new Map(Types::String, Types::Class);
+        AAXWHSLabelCaptureStaging   staging;
+
+        while select crosscompany RecId, DataAreaId from staging
+            order by RecId asc
+            where staging.Status == AAXWHSLabelCaptureStatus::Pending
+        {
+            List recIds;
+
+            if (companyToRecIds.exists(staging.DataAreaId))
+            {
+                recIds = companyToRecIds.lookup(staging.DataAreaId);
+            }
+            else
+            {
+                recIds = new List(Types::Int64);
+                companyToRecIds.insert(staging.DataAreaId, recIds);
+            }
+
+            recIds.addEnd(staging.RecId);
+        }
+
+        return companyToRecIds;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>processCompanyRows</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Processes the supplied staging RecIds (already in the current company) in chunk-sized passes.
+    /// Each row is processed independently; a failure isolates to that row (REQ-B-7).
+    /// </summary>
+    /// <param name = "_recIds">Staging RecIds to process, in pickup order.</param>
+    /// <param name = "_chunkSize">Maximum rows to process per pass before yielding.</param>
+    /// <param name = "_maxRetries">Maximum render attempts before a row becomes <c>Poison</c>.</param>
+    private void processCompanyRows(List _recIds, int _chunkSize, int _maxRetries)
+    {
+        ListEnumerator recIdEnumerator = _recIds.getEnumerator();
+        int            processedInChunk;
+
+        while (recIdEnumerator.moveNext())
+        {
+            RecId stagingRecId = recIdEnumerator.current();
+
+            // Row isolation (REQ-B-7): each row runs in its own try/catch OUTSIDE any active
+            // ttsbegin/ttscommit (render/attach are not in a transaction; the state-transition
+            // helpers open and commit their own short transactions). A failure here only updates
+            // THIS row's Status/RetryCount/ErrorMessage — never the rest of the chunk.
+            try
+            {
+                this.processRow(stagingRecId, _maxRetries);
+            }
+            catch
+            {
+                this.markRowError(stagingRecId, _maxRetries, AAXWHSLabelCaptureRenderService::lastErrorText());
+            }
+
+            // Keep work chunked: per-row transactions are already short; chunkSize bounds how many
+            // rows are handled before yielding back to the loop top (a natural commit boundary).
+            processedInChunk++;
+            if (processedInChunk >= _chunkSize)
+            {
+                processedInChunk = 0;
+            }
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>processRow</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Renders and attaches a single captured label, advancing its status. Runs in the current
+    /// company; state transitions use short OCC-retryable transactions, render/attach run outside
+    /// any transaction so the per-row try/catch in the caller can isolate failures (REQ-B-7).
+    /// </summary>
+    /// <param name = "_stagingRecId">The staging row RecId.</param>
+    /// <param name = "_maxRetries">Maximum render attempts before <c>Poison</c>.</param>
+    private void processRow(RecId _stagingRecId, int _maxRetries)
+    {
+        // (b) Mark Processing first (short OCC-retryable transition).
+        if (!this.markRowProcessing(_stagingRecId))
+        {
+            // Row was picked up/changed by another pass or no longer Pending — nothing to do.
+            return;
+        }
+
+        AAXWHSLabelCaptureStaging staging = AAXWHSLabelCaptureStaging::find(_stagingRecId);
+        if (!staging)
+        {
+            return;
+        }
+
+        // Step 1 (DR-10): resolve the attachment target FIRST. An empty buffer (Work completed/
+        // cancelled/purged between capture and render) is a legitimate transient condition — the row
+        // goes terminal Done with a note, never Error/Poison (F8: find returns empty, no throw).
+        WHSWorkTable workTable = WHSWorkTable::find(staging.WorkId);
+        if (!workTable)
+        {
+            this.markRowDone(_stagingRecId, "@AAXWarehouseTools:WorkNoLongerExists");
+            return;
+        }
+
+        // Step 2: dedup on (WorkId, ZplHash) against already-attached LBLPREV documents.
+        if (AAXWHSLabelAttachmentService::hasAttachmentWithHash(workTable, staging.ZplHash))
+        {
+            this.markRowDone(_stagingRecId, '');
+            return;
+        }
+
+        // Step 3: render one PNG per ^XA..^XZ block (0 dimensions -> parse/fallback, REQ-R-2).
+        List pngs = AAXZplRenderService::renderToPngList(
+            staging.FinalZpl,
+            staging.Dpmm,
+            staging.WidthMm,
+            staging.HeightMm);
+
+        // Step 4: attach each PNG (DocumentManagement manages its own transaction, F25).
+        str             timestamp = AAXWHSLabelCaptureRenderService::timestampForFileName();
+        int             seq;
+        ListEnumerator  pngEnumerator = pngs.getEnumerator();
+
+        while (pngEnumerator.moveNext())
+        {
+            seq++;
+            container png = pngEnumerator.current();
+
+            str fileName = AAXWHSLabelCaptureRenderService::buildFileName(
+                staging.WorkId, staging.LayoutId, timestamp, seq);
+
+            AAXWHSLabelAttachmentService::attachPng(workTable, png, fileName, staging.ZplHash);
+        }
+
+        // Step 5: Done.
+        this.markRowDone(_stagingRecId, '');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>markRowProcessing</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Transitions a still-<c>Pending</c> row to <c>Processing</c> in a short OCC-retryable
+    /// transaction (plan F23 OCC pattern, applied to a per-row transition only).
+    /// </summary>
+    /// <param name = "_stagingRecId">The staging row RecId.</param>
+    /// <returns><c>true</c> if this call moved the row to <c>Processing</c>; otherwise <c>false</c>.</returns>
+    private boolean markRowProcessing(RecId _stagingRecId)
+    {
+        boolean claimed = false;
+
+        #OCCRetryCount
+
+        try
+        {
+            AAXWHSLabelCaptureStaging staging;
+
+            ttsbegin;
+            select forupdate staging
+                where staging.RecId == _stagingRecId
+                   && staging.Status == AAXWHSLabelCaptureStatus::Pending;
+            if (staging)
+            {
+                staging.Status = AAXWHSLabelCaptureStatus::Processing;
+                staging.update();
+                claimed = true;
+            }
+            ttscommit;
+        }
+        catch (Exception::Deadlock)
+        {
+            retry;
+        }
+        catch (Exception::UpdateConflict)
+        {
+            if (appl.ttsLevel() == 0)
+            {
+                if (xSession::currentRetryCount() >= #RetryNum)
+                {
+                    throw Exception::UpdateConflictNotRecovered;
+                }
+                else
+                {
+                    retry;
+                }
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        return claimed;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>markRowDone</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Transitions a row to the terminal <c>Done</c> status with an optional note and the processed
+    /// timestamp, in a short OCC-retryable transaction.
+    /// </summary>
+    /// <param name = "_stagingRecId">The staging row RecId.</param>
+    /// <param name = "_note">Optional error/info note (e.g. work-no-longer-exists); may be empty.</param>
+    private void markRowDone(RecId _stagingRecId, str _note)
+    {
+        #OCCRetryCount
+
+        try
+        {
+            AAXWHSLabelCaptureStaging staging;
+
+            ttsbegin;
+            select forupdate staging
+                where staging.RecId == _stagingRecId;
+            if (staging)
+            {
+                staging.Status              = AAXWHSLabelCaptureStatus::Done;
+                staging.ErrorMessage        = _note;
+                staging.ProcessedDateTime   = DateTimeUtil::utcNow();
+                staging.update();
+            }
+            ttscommit;
+        }
+        catch (Exception::Deadlock)
+        {
+            retry;
+        }
+        catch (Exception::UpdateConflict)
+        {
+            if (appl.ttsLevel() == 0)
+            {
+                if (xSession::currentRetryCount() >= #RetryNum)
+                {
+                    throw Exception::UpdateConflictNotRecovered;
+                }
+                else
+                {
+                    retry;
+                }
+            }
+            else
+            {
+                throw;
+            }
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>markRowError</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Records a render/attach failure on a single row: increments <c>RetryCount</c>, stores the
+    /// error text, and sets <c>Error</c> — or <c>Poison</c> when the retry ceiling is reached
+    /// (REQ-B-7). Runs in a short OCC-retryable transaction; never touches any other row.
+    /// </summary>
+    /// <param name = "_stagingRecId">The staging row RecId.</param>
+    /// <param name = "_maxRetries">Maximum render attempts before <c>Poison</c>.</param>
+    /// <param name = "_errorText">The failure text to persist (truncated to the field size).</param>
+    private void markRowError(RecId _stagingRecId, int _maxRetries, str _errorText)
+    {
+        #OCCRetryCount
+
+        try
+        {
+            AAXWHSLabelCaptureStaging staging;
+
+            ttsbegin;
+            select forupdate staging
+                where staging.RecId == _stagingRecId;
+            if (staging)
+            {
+                staging.RetryCount       = staging.RetryCount + 1;
+                staging.ErrorMessage     = subStr(_errorText, 1, 1000);
+                staging.ProcessedDateTime = DateTimeUtil::utcNow();
+                staging.Status           = staging.RetryCount >= _maxRetries
+                    ? AAXWHSLabelCaptureStatus::Poison
+                    : AAXWHSLabelCaptureStatus::Error;
+                staging.update();
+            }
+            ttscommit;
+        }
+        catch (Exception::Deadlock)
+        {
+            retry;
+        }
+        catch (Exception::UpdateConflict)
+        {
+            if (appl.ttsLevel() == 0)
+            {
+                if (xSession::currentRetryCount() >= #RetryNum)
+                {
+                    throw Exception::UpdateConflictNotRecovered;
+                }
+                else
+                {
+                    retry;
+                }
+            }
+            else
+            {
+                throw;
+            }
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>lastErrorText</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the most recent Infolog error line as readable text for storing on a failed row.
+    /// </summary>
+    /// <returns>The error text, or a generic fallback when nothing is available.</returns>
+    private static str lastErrorText()
+    {
+        str text = infolog.text();
+
+        if (!text)
+        {
+            text = "@AAXWarehouseTools:RenderFailed";
+        }
+
+        return text;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>timestampForFileName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds a deterministic, locale-independent UTC timestamp segment (yyyyMMdd_HHmmss) for the
+    /// attachment file name (REQ-B-8).
+    /// </summary>
+    /// <returns>The formatted timestamp string.</returns>
+    private static str timestampForFileName()
+    {
+        utcDateTime now = DateTimeUtil::utcNow();
+
+        return strFmt('%1%2%3_%4%5%6',
+            num2Str0(DateTimeUtil::year(now), 4),
+            num2Str0(DateTimeUtil::month(now), 2),
+            num2Str0(DateTimeUtil::day(now), 2),
+            num2Str0(DateTimeUtil::hour(now), 2),
+            num2Str0(DateTimeUtil::minute(now), 2),
+            num2Str0(DateTimeUtil::second(now), 2));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>buildFileName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the attachment file name {WorkId}_{LayoutId}_{yyyyMMdd_HHmmss}_{seq}.png, gracefully
+    /// omitting an empty LayoutId segment (REQ-B-8).
+    /// </summary>
+    /// <param name = "_workId">The Work id.</param>
+    /// <param name = "_layoutId">The layout id (may be empty).</param>
+    /// <param name = "_timestamp">The pre-formatted UTC timestamp segment.</param>
+    /// <param name = "_seq">The 1-based label-block sequence number.</param>
+    /// <returns>The file name including the .png extension.</returns>
+    private static str buildFileName(WHSWorkId _workId, str _layoutId, str _timestamp, int _seq)
+    {
+        str fileName;
+
+        if (_layoutId)
+        {
+            fileName = strFmt('%1_%2_%3_%4', _workId, _layoutId, _timestamp, _seq);
+        }
+        else
+        {
+            fileName = strFmt('%1_%2_%3', _workId, _timestamp, _seq);
+        }
+
+        return fileName + '.png';
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSLabelCaptureRenderContract</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// SysOperation data contract for the label-capture render batch (plan WP-2.4 / REQ-B-7).
+/// Carries the processing chunk size and the per-row maximum retry count.
+/// </summary>
+[DataContractAttribute]
+public class AAXWHSLabelCaptureRenderContract
+{
+    private int chunkSize = 50;
+    private int maxRetries = 3;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>parmChunkSize</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Number of <c>Pending</c> staging rows processed per batch pass (REQ-B-7). Default 50.
+    /// </summary>
+    /// <param name = "_chunkSize">The chunk size.</param>
+    /// <returns>The chunk size.</returns>
+    [DataMemberAttribute,
+     SysOperationLabelAttribute("@AAXWarehouseTools:CaptureChunkSize")]
+    public int parmChunkSize(int _chunkSize = chunkSize)
+    {
+        chunkSize = _chunkSize;
+
+        return chunkSize;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmMaxRetries</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Maximum render attempts before a failing row is marked <c>Poison</c> (REQ-B-7). Default 3.
+    /// </summary>
+    /// <param name = "_maxRetries">The maximum retry count.</param>
+    /// <returns>The maximum retry count.</returns>
+    [DataMemberAttribute,
+     SysOperationLabelAttribute("@AAXWarehouseTools:CaptureMaxRetries")]
+    public int parmMaxRetries(int _maxRetries = maxRetries)
+    {
+        maxRetries = _maxRetries;
+
+        return maxRetries;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

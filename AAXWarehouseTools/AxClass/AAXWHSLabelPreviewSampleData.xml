@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSLabelPreviewSampleData</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Supplies realistic-length sample token values for the label preview (REQ-A-5).
+/// Used by <c>AAXWHSLabelPreviewController</c> via the translator's
+/// <c>withParameterMap</c> chain (F6, default map name 'parameters') so that
+/// record-less tokens (e.g. $OrderNum$, $ItemId$) still resolve when there is no
+/// live seed record. Maintained in one place so sample values stay consistent.
+/// </summary>
+public final class AAXWHSLabelPreviewSampleData
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>sampleParameterMap</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the sample token map used to substitute record-less placeholders during preview.
+    /// </summary>
+    /// <returns>
+    /// A <c>Map</c> keyed and valued by <c>Types::String</c> (the shape required by
+    /// <c>WhsDocumentRoutingTranslator.withParameterMap</c>, F6), holding realistic-length
+    /// sample values (REQ-A-5). Dates default to today via <c>systemDateGet()</c>.
+    /// </returns>
+    public static Map sampleParameterMap()
+    {
+        Map sampleMap = new Map(Types::String, Types::String);
+        str today = date2str(
+            systemDateGet(),
+            321,
+            DateDay::Digits2,
+            DateSeparator::Hyphen,
+            DateMonth::Digits2,
+            DateSeparator::Hyphen,
+            DateYear::Digits4,
+            DateFlags::None);
+
+        // Identifiers with realistic lengths (REQ-A-5).
+        sampleMap.insert('OrderNum',       'PO123456');
+        sampleMap.insert('PurchId',        'PO123456');
+        sampleMap.insert('LicensePlateId', 'LP000123');
+        sampleMap.insert('ItemId',         'A0001');
+        sampleMap.insert('WorkId',         'WK000123');
+        sampleMap.insert('Qty',            '12');
+
+        // Dates default to today.
+        sampleMap.insert('Date',           today);
+        sampleMap.insert('TransDate',      today);
+        sampleMap.insert('DeliveryDate',   today);
+
+        return sampleMap;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

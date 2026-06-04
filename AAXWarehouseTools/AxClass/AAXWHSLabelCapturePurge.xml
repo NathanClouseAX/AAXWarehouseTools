@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSLabelCapturePurge</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// The <c>AAXWHSLabelCapturePurge</c> class is a batch job that deletes aged label-preview attachments
+/// (DocuType <c>LBLPREV</c> on Work records) and the staging rows that produced them (REQ-S-5).
+/// </summary>
+/// <remarks>
+/// Structure mirrors <c>WHSWorkCreateHistoryPurge</c> (F23 / methodology III.6): RunBaseBatch with the
+/// #OCCRetryCount transient-retry envelope around cleanup(). The retention window is read from
+/// <c>WHSParameters.aaxPreviewRetentionDays()</c> (not a dialog), so the job carries no packed state.
+/// REQ-S-5: it deletes ONLY aged LBLPREV DocuRef rows and Done/Poison staging rows.
+/// </remarks>
+public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetryable, SysErrorMessageHelpScopeIBatchProvider
+{
+    #DEFINE.CurrentVersion(1)
+
+    #DEFINE.LabelPreviewDocuTypeId('LBLPREV')
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>canGoBatchJournal</Name>
+				<Source><![CDATA[
+    public boolean canGoBatchJournal()
+    {
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>pack</Name>
+				<Source><![CDATA[
+    public container pack()
+    {
+        // Stateless job: retention comes from WHSParameters, not packed dialog state.
+        return [#CurrentVersion];
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>unpack</Name>
+				<Source><![CDATA[
+    public boolean unpack(container _packedClass)
+    {
+        boolean     ret;
+        Integer     version = RunBase::getVersion(_packedClass);
+
+        switch (version)
+        {
+            case #CurrentVersion:
+                [version] = _packedClass;
+                ret = true;
+                break;
+
+            default:
+                ret = false;
+                break;
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>cleanup</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Deletes aged label-preview attachments and their staging rows across every non-virtual company.
+    /// </summary>
+    /// <remarks>
+    /// REQ-S-5: removes only LBLPREV DocuRef rows (their DocuValue cascades via DocuRef.delete()) and
+    /// Done/Poison staging rows older than <c>aaxPreviewRetentionDays</c>.
+    /// The standard purge donor (F23) uses the internal <c>WHSRecordDeletionCommitter</c>; that class is
+    /// <c>internal</c> and therefore inaccessible cross-model (C-2), so its chunked-commit behaviour is
+    /// replicated here with direct per-row <c>delete()</c> calls (each commits in its own implicit
+    /// transaction). Per-company scope is honoured with a <c>changecompany</c> loop (DR-9) so that
+    /// DocuRef removal runs in the owning company and the per-company staging table is reached.
+    /// </remarks>
+    private void cleanup()
+    {
+        // Retention window is parameter-driven; the cutoff is computed once in the batch's company.
+        utcDateTime cutoff = DateTimeUtil::addDays(DateTimeUtil::utcNow(), -WHSParameters::find().aaxPreviewRetentionDays());
+
+        DataArea dataArea;
+
+        while select Id from dataArea
+            where !dataArea.isVirtual
+        {
+            changecompany(dataArea.Id)
+            {
+                this.purgeCompany(cutoff);
+            }
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>purgeCompany</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Deletes aged LBLPREV attachments and Done/Poison staging rows in the current company context.
+    /// </summary>
+    /// <param name = "_cutoff">Records created strictly before this UTC timestamp are removed.</param>
+    private void purgeCompany(utcDateTime _cutoff)
+    {
+        DocuRef                     docuRef;
+        AAXWHSLabelCaptureStaging   staging;
+
+        // (a) Aged LBLPREV attachments on Work records — DocuRef.delete() cascades the DocuValue/file.
+        while select forupdate docuRef
+            where docuRef.TypeId          == #LabelPreviewDocuTypeId
+               && docuRef.RefTableId      == tableNum(WHSWorkTable)
+               && docuRef.createdDateTime <  _cutoff
+        {
+            docuRef.delete();
+        }
+
+        // (b) Aged terminal staging rows (Done/Poison only) — never touch Pending/Processing/Error.
+        while select forupdate staging
+            where (staging.Status == AAXWHSLabelCaptureStatus::Done
+                || staging.Status == AAXWHSLabelCaptureStatus::Poison)
+               && staging.createdDateTime < _cutoff
+        {
+            staging.delete();
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>run</Name>
+				<Source><![CDATA[
+    public void run()
+    {
+        using (SysErrorMessageHelpScope scope = SysErrorMessageHelpScope::newErrorContextBatchServer(this))
+        {
+            #OCCRetryCount
+
+            try
+            {
+                this.cleanup();
+            }
+            catch (Exception::Deadlock)
+            {
+                retry;
+            }
+            catch (Exception::TransientSqlConnectionError)
+            {
+                // ReqTransientSqlConnectionErrorHandlingHelper is internal (C-2) — gate the
+                // retry on the session retry counter instead.
+                if (xSession::currentRetryCount() >= #RetryNum)
+                {
+                    throw;
+                }
+                retry;
+            }
+            catch (Exception::UpdateConflict)
+            {
+                if (appl.ttsLevel() == 0)
+                {
+                    if (xSession::currentRetryCount() >= #RetryNum)
+                    {
+                        throw Exception::UpdateConflictNotRecovered;
+                    }
+                    else
+                    {
+                        retry;
+                    }
+                }
+                else
+                {
+                    throw;
+                }
+            }
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>runsImpersonated</Name>
+				<Source><![CDATA[
+    public boolean runsImpersonated()
+    {
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>canRunInNewSession</Name>
+				<Source><![CDATA[
+    protected boolean canRunInNewSession()
+    {
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    static AAXWHSLabelCapturePurge construct()
+    {
+        return new AAXWHSLabelCapturePurge();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>description</Name>
+				<Source><![CDATA[
+    static ClassDescription description()
+    {
+        return "@AAXWarehouseTools:CapturePurgeBatch";
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    static void main(Args args)
+    {
+        AAXWHSLabelCapturePurge labelCapturePurge = AAXWHSLabelCapturePurge::construct();
+
+        using (SysErrorMessageHelpScope scope = SysErrorMessageHelpScope::newErrorContextBatchController(labelCapturePurge))
+        {
+            if (labelCapturePurge.prompt())
+            {
+                labelCapturePurge.runOperation();
+            }
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isRetryable</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Specifies if the batch task is retryable for transient exceptions or not.
+    /// </summary>
+    /// <returns>
+    /// If true is returned, the batch task is retryable, otherwise it is not.
+    /// </returns>
+    [Hookable(false)]
+    final boolean isRetryable()
+    {
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>errorMessageHelpScopeFormName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets the form name used for the error context using a <c>SysErrorMessageHelpScope</c> class.
+    /// </summary>
+    /// <returns>The form name used for the error context.</returns>
+    [Hookable(false)]
+    public FormName errorMessageHelpScopeFormName()
+    {
+        return strFmt('%1_%2', formStr(Dialog), classStr(AAXWHSLabelCapturePurge));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>errorMessageHelpScopeActionName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets the action name used for the error context using a <c>SysErrorMessageHelpScope</c> class.
+    /// </summary>
+    /// <returns>The action name used for the error context.</returns>
+    [Hookable(false)]
+    public str errorMessageHelpScopeActionName()
+    {
+        return menuItemActionStr(AAXWHSLabelCapturePurge);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

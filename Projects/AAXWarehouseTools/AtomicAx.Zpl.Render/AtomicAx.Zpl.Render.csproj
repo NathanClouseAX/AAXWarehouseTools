@@ -17,6 +17,12 @@
          fails on net472 (a strong-named assembly cannot reference unsigned ones) -> DR-2 fallback. -->
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>AtomicAx.snk</AssemblyOriginatorKeyFile>
+    <!-- BinaryKits.Zpl.Viewer/Label 1.3.1/3.3.1 are unsigned (PublicKeyToken=null). Modern Roslyn
+         allows a strong-named assembly to reference unsigned ones and emits only CS8002 (a warning,
+         NOT the hard error the WP-0.2 plan anticipated under legacy csc) — so signing stands and
+         DR-2 (drop signing) was NOT triggered. CS8002 is benign (it does not affect runtime load on
+         .NET Framework); suppress it to keep the build clean. -->
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -36,22 +42,37 @@
     </PackageReference>
   </ItemGroup>
 
+  <!-- A classic net472 (non-self-contained) build does NOT auto-copy the win-x64 native
+       assets out of the NuGet packages. Stage them into the build output's
+       runtimes\win-x64\native so the lib is self-contained for the net8 test/probe and so the
+       post-build model-bin copy has a single source. Paths resolved from the restored packages. -->
+  <Target Name="AAXStageNatives" AfterTargets="Build" Condition="'$(TargetFramework)' == 'net472'">
+    <PropertyGroup>
+      <AAXNativeOut>$(OutDir)runtimes\win-x64\native\</AAXNativeOut>
+      <AAXSkiaNative>$(NuGetPackageRoot)skiasharp.nativeassets.win32\3.119.1\runtimes\win-x64\native\libSkiaSharp.dll</AAXSkiaNative>
+      <AAXHarfBuzzNative>$(NuGetPackageRoot)harfbuzzsharp.nativeassets.win32\8.3.1.2\runtimes\win-x64\native\libHarfBuzzSharp.dll</AAXHarfBuzzNative>
+    </PropertyGroup>
+    <MakeDir Directories="$(AAXNativeOut)" />
+    <Copy SourceFiles="$(AAXSkiaNative)" DestinationFolder="$(AAXNativeOut)" SkipUnchangedFiles="false" />
+    <Copy SourceFiles="$(AAXHarfBuzzNative)" DestinationFolder="$(AAXNativeOut)" SkipUnchangedFiles="false" />
+  </Target>
+
   <!-- WP-0.2 post-build copy: only for the AOS-loaded net472 build. Copies the managed payload
        plus both win-x64 native assets, flattening runtimes\win-x64\native into the model bin root. -->
-  <Target Name="AAXCopyToModelBin" AfterTargets="Build" Condition="'$(TargetFramework)' == 'net472'">
+  <Target Name="AAXCopyToModelBin" AfterTargets="AAXStageNatives" Condition="'$(TargetFramework)' == 'net472'">
     <PropertyGroup>
       <AAXModelBin>C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin\</AAXModelBin>
     </PropertyGroup>
     <ItemGroup>
-      <!-- Managed assemblies + any pdb/config from the build output root. -->
+      <!-- Managed assemblies from the build output root. -->
       <AAXManaged Include="$(OutDir)*.dll" />
-      <!-- Native assets land under runtimes\win-x64\native; flatten them. -->
+      <!-- Native assets staged under runtimes\win-x64\native; flatten into the model bin root. -->
       <AAXNative Include="$(OutDir)runtimes\win-x64\native\*.dll" />
     </ItemGroup>
     <MakeDir Directories="$(AAXModelBin)" />
     <Copy SourceFiles="@(AAXManaged)" DestinationFolder="$(AAXModelBin)" SkipUnchangedFiles="false" />
     <Copy SourceFiles="@(AAXNative)" DestinationFolder="$(AAXModelBin)" SkipUnchangedFiles="false" />
-    <Message Importance="high" Text="AAX: copied net472 runtime DLLs to $(AAXModelBin)" />
+    <Message Importance="high" Text="AAX: copied net472 runtime DLLs (managed + win-x64 natives) to $(AAXModelBin)" />
   </Target>
 
 </Project>

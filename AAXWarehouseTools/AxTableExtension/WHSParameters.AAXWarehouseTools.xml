@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTableExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>WHSParameters.AAXWarehouseTools</Name>
+	<FieldGroupExtensions />
+	<FieldGroups />
+	<FieldModifications />
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>AAXPreviewToWorkAttachment</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<Label>@AAXWarehouseTools:PreviewToWorkAttachment</Label>
+			<EnumType>NoYes</EnumType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldUtcDateTime">
+			<Name>AAXPreviewAttachmentTurnsOff</Name>
+			<AllowEdit>No</AllowEdit>
+			<AllowEditOnCreate>No</AllowEditOnCreate>
+			<AssetClassification>Customer Content</AssetClassification>
+			<Label>@AAXWarehouseTools:PreviewAttachmentTurnsOff</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt">
+			<Name>AAXPreviewAutoOffDays</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<Label>@AAXWarehouseTools:PreviewAutoOffDays</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt">
+			<Name>AAXPreviewDefaultDpmm</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<Label>@AAXWarehouseTools:PreviewDefaultDpmm</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldReal">
+			<Name>AAXPreviewDefaultWidthMm</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<Label>@AAXWarehouseTools:PreviewDefaultWidthMm</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldReal">
+			<Name>AAXPreviewDefaultHeightMm</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<Label>@AAXWarehouseTools:PreviewDefaultHeightMm</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt">
+			<Name>AAXPreviewRetentionDays</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<Label>@AAXWarehouseTools:PreviewRetentionDays</Label>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes />
+	<Mappings />
+	<PropertyModifications />
+	<RelationExtensions />
+	<RelationModifications />
+	<Relations />
+</AxTableExtension>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxReference xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AtomicAx.Zpl.Render</Name>
+	<AssemblyName>AtomicAx.Zpl.Render</AssemblyName>
+	<AssemblyDisplayName>AtomicAx.Zpl.Render, Version=1.0.0.0, Culture=neutral, PublicKeyToken=06719bf2b0159463</AssemblyDisplayName>
+	<PublicKeyToken>06719bf2b0159463</PublicKeyToken>
+	<Version>1.0.0.0</Version>
+</AxReference>

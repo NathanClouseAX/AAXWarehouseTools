@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXZplRenderService</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// X++ wrapper over the <c>AtomicAx.Zpl.Render</c> C# library (plan WP-1.1 / REQ-R-2).
+/// Renders ZPL to one PNG per ^XA..^XZ label block, entirely in-process (no data egress, C-9).
+/// </summary>
+public final class AAXZplRenderService
+{
+    private const str DimensionsMissingExceptionType = 'AtomicAx.Zpl.Render.ZplDimensionsMissingException';
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>renderToPngList</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Renders ZPL to a list of PNG images (one container per ^XA..^XZ label block).
+    /// </summary>
+    /// <param name = "_zpl">The final, token-substituted ZPL.</param>
+    /// <param name = "_dpmm">Print density in dots/mm; 0 = use the configured fallback.</param>
+    /// <param name = "_widthMm">Label width in mm; 0 = parse ^PW from the ZPL, else fallback.</param>
+    /// <param name = "_heightMm">Label height in mm; 0 = parse ^LL from the ZPL, else fallback.</param>
+    /// <returns>A <c>List</c> of <c>Types::Container</c>, one PNG per label block.</returns>
+    /// <remarks>
+    /// REQ-R-2: catches the renderer's ZplDimensionsMissingException and re-invokes with the
+    /// parameter fallbacks (X++ owns fallback policy); all other CLR errors surface as readable errors.
+    /// </remarks>
+    public static List renderToPngList(str _zpl, int _dpmm = 0, real _widthMm = 0, real _heightMm = 0)
+    {
+        try
+        {
+            return AAXZplRenderService::renderOnce(_zpl, _dpmm, _widthMm, _heightMm);
+        }
+        catch (Exception::CLRError)
+        {
+            System.Exception clrException = CLRInterop::getLastException();
+
+            if (AAXZplRenderService::containsExceptionType(clrException, DimensionsMissingExceptionType))
+            {
+                // Dimensions absent from ZPL/arguments: re-invoke with the configured
+                // WHSParameters fallbacks (REQ-R-2 / WP-2.1 accessors).
+                WHSParameters parameters = WHSParameters::find();
+
+                try
+                {
+                    return AAXZplRenderService::renderOnce(
+                        _zpl,
+                        _dpmm > 0 ? _dpmm : parameters.aaxPreviewDefaultDpmm(),
+                        _widthMm > 0 ? _widthMm : parameters.aaxPreviewDefaultWidthMm(),
+                        _heightMm > 0 ? _heightMm : parameters.aaxPreviewDefaultHeightMm());
+                }
+                catch (Exception::CLRError)
+                {
+                    clrException = CLRInterop::getLastException();
+                    throw error(strFmt("@AAXWarehouseTools:RenderFailed",
+                        AAXZplRenderService::innermostMessage(clrException)));
+                }
+            }
+
+            throw error(strFmt("@AAXWarehouseTools:RenderFailed",
+                AAXZplRenderService::innermostMessage(clrException)));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>renderOnce</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Single render pass; CLR exceptions bubble to the caller for policy handling.
+    /// </summary>
+    private static List renderOnce(str _zpl, int _dpmm, real _widthMm, real _heightMm)
+    {
+        List pngList = new List(Types::Container);
+        int  pngCount;
+        int  i;
+
+        // ZplRenderResult is the X++-friendly wrapper (Count / GetPng) — see DECISIONS.md (III.7):
+        // X++ cannot declare closed generic CLR types such as IList<byte[]>.
+        AtomicAx.Zpl.Render.ZplRenderResult renderResult =
+            AtomicAx.Zpl.Render.ZplRenderService::RenderToPngs(_zpl, _dpmm, _widthMm, _heightMm);
+
+        pngCount = renderResult.get_Count();
+
+        for (i = 0; i < pngCount; i++)
+        {
+            pngList.addEnd(AAXZplRenderService::bytesToContainer(renderResult.GetPng(i)));
+        }
+
+        return pngList;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>bytesToContainer</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Converts a CLR byte array to an X++ container (III.7).
+    /// </summary>
+    private static container bytesToContainer(System.Byte[] _bytes)
+    {
+        System.IO.MemoryStream memoryStream = new System.IO.MemoryStream(_bytes);
+        Binary binary = Binary::constructFromMemoryStream(memoryStream);
+        return binary.getContainer();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>pngContainerToStream</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Converts a PNG container back to a stream for the stream-only file APIs (F25/F27).
+    /// </summary>
+    public static System.IO.MemoryStream pngContainerToStream(container _png)
+    {
+        Binary binary = Binary::constructFromContainer(_png);
+        return binary.getMemoryStream();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>containsExceptionType</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Walks the InnerException chain looking for a CLR exception of the given full type name.
+    /// </summary>
+    private static boolean containsExceptionType(System.Exception _exception, str _typeFullName)
+    {
+        System.Exception current = _exception;
+
+        while (current != null)
+        {
+            System.Type exceptionType = current.GetType();
+            if (exceptionType.get_FullName() == _typeFullName)
+            {
+                return true;
+            }
+            current = current.get_InnerException();
+        }
+
+        return false;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>innermostMessage</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the innermost CLR exception message for readable error reporting (III.7).
+    /// </summary>
+    private static str innermostMessage(System.Exception _exception)
+    {
+        if (_exception == null)
+        {
+            return '';
+        }
+
+        System.Exception current = _exception;
+
+        while (current.get_InnerException() != null)
+        {
+            current = current.get_InnerException();
+        }
+
+        return current.get_Message();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

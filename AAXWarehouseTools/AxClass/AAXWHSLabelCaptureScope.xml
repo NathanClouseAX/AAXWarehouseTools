@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSLabelCaptureScope</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Disposable capture context bridging the two print-path CoC seams (plan WP-2.3 / REQ-B-5).
+/// Opened by the <c>printDocument</c> CoC (which gates on the parameter toggle AND a non-empty
+/// WorkId), consumed by the static <c>printLabelToPrinter</c> CoC, which stages every ZPL label
+/// that passes the universal chokepoint while a scope is active (plan facts F1/F2/F5).
+/// Modeled on the <c>WhsBatchedDocumentRoutingContext</c> static-current singleton (F5);
+/// nesting-safe via previous-scope restore.
+/// </summary>
+public final class AAXWHSLabelCaptureScope implements System.IDisposable
+{
+    private static AAXWHSLabelCaptureScope currentScope;
+
+    private AAXWHSLabelCaptureScope previousScope;
+    private boolean                 active;
+    private WHSWorkId               workId;
+    private WHSLicensePlateId       licensePlateId;
+    private WHSWorkTransType        workTransType;
+    private Set                     stagedHashes;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>new</Name>
+				<Source><![CDATA[
+    protected void new()
+    {
+        stagedHashes = new Set(Types::String);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>newFromLabel</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Opens a capture scope snapshotting the label's work context, and makes it current.
+    /// Caller MUST dispose (use a using-statement). The scope is ALWAYS created so the
+    /// printDocument CoC can call 'next' unconditionally (CoC rule); the REQ-B-5 gate result
+    /// is carried in <paramref name="_active"/> — an inactive scope stages nothing.
+    /// </summary>
+    public static AAXWHSLabelCaptureScope newFromLabel(WHSLicensePlateLabel _label, boolean _active)
+    {
+        AAXWHSLabelCaptureScope scope = new AAXWHSLabelCaptureScope();
+
+        scope.active         = _active;
+        scope.workId         = _label.WorkId;
+        scope.licensePlateId = _label.LicensePlateId;
+        scope.workTransType  = _label.WorkTransType;
+
+        scope.previousScope = currentScope;
+        currentScope = scope;
+
+        return scope;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>current</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The active capture scope for this session, or null when no capture is in progress.
+    /// </summary>
+    public static AAXWHSLabelCaptureScope current()
+    {
+        return currentScope;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>stageLabel</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Stages one final ZPL label for asynchronous rendering (REQ-B-6). Per-scope hash set
+    /// prevents double-staging within one print operation; render dimensions are left 0 so the
+    /// batch parses ^PW/^LL from the ZPL with parameter fallbacks (REQ-R-2).
+    /// Insert runs in the caller's transaction by design (DR-6: a rolled-back print discards
+    /// its staging row).
+    /// </summary>
+    public void stageLabel(WHSPrinterName _printerName, str _zpl)
+    {
+        if (!active || !_zpl)
+        {
+            return;
+        }
+
+        // III.9: hash implementation shared with the renderer/tests via the C# library.
+        str zplHash = AtomicAx.Zpl.Render.ZplRenderService::ComputeHash(_zpl);
+
+        if (stagedHashes.in(zplHash))
+        {
+            return;
+        }
+        stagedHashes.add(zplHash);
+
+        AAXWHSLabelCaptureStaging staging;
+
+        staging.FinalZpl       = _zpl;
+        staging.ZplHash        = zplHash;
+        staging.WorkId         = workId;
+        staging.LicensePlateId = licensePlateId;
+        staging.PrinterName    = _printerName;
+        staging.Status         = AAXWHSLabelCaptureStatus::Pending;
+        staging.insert();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>Dispose</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Closes the scope and restores the previous one (nesting-safe).
+    /// </summary>
+    public void Dispose()
+    {
+        currentScope = previousScope;
+        previousScope = null;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

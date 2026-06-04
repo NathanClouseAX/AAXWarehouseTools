@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSLabelPreviewContext</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Carrier object passed from <c>AAXWHSLabelPreviewController</c> to the preview
+/// dialog form (<c>AAXWHSLabelPreviewDialog</c>) via <c>Args.parmObject()</c>.
+/// AGREED CONTRACT with the dialog agent: the dialog reads the rendered PNG list,
+/// the final token-substituted ZPL, the source badge text, and the layout
+/// description from this object. Standard parm-pattern class.
+/// </summary>
+public final class AAXWHSLabelPreviewContext
+{
+    private List    pngList;
+    private str     finalZpl;
+    private str     badgeText;
+    private str     layoutDescription;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>parmPngList</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the rendered PNG list (one <c>container</c> per ^XA..^XZ label block).
+    /// </summary>
+    /// <param name = "_pngList">The PNG <c>List</c> of containers to set.</param>
+    /// <returns>The current PNG <c>List</c>.</returns>
+    public List parmPngList(List _pngList = null)
+    {
+        if (!prmIsDefault(_pngList))
+        {
+            pngList = _pngList;
+        }
+
+        return pngList;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmFinalZpl</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the final, token-substituted ZPL displayed beside the image (REQ-A-7).
+    /// </summary>
+    /// <param name = "_finalZpl">The final ZPL string to set.</param>
+    /// <returns>The current final ZPL string.</returns>
+    public str parmFinalZpl(str _finalZpl = '')
+    {
+        if (!prmIsDefault(_finalZpl))
+        {
+            finalZpl = _finalZpl;
+        }
+
+        return finalZpl;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmBadgeText</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the source badge text ("Live record: %1" or "Sample data", REQ-A-7).
+    /// </summary>
+    /// <param name = "_badgeText">The badge text to set.</param>
+    /// <returns>The current badge text.</returns>
+    public str parmBadgeText(str _badgeText = '')
+    {
+        if (!prmIsDefault(_badgeText))
+        {
+            badgeText = _badgeText;
+        }
+
+        return badgeText;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmLayoutDescription</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the human-readable layout description shown in the dialog caption/header.
+    /// </summary>
+    /// <param name = "_layoutDescription">The layout description to set.</param>
+    /// <returns>The current layout description.</returns>
+    public str parmLayoutDescription(str _layoutDescription = '')
+    {
+        if (!prmIsDefault(_layoutDescription))
+        {
+            layoutDescription = _layoutDescription;
+        }
+
+        return layoutDescription;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSLabelAttachmentService</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Attaches rendered label-preview PNGs to the related Work record using the standard
+/// document-management attachment APIs (REQ-B-8). Owns the per-company <c>LBLPREV</c>
+/// DocuType bootstrap and the hash-based dedup lookup over existing attachments.
+/// </summary>
+internal final class AAXWHSLabelAttachmentService
+{
+    #DEFINE.LabelPreviewDocuTypeId('LBLPREV')
+    #DEFINE.ZplHashNotePrefix('ZplHash:')
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>ensureDocuType</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Idempotently creates the <c>LBLPREV</c> document type in the current company if it does not
+    /// already exist. The DocuType MUST carry <c>ActionClassId = classNum(DocuActionFile)</c> or
+    /// <c>DocumentManagement::attachFileForRecord</c> throws when it validates the type (F25/F26).
+    /// DocuType is per-company, so this is safe to call from each company-scoped batch chunk.
+    /// </summary>
+    public static void ensureDocuType()
+    {
+        // F26: DocuType::find returns an empty buffer when the type does not exist (per-company).
+        if (!DocuType::find(#LabelPreviewDocuTypeId))
+        {
+            DocuType docuType;
+
+            ttsbegin;
+            docuType.TypeId        = #LabelPreviewDocuTypeId;
+            docuType.Name          = "@AAXWarehouseTools:DocuTypeLabelPreview";
+            docuType.TypeGroup     = DocuTypeGroup::File;
+            docuType.FilePlace     = DocuFilePlace::Archive;
+            // REQUIRED — attachFile() validates ActionClassId is DocuActionFile or it throws (F25/F26).
+            docuType.ActionClassId = classNum(DocuActionFile);
+            docuType.insert();
+            ttscommit;
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>attachPng</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Attaches a single rendered PNG to the supplied Work record as an <c>LBLPREV</c> attachment.
+    /// </summary>
+    /// <param name = "_work">The Work record the attachment references.</param>
+    /// <param name = "_png">The PNG image as a container (one rendered label block).</param>
+    /// <param name = "_fileName">The attachment file name (e.g. {WorkId}_{LayoutId}_{stamp}_{seq}.png).</param>
+    /// <param name = "_zplHash">The SHA-256 hash of the final ZPL, stored in the attachment notes for dedup.</param>
+    /// <returns>The created <c>DocuRef</c>, or an empty buffer when no Work target was supplied.</returns>
+    /// <remarks>
+    /// Defensive against an empty Work buffer (returns empty), but deciding the terminal row state for a
+    /// missing Work is the render batch's responsibility (REQ-B-7 step 1, DR-10) — the helper never sets row status.
+    /// </remarks>
+    public static DocuRef attachPng(
+        WHSWorkTable    _work,
+        container       _png,
+        str             _fileName,
+        AAXWHSZplHash   _zplHash)
+    {
+        DocuRef docuRef;
+
+        // Defensive: a missing Work target has no attachment anchor; passing an empty buffer to
+        // attachFileForRecord throws missingParameter (F25). The batch handles the terminal state (DR-10).
+        if (!_work.RecId)
+        {
+            return docuRef;
+        }
+
+        System.IO.Stream stream = AAXZplRenderService::pngContainerToStream(_png);
+
+        // F25: attachFileForRecord(Common, DocuTypeId, System.IO.Stream, fileName, attachmentName, notes).
+        // The hash marker in the notes powers hasAttachmentWithHash dedup.
+        docuRef = DocumentManagement::attachFileForRecord(
+            _work,
+            #LabelPreviewDocuTypeId,
+            stream,
+            _fileName,
+            _fileName,
+            strFmt('%1%2', #ZplHashNotePrefix, _zplHash));
+
+        return docuRef;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>hasAttachmentWithHash</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Determines whether the supplied Work record already carries an <c>LBLPREV</c> attachment whose
+    /// notes embed the given ZPL hash (idempotent-render dedup, REQ-B-7 step 2).
+    /// </summary>
+    /// <param name = "_work">The Work record to inspect.</param>
+    /// <param name = "_zplHash">The ZPL hash to look for.</param>
+    /// <returns>true if a matching attachment already exists; otherwise false.</returns>
+    /// <remarks>
+    /// DocuRef.Notes is a memo field (EDT Notes), and a 'like' predicate on a memo field is not permitted
+    /// in a where clause, so the scalar key fields (RefTableId / RefRecId / RefCompanyId / TypeId) drive the
+    /// select and the hash marker is matched in code via strScan over the candidate rows' Notes.
+    /// </remarks>
+    public static boolean hasAttachmentWithHash(WHSWorkTable _work, AAXWHSZplHash _zplHash)
+    {
+        if (!_work.RecId || !_zplHash)
+        {
+            return false;
+        }
+
+        DocuRef docuRef;
+        str     marker = strFmt('%1%2', #ZplHashNotePrefix, _zplHash);
+
+        while select Notes from docuRef
+            where docuRef.RefTableId   == tableNum(WHSWorkTable)
+               && docuRef.RefRecId     == _work.RecId
+               && docuRef.RefCompanyId == _work.DataAreaId
+               && docuRef.TypeId       == #LabelPreviewDocuTypeId
+        {
+            // strScan returns the 1-based position of the marker, or 0 when absent.
+            if (strScan(docuRef.Notes, marker, 1, strLen(docuRef.Notes)) > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

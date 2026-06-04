@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSLabelCaptureStaging</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Staging buffer for mobile-flow label capture (plan WP-2.2 / REQ-B-6). The print-path CoC
+/// (WhsDocumentRouting_AAXWarehouseTools_Extension) inserts one row per captured ZPL label;
+/// the render batch (AAXWHSLabelCaptureRenderService) renders rows to PNG and attaches them
+/// to the related work record.
+/// </summary>
+public class AAXWHSLabelCaptureStaging extends common
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>find</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds a staging row by record id.
+    /// </summary>
+    /// <param name = "_recId">The record id.</param>
+    /// <param name = "_forUpdate">True to select the record for update.</param>
+    /// <returns>The staging row, or an empty buffer.</returns>
+    public static AAXWHSLabelCaptureStaging find(RecId _recId, boolean _forUpdate = false)
+    {
+        AAXWHSLabelCaptureStaging staging;
+
+        if (_recId)
+        {
+            staging.selectForUpdate(_forUpdate);
+
+            select firstonly staging
+                where staging.RecId == _recId;
+        }
+
+        return staging;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>existsForWorkAndHash</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Pre-attach dedup check on the (WorkId, ZplHash) index (REQ-B-7 step 2).
+    /// </summary>
+    public static boolean existsForWorkAndHash(WHSWorkId _workId, AAXWHSZplHash _zplHash)
+    {
+        // Expression-selects resolve the FROM target as a table name (donor pattern).
+        return _workId != ''
+            && (select firstonly RecId from aaxWHSLabelCaptureStaging
+                where aaxWHSLabelCaptureStaging.WorkId == _workId
+                   && aaxWHSLabelCaptureStaging.ZplHash == _zplHash
+                   && aaxWHSLabelCaptureStaging.Status == AAXWHSLabelCaptureStatus::Done).RecId != 0;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+	<Label>@AAXWarehouseTools:CaptureStagingTable</Label>
+	<TableGroup>Transaction</TableGroup>
+	<TitleField1>WorkId</TitleField1>
+	<TitleField2>LayoutId</TitleField2>
+	<CreatedBy>Yes</CreatedBy>
+	<CreatedDateTime>Yes</CreatedDateTime>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>WorkId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>LicensePlateId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>LayoutId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Status</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>WorkId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Status</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>FinalZpl</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>AAXWHSZplCaptured</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>ZplHash</Name>
+			<AssetClassification>System Metadata</AssetClassification>
+			<ExtendedDataType>AAXWHSZplHash</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>WorkId</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>WHSWorkId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>LicensePlateId</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>WHSLicensePlateId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>LayoutId</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>WHSLayoutId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>PrinterName</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>WHSPrinterName</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt">
+			<Name>Dpmm</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<Label>@AAXWarehouseTools:CaptureDpmm</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldReal">
+			<Name>WidthMm</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<Label>@AAXWarehouseTools:CaptureWidthMm</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldReal">
+			<Name>HeightMm</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<Label>@AAXWarehouseTools:CaptureHeightMm</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>Status</Name>
+			<AssetClassification>System Metadata</AssetClassification>
+			<Label>@AAXWarehouseTools:CaptureStatus</Label>
+			<EnumType>AAXWHSLabelCaptureStatus</EnumType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt">
+			<Name>RetryCount</Name>
+			<AssetClassification>System Metadata</AssetClassification>
+			<Label>@AAXWarehouseTools:CaptureRetryCount</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>ErrorMessage</Name>
+			<AssetClassification>System Metadata</AssetClassification>
+			<Label>@AAXWarehouseTools:CaptureErrorMessage</Label>
+			<StringSize>1000</StringSize>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldUtcDateTime">
+			<Name>ProcessedDateTime</Name>
+			<AssetClassification>System Metadata</AssetClassification>
+			<Label>@AAXWarehouseTools:CaptureProcessedDateTime</Label>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>StatusRecIdIdx</Name>
+			<AllowDuplicates>Yes</AllowDuplicates>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>Status</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+		<AxTableIndex>
+			<Name>WorkHashIdx</Name>
+			<AllowDuplicates>Yes</AllowDuplicates>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>WorkId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>ZplHash</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<Relations>
+		<AxTableRelation>
+			<Name>WHSWorkTable</Name>
+			<RelatedTable>WHSWorkTable</RelatedTable>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>WorkId</Name>
+					<Field>WorkId</Field>
+					<RelatedField>WorkId</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+		</AxTableRelation>
+	</Relations>
+	<StateMachines />
+</AxTable>

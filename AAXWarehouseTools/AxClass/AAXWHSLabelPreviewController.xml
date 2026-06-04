@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSLabelPreviewController</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// On-demand ZPL label preview controller (Feature A, REQ-A-1..A-8).
+/// Launched from the "Generate label preview" action menu item
+/// (<c>AAXWHSLabelPreview</c>) on the <c>WHSLabelLayout</c> and
+/// <c>WHSDocumentRoutingLayout</c> forms. Resolves the layout's ZPL, substitutes
+/// $tokens$ via the standard <c>WhsDocumentRoutingTranslator</c> (live seed record
+/// plus sample fallback), renders PNG(s) and opens the preview dialog.
+/// </summary>
+public final class AAXWHSLabelPreviewController
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Entry point for the preview action menu item. Resolves the selected layout's
+    /// ZPL (REQ-A-2), substitutes tokens (REQ-A-4), renders PNGs (REQ-A-6/-8) and
+    /// opens the preview dialog.
+    /// </summary>
+    /// <param name = "_args">
+    /// The menu-item args; <c>_args.record()</c> carries the selected layout row,
+    /// <c>_args.dataset()</c> identifies which form launched the preview.
+    /// </param>
+    public static void main(Args _args)
+    {
+        // X++ requires all declarations at the top of the method scope.
+        WHSDocumentRoutingLayout    documentRoutingLayout;
+        WHSLabelLayout              labelLayout;
+        WHSLabelLayoutVersion       labelLayoutVersion;
+        WHSLicensePlateLabel        seedLabel;
+        WhsDocumentRoutingTranslator translator;
+        AAXWHSLabelPreviewContext   context;
+        Args                        dialogArgs;
+        FormRun                     formRun;
+        str                         zpl;
+        str                         finalZpl;
+        str                         badgeText;
+        str                         layoutDescription = '';
+        LanguageId                  labelLocale = '';
+        List                        pngList;
+
+        if (!_args || !_args.record())
+        {
+            return;
+        }
+
+        // REQ-A-2: per-table ZPL resolution (the production internal resolver
+        // WHSLabelLayout.getLayoutSource() is [Hookable(false)] internal and thus
+        // inaccessible cross-model, F9 — so resolution is replicated here).
+        switch (_args.dataset())
+        {
+            case tableNum(WHSDocumentRoutingLayout):
+                // F13: ZPL lives directly on the table (EDT WHSZPL); no template/
+                // variables machinery exists for this table.
+                documentRoutingLayout = _args.record() as WHSDocumentRoutingLayout;
+                zpl = documentRoutingLayout.ZPL;
+                layoutDescription = documentRoutingLayout.Description;
+                break;
+
+            case tableNum(WHSLabelLayout):
+                labelLayout = _args.record() as WHSLabelLayout;
+                layoutDescription = labelLayout.Description;
+
+                // REQ-A-2 ORDER: check EnableTemplateTranslator FIRST — it is
+                // orthogonal to DefinitionType (separate field, enabled for any
+                // layout with a data source). The {{Header}}/{{Row}}/{{Footer}}
+                // grammar it drives is NOT the $token$ grammar (F7) and is not
+                // handled by WhsDocumentRoutingTranslator — feeding it through
+                // would preview garbage. v2 backlog.
+                if (labelLayout.EnableTemplateTranslator == NoYes::Yes)
+                {
+                    info("@AAXWarehouseTools:PreviewTemplateNotSupported");
+                    return;
+                }
+
+                // Only ZPL definition types are previewable in v1. Variables /
+                // VariablesScript depend on internal generators (F9) — v2 backlog.
+                if (labelLayout.DefinitionType != WHSLabelLayoutDefinitionType::ZPL)
+                {
+                    info("@AAXWarehouseTools:PreviewZplOnly");
+                    return;
+                }
+
+                // F11: the ZPL is versioned — read the active version's ZPL
+                // (tables are public).
+                select firstonly ZPL from labelLayoutVersion
+                    where labelLayoutVersion.RecId == labelLayout.ActiveVersion;
+                zpl = labelLayoutVersion.ZPL;
+                labelLocale = labelLayout.LabelLocale;
+
+                if (!zpl)
+                {
+                    info("@AAXWarehouseTools:NoActiveVersion");
+                    return;
+                }
+                break;
+
+            default:
+                return;
+        }
+
+        if (!zpl)
+        {
+            info("@AAXWarehouseTools:NoActiveVersion");
+            return;
+        }
+
+        // REQ-A-3 (v1 scope): AUTO-RESOLVE most-recent seed record + SAMPLE
+        // FALLBACK. The optional per-data-source seed dialog (REQ-A-3 step 1)
+        // is deferred to v2.
+        select firstonly seedLabel
+            order by RecId desc;
+
+        // REQ-A-4 / C-5: substitution exclusively via the standard translator (F6).
+        translator = WhsDocumentRoutingTranslator::construct();
+
+        if (seedLabel.RecId != 0)
+        {
+            // Live record found — bind it and badge accordingly (REQ-A-7).
+            translator = translator.withRecord(seedLabel);
+            badgeText = strFmt("@AAXWarehouseTools:LiveRecordBadge", seedLabel.LabelId);
+        }
+        else
+        {
+            badgeText = "@AAXWarehouseTools:SampleDataBadge";
+        }
+
+        // ALWAYS supply the sample map for record-less tokens (REQ-A-4/-5). Map
+        // name defaults to 'parameters'.
+        translator = translator.withParameterMap(AAXWHSLabelPreviewSampleData::sampleParameterMap());
+
+        // WHSLabelLayout carries a LabelLocale; apply it where present (REQ-A-4, F6).
+        if (labelLocale)
+        {
+            translator = translator.withLanguage(labelLocale);
+        }
+
+        finalZpl = translator.translate(zpl);
+
+        // REQ-A-6/-8: render. The wrapper handles dimension fallbacks and surfaces
+        // readable error() text on parse/render failure (REQ-A-8) — let it surface.
+        pngList = AAXZplRenderService::renderToPngList(finalZpl);
+
+        // Build the carrier and open the preview dialog (REQ-A-6/-7).
+        context = new AAXWHSLabelPreviewContext();
+        context.parmPngList(pngList);
+        context.parmFinalZpl(finalZpl);
+        context.parmBadgeText(badgeText);
+        context.parmLayoutDescription(layoutDescription);
+
+        dialogArgs = new Args(formStr(AAXWHSLabelPreviewDialog));
+        dialogArgs.parmObject(context);
+
+        formRun = classfactory.formRunClass(dialogArgs);
+        formRun.init();
+        formRun.run();
+        formRun.wait();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

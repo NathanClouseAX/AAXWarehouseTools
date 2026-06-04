@@ -1,7 +1,41 @@
-CaptureRenderBatch=Render captured label previews
- ;Action menu item label for the label capture render batch job.
+CaptureChunkSize=Chunk size
+ ;Number of pending captured labels processed per batch pass.
+CaptureDpmm=Print density (dots/mm)
+ ;Captured render density for a staged label.
+CaptureErrorMessage=Error message
+ ;Last render/attach error for a staged label.
+CaptureFinalZpl=Final ZPL
+ ;The captured, token-substituted ZPL of a staged label.
+CaptureHeightMm=Label height (mm)
+ ;Captured render height for a staged label.
+CaptureMaxRetries=Maximum retries
+ ;Maximum render attempts before a failing row is marked Poison.
+CaptureProcessedDateTime=Processed date and time
+ ;When the render batch finished processing the staged label.
 CapturePurgeBatch=Purge label preview attachments
  ;Action menu item label for the label preview retention purge batch job.
+CaptureRenderBatch=Render captured label previews
+ ;Action menu item label for the label capture render batch job.
+CaptureRetryCount=Retry count
+ ;Number of failed render/attach attempts for a staged label.
+CaptureStagingTable=Label preview capture staging
+ ;Table label for the label capture staging buffer.
+CaptureStatus=Status
+ ;Lifecycle status of a staged label.
+CaptureStatusDone=Done
+ ;Staged label rendered and attached (or terminally skipped).
+CaptureStatusError=Error
+ ;Staged label failed; will be retried.
+CaptureStatusPending=Pending
+ ;Staged label waiting for the render batch.
+CaptureStatusPoison=Poison
+ ;Staged label failed too many times; excluded from pickup.
+CaptureStatusProcessing=Processing
+ ;Staged label currently being rendered.
+CaptureWidthMm=Label width (mm)
+ ;Captured render width for a staged label.
+CaptureZplHash=ZPL hash
+ ;SHA-256 hash of the captured ZPL, used for dedup.
 CopyZpl=Copy ZPL
  ;Button label in the preview dialog to copy the final ZPL to the clipboard.
 DocuTypeLabelPreview=Label preview
@@ -32,6 +66,10 @@ PreviewDefaultHeightMm=Default label height (mm)
  ;Render height fallback used when the ZPL does not specify dimensions.
 PreviewDefaultWidthMm=Default label width (mm)
  ;Render width fallback used when the ZPL does not specify dimensions.
+PreviewNextPage=Next label
+ ;Next navigation button on the multi-label preview dialog.
+PreviewPrevPage=Previous label
+ ;Prev navigation button on the multi-label preview dialog.
 PreviewRetentionDays=Label preview retention days
  ;Age in days after which label preview attachments are purged.
 PreviewTemplateNotSupported=Preview does not support layouts that use the template translator.

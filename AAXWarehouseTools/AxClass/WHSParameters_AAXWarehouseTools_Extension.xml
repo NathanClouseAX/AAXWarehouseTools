@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>WHSParameters_AAXWarehouseTools_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Label-preview capture parameters and auto-off logic (plan WP-2.1 / REQ-B-1..B-3).
+/// The auto-off mechanics are a byte-for-byte mirror of the Work creation history log
+/// pattern (plan facts F17/F18/F19/F20).
+/// </summary>
+[ExtensionOf(tableStr(WHSParameters))]
+public final class WHSParameters_AAXWarehouseTools_Extension
+{
+    // NOTE: table-extension classes cannot declare fields/consts (compiler restriction) —
+    // the locked defaults (14 / 8 / 101.6 / 50.8 / 30, REQ-B-1) are inlined in the accessors.
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>aaxPreviewAutoOffDays</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Auto-off window in days; unset (0) falls back to the locked default of 14 (REQ-B-1).
+    /// </summary>
+    public int aaxPreviewAutoOffDays()
+    {
+        return this.AAXPreviewAutoOffDays > 0 ? this.AAXPreviewAutoOffDays : 14;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>aaxPreviewDefaultDpmm</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Render density fallback (dots/mm); unset falls back to 8 dpmm = 203 DPI (REQ-B-1).
+    /// </summary>
+    public int aaxPreviewDefaultDpmm()
+    {
+        return this.AAXPreviewDefaultDpmm > 0 ? this.AAXPreviewDefaultDpmm : 8;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>aaxPreviewDefaultWidthMm</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Render width fallback in mm; unset falls back to 101.6 mm = 4 in (REQ-B-1).
+    /// </summary>
+    public real aaxPreviewDefaultWidthMm()
+    {
+        return this.AAXPreviewDefaultWidthMm > 0 ? this.AAXPreviewDefaultWidthMm : 101.6;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>aaxPreviewDefaultHeightMm</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Render height fallback in mm; unset falls back to 50.8 mm = 2 in (REQ-B-1).
+    /// </summary>
+    public real aaxPreviewDefaultHeightMm()
+    {
+        return this.AAXPreviewDefaultHeightMm > 0 ? this.AAXPreviewDefaultHeightMm : 50.8;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>aaxPreviewRetentionDays</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Attachment retention window in days for the purge batch; unset falls back to 30 (REQ-S-5).
+    /// </summary>
+    public int aaxPreviewRetentionDays()
+    {
+        return this.AAXPreviewRetentionDays > 0 ? this.AAXPreviewRetentionDays : 30;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>aaxInitPreviewAttachmentTurnsOff</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Sets the auto-off timestamp to now + the configured window (mirror of F17).
+    /// </summary>
+    public void aaxInitPreviewAttachmentTurnsOff()
+    {
+        this.AAXPreviewAttachmentTurnsOff = DateTimeUtil::addDays(
+            DateTimeUtil::utcNow(),
+            this.aaxPreviewAutoOffDays());
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>aaxCanUpdateWHSParameters</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Test seam replica of the internal <c>canUpdateWHSParameters</c> (F19 — internal upstream,
+    /// so it cannot be called from this model).
+    /// </summary>
+    private boolean aaxCanUpdateWHSParameters()
+    {
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>aaxIsPreviewToWorkAttachmentEnabled</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Lazy auto-off guard — EXACT mirror of <c>isWorkCreateHistoryLogEnabled</c> (F18):
+    /// true while now is before the turns-off timestamp; an expired toggle is flipped off
+    /// under a pessimistic lock; a null timestamp bootstraps the window (first enable).
+    /// Called on both the capture hot path (REQ-B-5) and the render batch (REQ-B-7).
+    /// </summary>
+    public boolean aaxIsPreviewToWorkAttachmentEnabled()
+    {
+        if (this.AAXPreviewToWorkAttachment)
+        {
+            if (DateTimeUtil::utcNow() < this.AAXPreviewAttachmentTurnsOff)
+            {
+                return true;
+            }
+
+            boolean mustEnable = this.AAXPreviewAttachmentTurnsOff == utcDateTimeNull();
+
+            if (this.aaxCanUpdateWHSParameters())
+            {
+                WHSParameters updateParameters;
+                updateParameters.readPast(true);
+
+                ttsbegin;
+                select pessimisticlock firstonly updateParameters
+                    where updateParameters.ParametersKey == this.ParametersKey
+                       && updateParameters.AAXPreviewAttachmentTurnsOff == this.AAXPreviewAttachmentTurnsOff
+                       && updateParameters.AAXPreviewToWorkAttachment == true;
+
+                if (updateParameters)
+                {
+                    if (mustEnable)
+                    {
+                        updateParameters.aaxInitPreviewAttachmentTurnsOff();
+                    }
+                    else
+                    {
+                        updateParameters.AAXPreviewToWorkAttachment = NoYes::No;
+                    }
+                    updateParameters.update();
+                }
+                ttscommit;
+            }
+
+            return mustEnable;
+        }
+
+        return this.AAXPreviewToWorkAttachment;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>modifiedField</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Toggle flipped On initializes the auto-off timestamp (mirror of F20).
+    /// </summary>
+    public void modifiedField(FieldId _fieldId)
+    {
+        next modifiedField(_fieldId);
+
+        if (_fieldId == fieldNum(WHSParameters, AAXPreviewToWorkAttachment)
+            && this.AAXPreviewToWorkAttachment)
+        {
+            this.aaxInitPreviewAttachmentTurnsOff();
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

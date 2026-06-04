@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxFormExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
+	<Name>WHSParameters.AAXWarehouseTools</Name>
+	<ControlModifications />
+	<Controls>
+		<AxFormExtensionControl xmlns="">
+			<Name>AAXLabelPreviewGroupExtension</Name>
+			<FormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>AAXLabelPreviewGroup</Name>
+				<Type>Group</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormCheckBoxControl">
+						<Name>AAXParameters_PreviewToWorkAttachment</Name>
+						<HelpText>@AAXWarehouseTools:PreviewToWorkAttachmentHelp</HelpText>
+						<Type>CheckBox</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>AAXPreviewToWorkAttachment</DataField>
+						<DataSource>WHSParameters</DataSource>
+						<Label>@AAXWarehouseTools:PreviewToWorkAttachment</Label>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormDateTimeControl">
+						<Name>AAXParameters_PreviewAttachmentTurnsOff</Name>
+						<AllowEdit>No</AllowEdit>
+						<Type>DateTime</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>AAXPreviewAttachmentTurnsOff</DataField>
+						<DataSource>WHSParameters</DataSource>
+						<Label>@AAXWarehouseTools:PreviewAttachmentTurnsOff</Label>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormIntegerControl">
+						<Name>AAXParameters_PreviewAutoOffDays</Name>
+						<Type>Integer</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>AAXPreviewAutoOffDays</DataField>
+						<DataSource>WHSParameters</DataSource>
+						<Label>@AAXWarehouseTools:PreviewAutoOffDays</Label>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormIntegerControl">
+						<Name>AAXParameters_PreviewDefaultDpmm</Name>
+						<Type>Integer</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>AAXPreviewDefaultDpmm</DataField>
+						<DataSource>WHSParameters</DataSource>
+						<Label>@AAXWarehouseTools:PreviewDefaultDpmm</Label>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormRealControl">
+						<Name>AAXParameters_PreviewDefaultWidthMm</Name>
+						<Type>Real</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>AAXPreviewDefaultWidthMm</DataField>
+						<DataSource>WHSParameters</DataSource>
+						<Label>@AAXWarehouseTools:PreviewDefaultWidthMm</Label>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormRealControl">
+						<Name>AAXParameters_PreviewDefaultHeightMm</Name>
+						<Type>Real</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>AAXPreviewDefaultHeightMm</DataField>
+						<DataSource>WHSParameters</DataSource>
+						<Label>@AAXWarehouseTools:PreviewDefaultHeightMm</Label>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormIntegerControl">
+						<Name>AAXParameters_PreviewRetentionDays</Name>
+						<Type>Integer</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>AAXPreviewRetentionDays</DataField>
+						<DataSource>WHSParameters</DataSource>
+						<Label>@AAXWarehouseTools:PreviewRetentionDays</Label>
+					</AxFormControl>
+				</Controls>
+				<Breakable>No</Breakable>
+				<Caption>@AAXWarehouseTools:ParamGroupLabelPreview</Caption>
+			</FormControl>
+			<Parent>Work</Parent>
+		</AxFormExtensionControl>
+	</Controls>
+	<DataSourceModifications />
+	<DataSourceReferences />
+	<DataSources />
+	<Parts />
+	<PropertyModifications />
+</AxFormExtension>

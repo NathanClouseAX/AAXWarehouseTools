@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSLabelCaptureStatus</Name>
+	<Label>@AAXWarehouseTools:CaptureStatus</Label>
+	<EnumValues>
+		<AxEnumValue>
+			<Name>Pending</Name>
+			<Label>@AAXWarehouseTools:CaptureStatusPending</Label>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Processing</Name>
+			<Label>@AAXWarehouseTools:CaptureStatusProcessing</Label>
+			<Value>1</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Done</Name>
+			<Label>@AAXWarehouseTools:CaptureStatusDone</Label>
+			<Value>2</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Error</Name>
+			<Label>@AAXWarehouseTools:CaptureStatusError</Label>
+			<Value>3</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Poison</Name>
+			<Label>@AAXWarehouseTools:CaptureStatusPoison</Label>
+			<Value>4</Value>
+		</AxEnumValue>
+	</EnumValues>
+</AxEnum>
