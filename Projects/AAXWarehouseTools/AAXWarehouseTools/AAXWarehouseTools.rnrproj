@@ -12,12 +12,17 @@
     <ProjectGuid>{a7c40e1d-3f52-4b8e-9c16-d2e8a0b4f5c3}</ProjectGuid>
     <Name>AAXWarehouseTools</Name>
     <RootNamespace>AAXWarehouseTools</RootNamespace>
+    <StartupType>Class</StartupType>
+    <RunAppcheckerRules>False</RunAppcheckerRules>
+    <LogAppcheckerDiagsAsErrors>False</LogAppcheckerDiagsAsErrors>
+    <DeployOnline>False</DeployOnline>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <Configuration>Debug</Configuration>
     <DBSyncInBuild>True</DBSyncInBuild>
     <GenerateFormAdaptors>False</GenerateFormAdaptors>
-    <Company></Company>
+    <Company>
+    </Company>
     <Partition>initial</Partition>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DataEntityExpandParentChildRelations>False</DataEntityExpandParentChildRelations>
@@ -28,10 +33,174 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Folder Include="Action Menu Items\" />
+    <Folder Include="Base Enums\" />
     <Folder Include="Classes\" />
+    <Folder Include="Extended Data Types\" />
+    <Folder Include="Form Extensions\" />
     <Folder Include="Forms\" />
     <Folder Include="Label Files\" />
+    <Folder Include="Menu Extensions\" />
+    <Folder Include="Security Duties\" />
+    <Folder Include="Security Privileges\" />
+    <Folder Include="Table Extensions\" />
     <Folder Include="Tables\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="AAXWarehouseTools.en-US.label.txt">
+      <SubType>Content</SubType>
+      <Name>AAXWarehouseTools.en-US.label.txt</Name>
+    </Content>
+    <Content Include="AxClass\AAXWHSLabelAttachmentService">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelAttachmentService</Name>
+      <Link>Classes\AAXWHSLabelAttachmentService</Link>
+    </Content>
+    <Content Include="AxClass\AAXWHSLabelCapturePurge">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelCapturePurge</Name>
+      <Link>Classes\AAXWHSLabelCapturePurge</Link>
+    </Content>
+    <Content Include="AxClass\AAXWHSLabelCaptureRenderContract">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelCaptureRenderContract</Name>
+      <Link>Classes\AAXWHSLabelCaptureRenderContract</Link>
+    </Content>
+    <Content Include="AxClass\AAXWHSLabelCaptureRenderController">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelCaptureRenderController</Name>
+      <Link>Classes\AAXWHSLabelCaptureRenderController</Link>
+    </Content>
+    <Content Include="AxClass\AAXWHSLabelCaptureRenderService">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelCaptureRenderService</Name>
+      <Link>Classes\AAXWHSLabelCaptureRenderService</Link>
+    </Content>
+    <Content Include="AxClass\AAXWHSLabelCaptureScope">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelCaptureScope</Name>
+      <Link>Classes\AAXWHSLabelCaptureScope</Link>
+    </Content>
+    <Content Include="AxClass\AAXWHSLabelPreviewContext">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelPreviewContext</Name>
+      <Link>Classes\AAXWHSLabelPreviewContext</Link>
+    </Content>
+    <Content Include="AxClass\AAXWHSLabelPreviewController">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelPreviewController</Name>
+      <Link>Classes\AAXWHSLabelPreviewController</Link>
+    </Content>
+    <Content Include="AxClass\AAXWHSLabelPreviewSampleData">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelPreviewSampleData</Name>
+      <Link>Classes\AAXWHSLabelPreviewSampleData</Link>
+    </Content>
+    <Content Include="AxClass\AAXZplRenderProbe">
+      <SubType>Content</SubType>
+      <Name>AAXZplRenderProbe</Name>
+      <Link>Classes\AAXZplRenderProbe</Link>
+    </Content>
+    <Content Include="AxClass\AAXZplRenderService">
+      <SubType>Content</SubType>
+      <Name>AAXZplRenderService</Name>
+      <Link>Classes\AAXZplRenderService</Link>
+    </Content>
+    <Content Include="AxClass\WHSParameters_AAXWarehouseTools_Extension">
+      <SubType>Content</SubType>
+      <Name>WHSParameters_AAXWarehouseTools_Extension</Name>
+      <Link>Classes\WHSParameters_AAXWarehouseTools_Extension</Link>
+    </Content>
+    <Content Include="AxClass\WhsDocumentRouting_AAXWarehouseTools_Extension">
+      <SubType>Content</SubType>
+      <Name>WhsDocumentRouting_AAXWarehouseTools_Extension</Name>
+      <Link>Classes\WhsDocumentRouting_AAXWarehouseTools_Extension</Link>
+    </Content>
+    <Content Include="AxEdt\AAXWHSZplCaptured">
+      <SubType>Content</SubType>
+      <Name>AAXWHSZplCaptured</Name>
+      <Link>Extended Data Types\AAXWHSZplCaptured</Link>
+    </Content>
+    <Content Include="AxEdt\AAXWHSZplHash">
+      <SubType>Content</SubType>
+      <Name>AAXWHSZplHash</Name>
+      <Link>Extended Data Types\AAXWHSZplHash</Link>
+    </Content>
+    <Content Include="AxEnum\AAXWHSLabelCaptureStatus">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelCaptureStatus</Name>
+      <Link>Base Enums\AAXWHSLabelCaptureStatus</Link>
+    </Content>
+    <Content Include="AxForm\AAXWHSLabelPreviewDialog">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelPreviewDialog</Name>
+      <Link>Forms\AAXWHSLabelPreviewDialog</Link>
+    </Content>
+    <Content Include="AxFormExtension\WHSDocumentRoutingLayout.AAXWarehouseTools">
+      <SubType>Content</SubType>
+      <Name>WHSDocumentRoutingLayout.AAXWarehouseTools</Name>
+      <Link>Form Extensions\WHSDocumentRoutingLayout.AAXWarehouseTools</Link>
+    </Content>
+    <Content Include="AxFormExtension\WHSLabelLayout.AAXWarehouseTools">
+      <SubType>Content</SubType>
+      <Name>WHSLabelLayout.AAXWarehouseTools</Name>
+      <Link>Form Extensions\WHSLabelLayout.AAXWarehouseTools</Link>
+    </Content>
+    <Content Include="AxFormExtension\WHSParameters.AAXWarehouseTools">
+      <SubType>Content</SubType>
+      <Name>WHSParameters.AAXWarehouseTools</Name>
+      <Link>Form Extensions\WHSParameters.AAXWarehouseTools</Link>
+    </Content>
+    <Content Include="AxLabelFile\AAXWarehouseTools_en-US">
+      <SubType>Content</SubType>
+      <Name>AAXWarehouseTools_en-US</Name>
+      <Link>Label Files\AAXWarehouseTools_en-US</Link>
+    </Content>
+    <Content Include="AxMenuExtension\WHS.AAXWarehouseTools">
+      <SubType>Content</SubType>
+      <Name>WHS.AAXWarehouseTools</Name>
+      <Link>Menu Extensions\WHS.AAXWarehouseTools</Link>
+    </Content>
+    <Content Include="AxMenuItemAction\AAXWHSLabelCapturePurge">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelCapturePurge</Name>
+      <Link>Action Menu Items\AAXWHSLabelCapturePurge</Link>
+    </Content>
+    <Content Include="AxMenuItemAction\AAXWHSLabelCaptureRender">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelCaptureRender</Name>
+      <Link>Action Menu Items\AAXWHSLabelCaptureRender</Link>
+    </Content>
+    <Content Include="AxMenuItemAction\AAXWHSLabelPreview">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelPreview</Name>
+      <Link>Action Menu Items\AAXWHSLabelPreview</Link>
+    </Content>
+    <Content Include="AxSecurityDuty\AAXWHSLabelPreviewMaintain">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelPreviewMaintain</Name>
+      <Link>Security Duties\AAXWHSLabelPreviewMaintain</Link>
+    </Content>
+    <Content Include="AxSecurityPrivilege\AAXWHSLabelCaptureAdminister">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelCaptureAdminister</Name>
+      <Link>Security Privileges\AAXWHSLabelCaptureAdminister</Link>
+    </Content>
+    <Content Include="AxSecurityPrivilege\AAXWHSLabelPreviewView">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelPreviewView</Name>
+      <Link>Security Privileges\AAXWHSLabelPreviewView</Link>
+    </Content>
+    <Content Include="AxTable\AAXWHSLabelCaptureStaging">
+      <SubType>Content</SubType>
+      <Name>AAXWHSLabelCaptureStaging</Name>
+      <Link>Tables\AAXWHSLabelCaptureStaging</Link>
+    </Content>
+    <Content Include="AxTableExtension\WHSParameters.AAXWarehouseTools">
+      <SubType>Content</SubType>
+      <Name>WHSParameters.AAXWarehouseTools</Name>
+      <Link>Table Extensions\WHSParameters.AAXWarehouseTools</Link>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
   <Import Project="$(BuildTasksDirectory)\Microsoft.Dynamics.Framework.Tools.BuildTasks.17.0.targets" />
