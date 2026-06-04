@@ -1,0 +1,12 @@
+The label could not be rendered: Exception has been thrown by the target of an invocation. ZPL rendering failed: The type initializer for 'SkiaSharp.SKTypeface' threw an exception. 
+Native preloader log: AssemblyResolve fallback registered for the deployment folder. BaseDirectory: C:\AOSService\webroot\ Assembly.Location
+ dir: C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin Assembly.CodeBase dir: C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin 
+ SetDllDirectory(C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin): OK libSkiaSharp.dll: LoadLibrary failed (Win32 error 193) for C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin\libSkiaSharp.dll 
+ libSkiaSharp.dll: not found at C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin\runtimes\win-x64\native\libSkiaSharp.dll libSkiaSharp.dll: LoadLibrary failed (Win32 error 193) for 
+ C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin\libSkiaSharp.dll libSkiaSharp.dll: not found at C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin\runtimes\win-x64\native\libSkiaSharp.dll libSkiaSharp.dll: 
+ not found at C:\AOSService\webroot\libSkiaSharp.dll libSkiaSharp.dll: NOT loaded by preloader; DllImport will fall back to default probing. libHarfBuzzSharp.dll: LoadLibrary failed (Win32 error 193) for
+ C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin\libHarfBuzzSharp.dll libHarfBuzzSharp.dll: not found at C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin\runtimes\win-x64\native\libHarfBuzzSharp.dll 
+ libHarfBuzzSharp.dll: LoadLibrary failed (Win32 error 193) for C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin\libHarfBuzzSharp.dll libHarfBuzzSharp.dll: not found at 
+ C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin\runtimes\win-x64\native\libHarfBuzzSharp.dll libHarfBuzzSharp.dll: not found at C:\AOSService\webroot\libHarfBuzzSharp.dll libHarfBuzzSharp.dll:
+ NOT loaded by preloader; DllImport will fall back to default probing. libSkiaSharp.dll in-process after preload: False libHarfBuzzSharp.dll in-process after preload: False The type initializer for
+ 'SkiaSharp.SKTypeface' threw an exception. Unable to load library 'libSkiaSharp'.

@@ -70,6 +70,7 @@ namespace AtomicAx.Zpl.Render
                 AppDomain.CurrentDomain.AssemblyResolve += ResolveFromDeployFolder;
                 log.AppendLine("AssemblyResolve fallback registered for the deployment folder.");
 
+                log.AppendLine("Process bitness: " + (Environment.Is64BitProcess ? "x64" : "x86"));
                 log.AppendLine("BaseDirectory: " + SafeString(() => AppDomain.CurrentDomain.BaseDirectory));
                 log.AppendLine("Assembly.Location dir: " + SafeLocationDirectory());
                 log.AppendLine("Assembly.CodeBase dir: " + SafeCodeBaseDirectory());
@@ -140,14 +141,20 @@ namespace AtomicAx.Zpl.Render
             string codeBaseDir = SafeCodeBaseDirectory();
             string locationDir = SafeLocationDirectory();
 
+            // ARCH-AWARE (U-1 round 3): pick the runtimes RID folder matching the PROCESS
+            // bitness — loading an x86 native into the 64-bit AOS fails with Win32 error 193.
+            string rid = Environment.Is64BitProcess ? "win-x64" : "win-x86";
+            string nativeSubPath = Path.Combine("runtimes", Path.Combine(rid, Path.Combine("native", module)));
+
             return new[]
             {
                 // CodeBase = original deployment folder (the model bin) — survives IIS shadow copy.
-                Combine(codeBaseDir, module),
-                Combine(codeBaseDir, Path.Combine("runtimes", Path.Combine("win-x64", Path.Combine("native", module)))),
+                Combine(codeBaseDir, nativeSubPath),
                 // Location = shadow-copy dir under IIS, real dir under tests/console.
+                Combine(locationDir, nativeSubPath),
+                // Legacy flat layouts, last resort.
+                Combine(codeBaseDir, module),
                 Combine(locationDir, module),
-                Combine(locationDir, Path.Combine("runtimes", Path.Combine("win-x64", Path.Combine("native", module)))),
                 Combine(AppDomain.CurrentDomain.BaseDirectory, module)
             };
         }

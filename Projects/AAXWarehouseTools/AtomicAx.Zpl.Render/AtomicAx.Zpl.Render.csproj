@@ -43,33 +43,37 @@
        assets out of the NuGet packages. Stage them into the build output's
        runtimes\win-x64\native so the lib is self-contained for the net8 test/probe and so the
        post-build model-bin copy has a single source. Paths resolved from the restored packages. -->
+  <!-- ARCH-CORRECT native staging (U-1 round 3): SkiaSharp's own net4xx .targets drop an
+       arch-picked native (x86 for AnyCPU!) into the build output ROOT — flat-copying *.dll
+       therefore shipped an x86 libSkiaSharp into the 64-bit AOS (LoadLibrary error 193).
+       Fix: never ship flat natives; stage BOTH win-x64 and win-x86 under runtimes\ and let
+       the NativeLibraryPreloader pick by process bitness. -->
   <Target Name="AAXStageNatives" AfterTargets="Build" Condition="'$(TargetFramework)' == 'net472'">
-    <PropertyGroup>
-      <AAXNativeOut>$(OutDir)runtimes\win-x64\native\</AAXNativeOut>
-      <AAXSkiaNative>$(NuGetPackageRoot)skiasharp.nativeassets.win32\3.119.1\runtimes\win-x64\native\libSkiaSharp.dll</AAXSkiaNative>
-      <AAXHarfBuzzNative>$(NuGetPackageRoot)harfbuzzsharp.nativeassets.win32\8.3.1.2\runtimes\win-x64\native\libHarfBuzzSharp.dll</AAXHarfBuzzNative>
-    </PropertyGroup>
-    <MakeDir Directories="$(AAXNativeOut)" />
-    <Copy SourceFiles="$(AAXSkiaNative)" DestinationFolder="$(AAXNativeOut)" SkipUnchangedFiles="false" />
-    <Copy SourceFiles="$(AAXHarfBuzzNative)" DestinationFolder="$(AAXNativeOut)" SkipUnchangedFiles="false" />
+    <ItemGroup>
+      <AAXNativeSrc Include="$(NuGetPackageRoot)skiasharp.nativeassets.win32\3.119.1\runtimes\win-x64\native\libSkiaSharp.dll" Arch="win-x64" />
+      <AAXNativeSrc Include="$(NuGetPackageRoot)skiasharp.nativeassets.win32\3.119.1\runtimes\win-x86\native\libSkiaSharp.dll" Arch="win-x86" />
+      <AAXNativeSrc Include="$(NuGetPackageRoot)harfbuzzsharp.nativeassets.win32\8.3.1.2\runtimes\win-x64\native\libHarfBuzzSharp.dll" Arch="win-x64" />
+      <AAXNativeSrc Include="$(NuGetPackageRoot)harfbuzzsharp.nativeassets.win32\8.3.1.2\runtimes\win-x86\native\libHarfBuzzSharp.dll" Arch="win-x86" />
+    </ItemGroup>
+    <Copy SourceFiles="@(AAXNativeSrc)" DestinationFiles="@(AAXNativeSrc->'$(OutDir)runtimes\%(Arch)\native\%(Filename)%(Extension)')" SkipUnchangedFiles="false" />
   </Target>
 
-  <!-- WP-0.2 post-build copy: only for the AOS-loaded net472 build. Copies the managed payload
-       plus both win-x64 native assets, flattening runtimes\win-x64\native into the model bin root. -->
+  <!-- WP-0.2 post-build copy: managed payload (EXCLUDING any stray root-level natives that
+       SkiaSharp's targets placed there) + the full runtimes\ tree, structure preserved. -->
   <Target Name="AAXCopyToModelBin" AfterTargets="AAXStageNatives" Condition="'$(TargetFramework)' == 'net472'">
     <PropertyGroup>
       <AAXModelBin>C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin\</AAXModelBin>
     </PropertyGroup>
     <ItemGroup>
-      <!-- Managed assemblies from the build output root. -->
-      <AAXManaged Include="$(OutDir)*.dll" />
-      <!-- Native assets staged under runtimes\win-x64\native; flatten into the model bin root. -->
-      <AAXNative Include="$(OutDir)runtimes\win-x64\native\*.dll" />
+      <AAXManaged Include="$(OutDir)*.dll" Exclude="$(OutDir)libSkiaSharp.dll;$(OutDir)libHarfBuzzSharp.dll" />
+      <AAXNative Include="$(OutDir)runtimes\**\*.dll" />
+      <AAXStaleFlatNatives Include="$(AAXModelBin)libSkiaSharp.dll;$(AAXModelBin)libHarfBuzzSharp.dll" />
     </ItemGroup>
     <MakeDir Directories="$(AAXModelBin)" />
+    <Delete Files="@(AAXStaleFlatNatives)" ContinueOnError="true" />
     <Copy SourceFiles="@(AAXManaged)" DestinationFolder="$(AAXModelBin)" SkipUnchangedFiles="false" />
-    <Copy SourceFiles="@(AAXNative)" DestinationFolder="$(AAXModelBin)" SkipUnchangedFiles="false" />
-    <Message Importance="high" Text="AAX: copied net472 runtime DLLs (managed + win-x64 natives) to $(AAXModelBin)" />
+    <Copy SourceFiles="@(AAXNative)" DestinationFiles="@(AAXNative->'$(AAXModelBin)runtimes\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="false" />
+    <Message Importance="high" Text="AAX: copied net472 managed DLLs + runtimes\win-x64+win-x86 natives to $(AAXModelBin)" />
   </Target>
 
 </Project>

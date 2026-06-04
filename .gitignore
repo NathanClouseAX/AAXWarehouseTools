@@ -13,3 +13,4 @@ AppPackages/
 # Test results
 TestResults/
 Resources/
+/*.xml
