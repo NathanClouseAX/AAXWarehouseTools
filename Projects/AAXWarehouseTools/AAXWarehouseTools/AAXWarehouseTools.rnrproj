@@ -47,10 +47,6 @@
     <Folder Include="Tables\" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="AAXWarehouseTools.en-US.label.txt">
-      <SubType>Content</SubType>
-      <Name>AAXWarehouseTools.en-US.label.txt</Name>
-    </Content>
     <Content Include="AxClass\AAXWHSLabelAttachmentService">
       <SubType>Content</SubType>
       <Name>AAXWHSLabelAttachmentService</Name>
