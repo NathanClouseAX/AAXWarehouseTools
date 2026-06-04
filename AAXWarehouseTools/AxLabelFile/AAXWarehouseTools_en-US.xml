@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxLabelFile xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWarehouseTools_en-US</Name>
+	<LabelContentFileName>AAXWarehouseTools.en-US.label.txt</LabelContentFileName>
+	<LabelFileId>AAXWarehouseTools</LabelFileId>
+	<RelativeUriInModelStore>AAXWarehouseTools\AAXWarehouseTools\AxLabelFile\LabelResources\en-US\AAXWarehouseTools.en-US.label.txt</RelativeUriInModelStore>
+</AxLabelFile>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <BuildTasksDirectory Condition=" '$(BuildTasksDirectory)' == ''">$(MSBuildProgramFiles32)\MSBuild\Microsoft\Dynamics\AX</BuildTasksDirectory>
+    <Model>AAXWarehouseTools</Model>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <OutputPath>bin</OutputPath>
+    <SchemaVersion>2.0</SchemaVersion>
+    <GenerateCrossReferences>True</GenerateCrossReferences>
+    <ProjectGuid>{a7c40e1d-3f52-4b8e-9c16-d2e8a0b4f5c3}</ProjectGuid>
+    <Name>AAXWarehouseTools</Name>
+    <RootNamespace>AAXWarehouseTools</RootNamespace>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
+    <Configuration>Debug</Configuration>
+    <DBSyncInBuild>True</DBSyncInBuild>
+    <GenerateFormAdaptors>False</GenerateFormAdaptors>
+    <Company></Company>
+    <Partition>initial</Partition>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DataEntityExpandParentChildRelations>False</DataEntityExpandParentChildRelations>
+    <DataEntityUseLabelTextAsFieldName>False</DataEntityUseLabelTextAsFieldName>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <ItemGroup>
+    <Folder Include="Classes\" />
+    <Folder Include="Forms\" />
+    <Folder Include="Label Files\" />
+    <Folder Include="Tables\" />
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
+  <Import Project="$(BuildTasksDirectory)\Microsoft.Dynamics.Framework.Tools.BuildTasks.17.0.targets" />
+</Project>

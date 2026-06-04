@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net472;net8.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Version>1.0.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <RootNamespace>AtomicAx.Zpl.Render</RootNamespace>
+    <AssemblyName>AtomicAx.Zpl.Render</AssemblyName>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <!-- net472 native asset resolution: emit the runtime DLLs into the build output. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <!-- Strong naming: attempted per WP-0.2 / REQ-R-4. If BinaryKits.Zpl.* are unsigned this
+         fails on net472 (a strong-named assembly cannot reference unsigned ones) -> DR-2 fallback. -->
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>AtomicAx.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Pinned per WP-0.2 / F34 / DR-1. -->
+    <PackageReference Include="BinaryKits.Zpl.Viewer" Version="1.3.1" />
+    <!-- Windows native assets are NOT declared by the BinaryKits nuspec (it lists Linux only, F34)
+         -> add explicitly, matching the SkiaSharp/HarfBuzzSharp line the Viewer resolves (3.119.1 / 8.3.x). -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.119.1" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Win32" Version="8.3.1.2" />
+  </ItemGroup>
+
+  <!-- net472 needs reference assemblies for the build host; provide them via NuGet so the
+       build is self-contained regardless of which targeting packs are installed. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- WP-0.2 post-build copy: only for the AOS-loaded net472 build. Copies the managed payload
+       plus both win-x64 native assets, flattening runtimes\win-x64\native into the model bin root. -->
+  <Target Name="AAXCopyToModelBin" AfterTargets="Build" Condition="'$(TargetFramework)' == 'net472'">
+    <PropertyGroup>
+      <AAXModelBin>C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin\</AAXModelBin>
+    </PropertyGroup>
+    <ItemGroup>
+      <!-- Managed assemblies + any pdb/config from the build output root. -->
+      <AAXManaged Include="$(OutDir)*.dll" />
+      <!-- Native assets land under runtimes\win-x64\native; flatten them. -->
+      <AAXNative Include="$(OutDir)runtimes\win-x64\native\*.dll" />
+    </ItemGroup>
+    <MakeDir Directories="$(AAXModelBin)" />
+    <Copy SourceFiles="@(AAXManaged)" DestinationFolder="$(AAXModelBin)" SkipUnchangedFiles="false" />
+    <Copy SourceFiles="@(AAXNative)" DestinationFolder="$(AAXModelBin)" SkipUnchangedFiles="false" />
+    <Message Importance="high" Text="AAX: copied net472 runtime DLLs to $(AAXModelBin)" />
+  </Target>
+
+</Project>

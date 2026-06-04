@@ -1,0 +1,14 @@
+# Build output
+bin/
+obj/
+XppMetadata/
+BuildModelResult.*
+AppPackages/
+
+# IDE
+.vs/
+*.user
+*.suo
+
+# Test results
+TestResults/
