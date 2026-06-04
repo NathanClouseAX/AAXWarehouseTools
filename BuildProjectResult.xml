@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Diagnostics
+  GenerationTime="2026-06-04T02:19:56.8817675+00:00">
+  <Items>
+    <Diagnostic>
+      <DiagnosticType>ExternalReference</DiagnosticType>
+      <Severity>Warning</Severity>
+      <Path>dynamics://Reference/Microsoft.Dynamics___vices.PricingEngine</Path>
+      <Moniker>AssemblyFileNotFound</Moniker>
+      <Message>Assembly 'Microsoft.Dynamics.Commerce.Runtime.Entities.AttributeBasedPricing, Version=7.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35' failed to load because it was not found.</Message>
+    </Diagnostic>
+    <Diagnostic>
+      <DiagnosticType>Compile</DiagnosticType>
+      <Severity>Warning</Severity>
+      <Path>dynamics://Class/WhsDocumentRouting_AAXWarehouseTools_Extension/Method/printLabelToPrinter</Path>
+      <ElementType>Class Method</ElementType>
+      <Moniker>ObsoleteEntityUsageWithReason</Moniker>
+      <Line>27</Line>
+      <Column>5</Column>
+      <EndLine>27</EndLine>
+      <EndColumn>43</EndColumn>
+      <Message>'printLabelToPrinter' is obsolete: ''WhsLabelPrintCommand was introduced to replace the plain string ZPL label. Callers should begin using printLabelPrintCommandToPrinter or printZPLLabelToPrinter instead''.</Message>
+    </Diagnostic>
+    <Diagnostic>
+      <DiagnosticType>Compile</DiagnosticType>
+      <Severity>Warning</Severity>
+      <Path>dynamics://Class/WhsDocumentRouting_AAXWarehouseTools_Extension/Method/printLabelToPrinter</Path>
+      <ElementType>Class Method</ElementType>
+      <Moniker>ObsoleteEntityUsageWithReason</Moniker>
+      <Line>38</Line>
+      <Column>9</Column>
+      <EndLine>38</EndLine>
+      <EndColumn>55</EndColumn>
+      <Message>'printLabelToPrinter' is obsolete: ''WhsLabelPrintCommand was introduced to replace the plain string ZPL label. Callers should begin using printLabelPrintCommandToPrinter or printZPLLabelToPrinter instead''.</Message>
+    </Diagnostic>
+  </Items>
+  <Aliases />
+</Diagnostics>

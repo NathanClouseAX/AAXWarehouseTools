@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net472;net8.0</TargetFrameworks>
+    <TargetFrameworks>net472</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Version>1.0.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
@@ -13,16 +13,13 @@
     <Nullable>disable</Nullable>
     <!-- net472 native asset resolution: emit the runtime DLLs into the build output. -->
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-    <!-- Strong naming: attempted per WP-0.2 / REQ-R-4. If BinaryKits.Zpl.* are unsigned this
-         fails on net472 (a strong-named assembly cannot reference unsigned ones) -> DR-2 fallback. -->
-    <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>AtomicAx.snk</AssemblyOriginatorKeyFile>
-    <!-- BinaryKits.Zpl.Viewer/Label 1.3.1/3.3.1 are unsigned (PublicKeyToken=null). Modern Roslyn
-         allows a strong-named assembly to reference unsigned ones and emits only CS8002 (a warning,
-         NOT the hard error the WP-0.2 plan anticipated under legacy csc) — so signing stands and
-         DR-2 (drop signing) was NOT triggered. CS8002 is benign (it does not affect runtime load on
-         .NET Framework); suppress it to keep the build clean. -->
-    <NoWarn>$(NoWarn);CS8002</NoWarn>
+    <!-- DR-2 APPLIED (2026-06-04): strong-naming removed. Build-time signing succeeded (CS8002
+         warning only), but the .NET FRAMEWORK RUNTIME in the AOS enforces the rule the compiler
+         no longer does: a strong-named assembly cannot LOAD unsigned dependencies
+         (FUSION_E_SIGNATURE_CHECK_FAILED 0x80131044 on BinaryKits.Zpl.Viewer, PKT=null) — seen
+         live on Feature A preview. net8 tests passed because modern .NET dropped that rule.
+         Unsigned (PublicKeyToken=null) is the proven sibling precedent (F29/F35). -->
+    <SignAssembly>false</SignAssembly>
   </PropertyGroup>
 
   <ItemGroup>

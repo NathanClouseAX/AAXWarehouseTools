@@ -1,0 +1,7 @@
+==================================
+ExternalReference Warning: dynamics://Reference/Microsoft.Dynamics___vices.PricingEngine: Assembly 'Microsoft.Dynamics.Commerce.Runtime.Entities.AttributeBasedPricing, Version=7.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35' failed to load because it was not found.
+Compile Warning: Class Method dynamics://Class/WhsDocumentRouting_AAXWarehouseTools_Extension/Method/printLabelToPrinter: [(27,5),(27,43)]: 'printLabelToPrinter' is obsolete: ''WhsLabelPrintCommand was introduced to replace the plain string ZPL label. Callers should begin using printLabelPrintCommandToPrinter or printZPLLabelToPrinter instead''.
+Compile Warning: Class Method dynamics://Class/WhsDocumentRouting_AAXWarehouseTools_Extension/Method/printLabelToPrinter: [(38,9),(38,55)]: 'printLabelToPrinter' is obsolete: ''WhsLabelPrintCommand was introduced to replace the plain string ZPL label. Callers should begin using printLabelPrintCommandToPrinter or printZPLLabelToPrinter instead''.
+==================================
+Errors: 0
+Warnings: 3

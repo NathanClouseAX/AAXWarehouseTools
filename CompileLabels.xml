@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Diagnostics
+  GenerationTime="2026-06-04T02:04:38.8753024+00:00">
+  <Items>
+    <Diagnostic>
+      <DiagnosticType>VisualStudioIntegration</DiagnosticType>
+      <Severity>Informational</Severity>
+      <Path>C:\AOSService\PackagesLocalDirectory\Bin\labelc.exe</Path>
+      <Moniker>C:\AOSService\PackagesLocalDirectory\Bin\labelc.exe -metadata="C:\AOSService\PackagesLocalDirectory" -output="C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\Resources" -modelmodule="AAXWarehouseTools" </Moniker>
+      <Message>C:\AOSService\PackagesLocalDirectory\Bin\labelc.exe -metadata="C:\AOSService\PackagesLocalDirectory" -output="C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\Resources" -modelmodule="AAXWarehouseTools" </Message>
+    </Diagnostic>
+    <Diagnostic>
+      <DiagnosticType>Unspecified</DiagnosticType>
+      <Severity>Informational</Severity>
+      <Path>labelc.exe</Path>
+      <Moniker>Starting label compilation...</Moniker>
+      <Message>Starting label compilation...</Message>
+    </Diagnostic>
+    <Diagnostic>
+      <DiagnosticType>Unspecified</DiagnosticType>
+      <Severity>Informational</Severity>
+      <Path>labelc.exe</Path>
+      <Moniker>- Module name    </Moniker>
+      <Message>AAXWarehouseTools</Message>
+    </Diagnostic>
+    <Diagnostic>
+      <DiagnosticType>Unspecified</DiagnosticType>
+      <Severity>Informational</Severity>
+      <Path>labelc.exe</Path>
+      <Moniker>- Metadata path  </Moniker>
+      <Message>C:\AOSService\PackagesLocalDirectory\</Message>
+    </Diagnostic>
+    <Diagnostic>
+      <DiagnosticType>Unspecified</DiagnosticType>
+      <Severity>Informational</Severity>
+      <Path>labelc.exe</Path>
+      <Moniker>- Output path    </Moniker>
+      <Message>C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\Resources\</Message>
+    </Diagnostic>
+    <Diagnostic>
+      <DiagnosticType>Unspecified</DiagnosticType>
+      <Severity>Informational</Severity>
+      <Path>labelc.exe</Path>
+      <Moniker>- Maximum DoP    </Moniker>
+      <Message>0 (Logical Processors: 8)</Message>
+    </Diagnostic>
+    <Diagnostic>
+      <DiagnosticType>Unspecified</DiagnosticType>
+      <Severity>Informational</Severity>
+      <Path>labelc.exe</Path>
+      <Moniker>Generating Primary resource assembly for AAXWarehouseTools</Moniker>
+      <Message>Generating Primary resource assembly for AAXWarehouseTools</Message>
+    </Diagnostic>
+    <Diagnostic>
+      <DiagnosticType>Unspecified</DiagnosticType>
+      <Severity>Informational</Severity>
+      <Path>labelc.exe</Path>
+      <Moniker>Generating satellite resource assembly for label file AAXWarehouseTools, language en-US</Moniker>
+      <Message>Generating satellite resource assembly for label file AAXWarehouseTools, language en-US</Message>
+    </Diagnostic>
+    <Diagnostic>
+      <DiagnosticType>Unspecified</DiagnosticType>
+      <Severity>Informational</Severity>
+      <Path>labelc.exe</Path>
+      <Moniker>Done compiling 1 label files!</Moniker>
+      <Message>Done compiling 1 label files!</Message>
+    </Diagnostic>
+    <Diagnostic>
+      <DiagnosticType>Unspecified</DiagnosticType>
+      <Severity>Informational</Severity>
+      <Path>labelc.exe</Path>
+      <Moniker>Model store query time 00:00:00.2706634.</Moniker>
+      <Message>Model store query time 00:00:00.2706634.</Message>
+    </Diagnostic>
+    <Diagnostic>
+      <DiagnosticType>Unspecified</DiagnosticType>
+      <Severity>Informational</Severity>
+      <Path>labelc.exe</Path>
+      <Moniker>Label compilation time 00:00:00.0970318.</Moniker>
+      <Message>Label compilation time 00:00:00.0970318.</Message>
+    </Diagnostic>
+    <Diagnostic>
+      <DiagnosticType>Unspecified</DiagnosticType>
+      <Severity>Informational</Severity>
+      <Path>labelc.exe</Path>
+      <Moniker>Completed label compilation in 0 seconds with exit code 0.</Moniker>
+      <Message>Completed label compilation in 0 seconds with exit code 0.</Message>
+    </Diagnostic>
+  </Items>
+  <Aliases />
+</Diagnostics>
