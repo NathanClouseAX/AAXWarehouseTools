@@ -39,6 +39,9 @@ namespace AtomicAx.Zpl.Render
         [DllImport("kernel32", CharSet = CharSet.Unicode)]
         private static extern IntPtr GetModuleHandleW(string lpModuleName);
 
+        [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern bool SetDllDirectoryW(string lpPathName);
+
         /// <summary>
         /// Idempotent; safe to call from every public entry point.
         /// </summary>
@@ -58,9 +61,36 @@ namespace AtomicAx.Zpl.Render
 
                 StringBuilder log = new StringBuilder();
 
+                // Version-mismatch safety net (zero web.config edits): when the host process has
+                // no binding redirect for one of OUR payload assemblies (e.g. SkiaSharp's net472
+                // build requests System.Runtime.CompilerServices.Unsafe 4.0.4.1 while a newer one
+                // is deployed; or zxing 0.16.11 vs ER's loaded 0.16.5), .NET Framework's strict
+                // bind fails first — only THEN does this handler serve the model-bin copy.
+                // Normal/AOS-provided bindings are never overridden.
+                AppDomain.CurrentDomain.AssemblyResolve += ResolveFromDeployFolder;
+                log.AppendLine("AssemblyResolve fallback registered for the deployment folder.");
+
+                log.AppendLine("BaseDirectory: " + SafeString(() => AppDomain.CurrentDomain.BaseDirectory));
+                log.AppendLine("Assembly.Location dir: " + SafeLocationDirectory());
+                log.AppendLine("Assembly.CodeBase dir: " + SafeCodeBaseDirectory());
+
+                // Belt-and-braces for SkiaSharp's OWN path-based loader: add the deployment
+                // folder to the process DLL search path so even its internal probing resolves.
+                string deployDir = SafeCodeBaseDirectory() ?? SafeLocationDirectory();
+                if (!string.IsNullOrEmpty(deployDir))
+                {
+                    bool setOk = SetDllDirectoryW(deployDir);
+                    log.AppendLine("SetDllDirectory(" + deployDir + "): " + (setOk ? "OK" : ("FAILED Win32 " + Marshal.GetLastWin32Error())));
+                }
+
                 foreach (string module in NativeModules)
                 {
                     LoadModule(module, log);
+                }
+
+                foreach (string module in NativeModules)
+                {
+                    log.AppendLine(module + " in-process after preload: " + (GetModuleHandleW(module) != IntPtr.Zero));
                 }
 
                 diagnostics = log.ToString();
@@ -125,6 +155,37 @@ namespace AtomicAx.Zpl.Render
         private static string Combine(string directory, string file)
         {
             return string.IsNullOrEmpty(directory) ? file : Path.Combine(directory, file);
+        }
+
+        private static string SafeString(Func<string> getter)
+        {
+            try { return getter(); }
+            catch (Exception ex) { return "<error: " + ex.Message + ">"; }
+        }
+
+        private static Assembly ResolveFromDeployFolder(object sender, ResolveEventArgs args)
+        {
+            try
+            {
+                string simpleName = new AssemblyName(args.Name).Name;
+                string deployDir = SafeCodeBaseDirectory() ?? SafeLocationDirectory();
+                if (string.IsNullOrEmpty(deployDir))
+                {
+                    return null;
+                }
+
+                string candidate = Path.Combine(deployDir, simpleName + ".dll");
+                if (!File.Exists(candidate))
+                {
+                    return null;
+                }
+
+                return Assembly.LoadFrom(candidate);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static string SafeCodeBaseDirectory()

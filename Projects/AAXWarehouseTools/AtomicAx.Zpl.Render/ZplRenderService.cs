@@ -154,6 +154,25 @@ namespace AtomicAx.Zpl.Render
         }
 
         /// <summary>
+        /// Runtime environment report for the WP-0.5 probe / support diagnostics (U-1/U-2):
+        /// native preloader probe log + loaded renderer assembly identities.
+        /// </summary>
+        public static string GetRuntimeDiagnostics()
+        {
+            NativeLibraryPreloader.EnsureLoaded();
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("== Native preloader ==");
+            sb.AppendLine(NativeLibraryPreloader.Diagnostics);
+            sb.AppendLine("== Managed identities ==");
+            sb.AppendLine("AtomicAx.Zpl.Render: " + typeof(ZplRenderService).Assembly.FullName);
+            sb.AppendLine("SkiaSharp: " + typeof(SKBitmap).Assembly.FullName + " @ " + typeof(SKBitmap).Assembly.Location);
+            sb.AppendLine("BinaryKits.Zpl.Viewer: " + typeof(ZplAnalyzer).Assembly.FullName);
+            sb.AppendLine("ZXing: " + typeof(ZXing.BarcodeWriterPixelData).Assembly.FullName + " @ " + typeof(ZXing.BarcodeWriterPixelData).Assembly.Location);
+            return sb.ToString();
+        }
+
+        /// <summary>
         /// SHA-256 of the UTF-8 bytes of the ZPL, returned as lowercase hex (64 chars). III.9.
         /// </summary>
         public static string ComputeHash(string zpl)

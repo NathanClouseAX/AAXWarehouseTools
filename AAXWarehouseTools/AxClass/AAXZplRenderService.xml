@@ -154,23 +154,22 @@ public final class AAXZplRenderService
 				<Name>innermostMessage</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Returns the innermost CLR exception message for readable error reporting (III.7).
+    /// Returns the FULL CLR exception chain (outer to inner) for readable error reporting.
+    /// The outer ZplRenderException carries diagnostics (e.g. the native preloader probe log)
+    /// that an innermost-only message would hide (III.7 / U-1).
     /// </summary>
     private static str innermostMessage(System.Exception _exception)
     {
-        if (_exception == null)
-        {
-            return '';
-        }
-
+        str result;
         System.Exception current = _exception;
 
-        while (current.get_InnerException() != null)
+        while (current != null)
         {
+            result += (result ? '\n' : '') + current.get_Message();
             current = current.get_InnerException();
         }
 
-        return current.get_Message();
+        return result;
     }
 
 ]]></Source>
