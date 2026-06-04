@@ -20,6 +20,16 @@ namespace AtomicAx.Zpl.Render
     /// </summary>
     public static class ZplRenderService
     {
+        /// <summary>
+        /// U-1 / IIS shadow copy: pre-load the win-x64 natives from the real deployment folder
+        /// before any SkiaSharp P/Invoke. The type initializer runs before any member call,
+        /// so every public entry point is covered.
+        /// </summary>
+        static ZplRenderService()
+        {
+            NativeLibraryPreloader.EnsureLoaded();
+        }
+
         // Verified token grammar from plan F7 / WhsDocumentRoutingTranslator L16.
         // $Record.Field()[lineIndex]:format$  — Record is optional.
         private static readonly Regex TokenRegex = new Regex(
@@ -116,8 +126,19 @@ namespace AtomicAx.Zpl.Render
             }
             catch (Exception ex)
             {
-                throw new ZplRenderException(
-                    "ZPL rendering failed: " + ex.Message, ex);
+                string message = "ZPL rendering failed: " + ex.Message;
+
+                // Native-load failures get the preloader's probe log appended so the X++ error
+                // dialog shows exactly where the natives were (not) found (U-1 diagnosability).
+                if (ex is DllNotFoundException || ex is TypeInitializationException
+                    || ex.Message.IndexOf("libSkiaSharp", StringComparison.OrdinalIgnoreCase) >= 0
+                    || ex.Message.IndexOf("libHarfBuzzSharp", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    message += Environment.NewLine + "Native preloader log:" + Environment.NewLine
+                        + NativeLibraryPreloader.Diagnostics;
+                }
+
+                throw new ZplRenderException(message, ex);
             }
         }
 
