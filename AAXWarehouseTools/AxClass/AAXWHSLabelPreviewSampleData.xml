@@ -9,6 +9,15 @@
 /// <c>withParameterMap</c> chain (F6, default map name 'parameters') so that
 /// record-less tokens (e.g. $OrderNum$, $ItemId$) still resolve when there is no
 /// live seed record. Maintained in one place so sample values stay consistent.
+///
+/// In addition to the fixed unqualified map (<c>sampleParameterMap</c>), this class
+/// produces TYPE-AWARE per-token sample values (<c>sampleValueForField</c>) so that
+/// record-qualified tokens such as $WHSLicensePlateLabel.LicensePlateId$ or
+/// $InventTable_1.ItemId$ resolve even in a fresh/empty environment where the
+/// referenced table has no live row. The controller scans the raw layout ZPL, groups
+/// tokens by record name, and attaches one named String->String map per record name
+/// via <c>withParameterMap(map, recordName)</c> (F6, verified: a named parameter map
+/// satisfies $Name.Field$ in WhsDocumentRoutingTranslator.translateMatches L519-534).
 /// </summary>
 public final class AAXWHSLabelPreviewSampleData
 {
@@ -29,15 +38,7 @@ public final class AAXWHSLabelPreviewSampleData
     public static Map sampleParameterMap()
     {
         Map sampleMap = new Map(Types::String, Types::String);
-        str today = date2str(
-            systemDateGet(),
-            321,
-            DateDay::Digits2,
-            DateSeparator::Hyphen,
-            DateMonth::Digits2,
-            DateSeparator::Hyphen,
-            DateYear::Digits4,
-            DateFlags::None);
+        str today = AAXWHSLabelPreviewSampleData::sampleDateString();
 
         // Identifiers with realistic lengths (REQ-A-5).
         sampleMap.insert('OrderNum',       'PO123456');
@@ -51,6 +52,345 @@ public final class AAXWHSLabelPreviewSampleData
         sampleMap.insert('Date',           today);
         sampleMap.insert('TransDate',      today);
         sampleMap.insert('DeliveryDate',   today);
+
+        return sampleMap;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>sampleDateString</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns today's date rendered with the same fixed pattern used by the unqualified sample map
+    /// (yyyy-MM-dd via the date2str sequence flag 321), so qualified and unqualified date tokens
+    /// look identical in the preview.
+    /// </summary>
+    /// <returns>Today's date as a yyyy-MM-dd string.</returns>
+    public static str sampleDateString()
+    {
+        return date2str(
+            systemDateGet(),
+            321,
+            DateDay::Digits2,
+            DateSeparator::Hyphen,
+            DateMonth::Digits2,
+            DateSeparator::Hyphen,
+            DateYear::Digits4,
+            DateFlags::None);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>sampleValueForField</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Produces a single realistic sample value for a record-qualified token field (REQ-A-5),
+    /// so that $Record.Field$ tokens resolve even when the referenced table has no live row
+    /// (fresh/empty environment) or the layout references record names beyond the seed.
+    /// </summary>
+    /// <param name = "_recordName">
+    /// The token's record name (e.g. <c>WHSLicensePlateLabel</c> or a query datasource alias such
+    /// as <c>InventTable_1</c>). A trailing <c>_&lt;digits&gt;</c> alias suffix is stripped when
+    /// trying to resolve a real table.
+    /// </param>
+    /// <param name = "_fieldName">The token's field name (e.g. <c>LicensePlateId</c>).</param>
+    /// <returns>
+    /// A type-aware sample value when <c>_recordName</c> resolves to a real table that has the field
+    /// (dates -&gt; today, numerics -&gt; a realistic number, enums -&gt; first non-zero label,
+    /// strings -&gt; an id-/name-aware pattern trimmed to the field's StringSize); otherwise a
+    /// name-heuristic value based on the field name alone. Never returns the empty string.
+    /// </returns>
+    /// <remarks>
+    /// API basis (all PUBLIC kernel SysDict APIs, verified against MS donors):
+    ///   - tableName2Id(name) -&gt; TableId, 0 when unknown (global).
+    ///   - DictTable.fieldName2Id(name) -&gt; FieldId, 0 when unknown
+    ///       (FactureEditLinesEngineCustVend_RU: srcTable.fieldName2Id(fieldName)).
+    ///   - new DictField(tableId, fieldId); df.baseType() -&gt; Types; df.stringLen() -&gt; int;
+    ///       df.enumId() -&gt; enumId   (GanttTableField/InventTransArchiveSqlStatementHelper donors).
+    ///   - new DictEnum(enumId).values()/index2Value(i)/index2Label(i)  (GBTFileGenerationDataProvider_CN).
+    /// No internal Microsoft APIs are touched (C-2).
+    /// </remarks>
+    public static str sampleValueForField(str _recordName, str _fieldName)
+    {
+        TableId tableId = AAXWHSLabelPreviewSampleData::resolveTableId(_recordName);
+
+        if (tableId)
+        {
+            DictTable dictTable = new DictTable(tableId);
+            FieldId   fieldId   = dictTable ? dictTable.fieldName2Id(_fieldName) : 0;
+
+            if (fieldId)
+            {
+                return AAXWHSLabelPreviewSampleData::sampleValueForDictField(tableId, fieldId, _fieldName);
+            }
+        }
+
+        // No real table/field match: fall back to a name-only heuristic.
+        return AAXWHSLabelPreviewSampleData::sampleValueByNameHeuristic(_fieldName, 0);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>resolveTableId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Resolves a token record name to a real <c>TableId</c>, also trying the name with a trailing
+    /// <c>_&lt;digits&gt;</c> datasource-alias suffix removed (e.g. <c>InventTable_1</c> -&gt;
+    /// <c>InventTable</c>).
+    /// </summary>
+    /// <param name = "_recordName">The token record name.</param>
+    /// <returns>The matching <c>TableId</c>, or 0 when neither form is a real table.</returns>
+    private static TableId resolveTableId(str _recordName)
+    {
+        TableId tableId;
+
+        if (!_recordName)
+        {
+            return 0;
+        }
+
+        // tableName2Id is case-insensitive on table names; returns 0 when unknown.
+        tableId = tableName2Id(_recordName);
+        if (tableId)
+        {
+            return tableId;
+        }
+
+        // Strip a trailing _<digits> alias suffix (QueryRun datasource aliases such as InventTable_1).
+        System.Text.RegularExpressions.Match aliasMatch =
+            System.Text.RegularExpressions.Regex::Match(_recordName, @'^(.*?)_[0-9]+$');
+        if (aliasMatch.Success)
+        {
+            str baseName = aliasMatch.Groups.get_Item(1).Value;
+            if (baseName && baseName != _recordName)
+            {
+                tableId = tableName2Id(baseName);
+            }
+        }
+
+        return tableId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>sampleValueForDictField</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Produces a type-aware sample value for a field that is known to exist on a real table.
+    /// </summary>
+    /// <param name = "_tableId">The owning table id.</param>
+    /// <param name = "_fieldId">The field id (known non-zero).</param>
+    /// <param name = "_fieldName">The field name (used for id/name heuristics on string fields).</param>
+    /// <returns>A realistic sample value for the field's base type; never the empty string.</returns>
+    private static str sampleValueForDictField(TableId _tableId, FieldId _fieldId, str _fieldName)
+    {
+        DictField dictField = new DictField(_tableId, _fieldId);
+        Types     baseType  = dictField.baseType();
+
+        switch (baseType)
+        {
+            case Types::Date:
+                return AAXWHSLabelPreviewSampleData::sampleDateString();
+
+            case Types::UtcDateTime:
+                return DateTimeUtil::toStr(DateTimeUtil::utcNow());
+
+            case Types::Time:
+                return time2str(43200, TimeSeparator::Colon, TimeFormat::Hour24); // 12:00:00
+
+            case Types::Integer:
+            case Types::Int64:
+                return '12';
+
+            case Types::Real:
+                return '12.00';
+
+            case Types::Enum:
+                return AAXWHSLabelPreviewSampleData::sampleEnumLabel(dictField);
+
+            case Types::Guid:
+                return guid2str(newGuid());
+
+            case Types::String:
+            case Types::VarString:
+                return AAXWHSLabelPreviewSampleData::sampleValueByNameHeuristic(_fieldName, dictField.stringLen());
+
+            default:
+                // Container / unknown: a safe printable placeholder.
+                return AAXWHSLabelPreviewSampleData::sampleValueByNameHeuristic(_fieldName, dictField.stringLen());
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>sampleEnumLabel</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the first non-zero enum label for an enum field (or the first label, or '1' as a
+    /// last resort), so enum tokens render a meaningful value rather than a blank.
+    /// </summary>
+    /// <param name = "_dictField">The enum <c>DictField</c>.</param>
+    /// <returns>A human-readable enum label, or '1' when none can be resolved.</returns>
+    private static str sampleEnumLabel(DictField _dictField)
+    {
+        EnumId enumId = _dictField.enumId();
+        if (!enumId)
+        {
+            return '1';
+        }
+
+        DictEnum dictEnum = new DictEnum(enumId);
+        int      valueCount = dictEnum.values();
+        str      firstLabel = '';
+        int      i;
+
+        for (i = 0; i < valueCount; i++)
+        {
+            str label = dictEnum.index2Label(i);
+            if (i == 0)
+            {
+                firstLabel = label;
+            }
+
+            // Prefer the first non-zero element (zero is usually a "None"/default placeholder).
+            if (dictEnum.index2Value(i) != 0 && label)
+            {
+                return label;
+            }
+        }
+
+        return firstLabel ? firstLabel : '1';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>sampleValueByNameHeuristic</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Produces a sample STRING value from the field name alone (REQ-A-5), respecting an optional
+    /// maximum string length. Used both for real string fields and for fields on tables/names that
+    /// could not be resolved to metadata.
+    /// </summary>
+    /// <param name = "_fieldName">The token field name.</param>
+    /// <param name = "_maxLen">
+    /// The field's max string length (StringSize); 0 = unknown/unbounded (no trimming).
+    /// </param>
+    /// <returns>A realistic-length, name-aware sample string; never the empty string.</returns>
+    /// <remarks>
+    /// Heuristics (case-insensitive contains):
+    ///   - id-like (name contains 'License'/'Plate' or 'LP') -&gt; 'LP000123'
+    ///   - order/purchase-like (contains 'Order'/'Purch'/'PO')     -&gt; 'PO123456'
+    ///   - work-like (contains 'Work')                              -&gt; 'WK000123'
+    ///   - item-like (contains 'Item')                              -&gt; 'A0001'
+    ///   - other id/number-like (contains 'Id'/'Num'/'Code'/'Ref')  -&gt; 'SMP000123'
+    ///   - quantity-like (contains 'Qty'/'Quantity'/'Weight')       -&gt; '12'
+    ///   - date-like (contains 'Date')                              -&gt; today
+    ///   - name/description-like                                    -&gt; 'Sample %1'
+    ///   - everything else                                          -&gt; 'SAMPLE'
+    /// The result is trimmed to <c>_maxLen</c> when a positive length is supplied.
+    /// </remarks>
+    private static str sampleValueByNameHeuristic(str _fieldName, int _maxLen)
+    {
+        str lower = strLwr(_fieldName);
+        str result;
+
+        switch (true)
+        {
+            case (strScan(lower, 'license', 1, strLen(lower)) > 0
+                  || strScan(lower, 'plate', 1, strLen(lower)) > 0):
+                result = 'LP000123';
+                break;
+
+            case (strScan(lower, 'order', 1, strLen(lower)) > 0
+                  || strScan(lower, 'purch', 1, strLen(lower)) > 0):
+                result = 'PO123456';
+                break;
+
+            case (strScan(lower, 'work', 1, strLen(lower)) > 0):
+                result = 'WK000123';
+                break;
+
+            case (strScan(lower, 'item', 1, strLen(lower)) > 0):
+                result = 'A0001';
+                break;
+
+            case (strScan(lower, 'date', 1, strLen(lower)) > 0):
+                result = AAXWHSLabelPreviewSampleData::sampleDateString();
+                break;
+
+            case (strScan(lower, 'qty', 1, strLen(lower)) > 0
+                  || strScan(lower, 'quantity', 1, strLen(lower)) > 0
+                  || strScan(lower, 'weight', 1, strLen(lower)) > 0):
+                result = '12';
+                break;
+
+            case (strScan(lower, 'id', 1, strLen(lower)) > 0
+                  || strScan(lower, 'num', 1, strLen(lower)) > 0
+                  || strScan(lower, 'code', 1, strLen(lower)) > 0
+                  || strScan(lower, 'ref', 1, strLen(lower)) > 0):
+                result = 'SMP000123';
+                break;
+
+            case (strScan(lower, 'name', 1, strLen(lower)) > 0
+                  || strScan(lower, 'descr', 1, strLen(lower)) > 0
+                  || strScan(lower, 'text', 1, strLen(lower)) > 0):
+                result = strFmt('Sample %1', _fieldName);
+                break;
+
+            default:
+                result = 'SAMPLE';
+                break;
+        }
+
+        // Respect the field's StringSize when known (trim only; never pad past the limit).
+        if (_maxLen > 0 && strLen(result) > _maxLen)
+        {
+            result = subStr(result, 1, _maxLen);
+        }
+
+        return result;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>sampleMapForRecordTokens</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds a named String-&gt;String parameter map for one record name, populated with a
+    /// type-aware sample value for each field referenced by that record's tokens.
+    /// </summary>
+    /// <param name = "_recordName">The token record name (map name passed to withParameterMap).</param>
+    /// <param name = "_fieldNames">A <c>Set</c> of field names (Types::String) referenced for that record.</param>
+    /// <returns>
+    /// A <c>Map(Types::String, Types::String)</c> ready for
+    /// <c>WhsDocumentRoutingTranslator.withParameterMap(map, _recordName)</c>, or <c>null</c> when
+    /// there are no field names to populate.
+    /// </returns>
+    public static Map sampleMapForRecordTokens(str _recordName, Set _fieldNames)
+    {
+        if (!_fieldNames || _fieldNames.empty())
+        {
+            return null;
+        }
+
+        Map sampleMap = new Map(Types::String, Types::String);
+        SetEnumerator se = _fieldNames.getEnumerator();
+
+        while (se.moveNext())
+        {
+            str fieldName = se.current();
+            if (fieldName && !sampleMap.exists(fieldName))
+            {
+                sampleMap.insert(fieldName, AAXWHSLabelPreviewSampleData::sampleValueForField(_recordName, fieldName));
+            }
+        }
 
         return sampleMap;
     }

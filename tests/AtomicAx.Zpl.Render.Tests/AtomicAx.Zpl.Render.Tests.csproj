@@ -1,9 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <!-- Multi-targeted so the suite also runs on .NET Framework 4.7.2 — the AOS's runtime —
+         where the NativeLibraryPreloader's embedded-resource native-extraction path
+         (AAX.Natives.win-x64.* resources, net472-only) is actually exercised. On net8.0 the
+         runtime resolves the win-x64 natives itself and the embedded path stays dormant. -->
+    <TargetFrameworks>net472;net8.0</TargetFrameworks>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <!-- SkiaSharp 3.x needs the win-x64 native asset at test runtime; force the RID so the
@@ -22,7 +27,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Project-reference the net8.0 build of the library (REQ-R-5 / WP-0.3). -->
+    <!-- Project-reference the library; each test TFM resolves the matching library TFM
+         (net472 test -> net472 library, net8.0 test -> net8.0 library) (REQ-R-5 / WP-0.3). -->
     <ProjectReference Include="..\..\Projects\AAXWarehouseTools\AtomicAx.Zpl.Render\AtomicAx.Zpl.Render.csproj" />
   </ItemGroup>
 

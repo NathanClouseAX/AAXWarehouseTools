@@ -125,7 +125,7 @@ Every fact below was verified by direct file reads on this box (2026-06-03). Cit
 | # | Fact |
 |---|---|
 | **F25** | `public static DocuRef attachFileForRecord(Common _refRec, DocuTypeId _type, System.IO.Stream _file, str _fileName, str _attachmentName, str _notes = '')` (`ApplicationFoundation\…\AxClass\DocumentManagement.xml`). Core `attachFile()` validates `SysDictClass::isEqualOrSuperclass(docuType.ActionClassId, classNum(DocuActionFile))` — DocuType without correct ActionClassId throws. Also: `attachFileWithRetention(... int _retentionDays ...)` (0 or 1–14600) |
-| **F26** | DocuType creation (per `RapidStartSetup.createDocumentTypes` + `DocuTypeEntity`): set `TypeId`, `Name`, `TypeGroup = DocuTypeGroup::File`, `FilePlace = DocuFilePlace::Archive`, **`ActionClassId = classNum(DocuActionFile)`** (RapidStartSetup leaves it commented — we MUST set it). DocuType is **per-company** |
+| **F26** | DocuType creation: set `TypeId`, `Name`, `TypeGroup = DocuTypeGroup::File`, `FilePlace = DocuFilePlace::Archive`, **`ActionClassId = classNum(DocuActionArchive)`** — CORRECTED 2026-06-04 live: `DocuActionFile` is **abstract** and `DocuType.insert()` instantiates the action class ("Instances of abstract classes cannot be created"); `DocuActionArchive` is the concrete `final` subclass (MS precedent: `DocuUpload`) and still satisfies `attachFile()`'s `isEqualOrSuperclass(_, DocuActionFile)` validation. DocuType is **per-company** |
 | **F27** | `File::SendFileToTempStore(System.IO.Stream stream, str fileName, classname strategy = classstr(FileUploadTemporaryStorageStrategy), boolean _downloadOnly = false) → str` (URL, empty on failure). **Stream-only; no container overload** |
 
 ## II.5 Model & runtime
@@ -463,7 +463,7 @@ public static void ensureDocuType()   // F26: per-company, idempotent
         docuType.Name          = "@AAXWarehouseTools:DocuTypeLabelPreview";
         docuType.TypeGroup     = DocuTypeGroup::File;
         docuType.FilePlace     = DocuFilePlace::Archive;
-        docuType.ActionClassId = classNum(DocuActionFile);  // REQUIRED — attachFile() validates (F25)
+        docuType.ActionClassId = classNum(DocuActionArchive);  // concrete subclass — F26 corrected; attachFile() validates derives-from-DocuActionFile (F25)
         docuType.insert();
         ttscommit;
     }

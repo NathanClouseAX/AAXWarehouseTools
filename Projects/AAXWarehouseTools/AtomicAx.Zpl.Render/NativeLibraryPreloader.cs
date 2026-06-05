@@ -87,7 +87,24 @@ namespace AtomicAx.Zpl.Render
                 foreach (string module in NativeModules)
                 {
                     LoadModule(module, log);
+
+                    // Standalone single-DLL mode: the natives ship INSIDE this assembly as
+                    // embedded resources. Extract beside the assembly (preferred — that is
+                    // exactly where SkiaSharp's file-path-based LibraryLoader probes, and
+                    // post-merge SkiaSharp's types LIVE in this assembly so its Location IS
+                    // ours) or to %TEMP%, then LoadLibrary the extracted file.
+                    if (GetModuleHandleW(module) == IntPtr.Zero)
+                    {
+                        ExtractAndLoadEmbedded(module, log);
+                    }
                 }
+
+                // Legacy belt for UNMERGED layouts (e.g. the net8 test build or a dev deployment
+                // of separate DLLs): SkiaSharp's managed loader probes beside its own
+                // Assembly.Location, so stage the native file there. No-op when the module is
+                // already in-process or the managed assembly is merged into this one.
+                StageBesideManagedAssembly("SkiaSharp", "libSkiaSharp.dll", log);
+                StageBesideManagedAssembly("HarfBuzzSharp", "libHarfBuzzSharp.dll", log);
 
                 foreach (string module in NativeModules)
                 {
@@ -168,6 +185,171 @@ namespace AtomicAx.Zpl.Render
         {
             try { return getter(); }
             catch (Exception ex) { return "<error: " + ex.Message + ">"; }
+        }
+
+        /// <summary>
+        /// Extracts the embedded native (logical name AAX.Natives.&lt;rid&gt;.&lt;module&gt;) to a
+        /// writable location and loads it. Targets, in order: beside Assembly.Location, beside
+        /// Assembly.CodeBase, then %TEMP%\AtomicAx.Zpl.Render\&lt;version&gt;\&lt;rid&gt;\.
+        /// </summary>
+        private static void ExtractAndLoadEmbedded(string module, StringBuilder log)
+        {
+            try
+            {
+                string rid = Environment.Is64BitProcess ? "win-x64" : "win-x86";
+                string resourceName = "AAX.Natives." + rid + "." + module;
+                Assembly self = typeof(NativeLibraryPreloader).Assembly;
+
+                byte[] payload;
+                using (Stream stream = self.GetManifestResourceStream(resourceName))
+                {
+                    if (stream == null)
+                    {
+                        log.AppendLine(module + ": no embedded resource '" + resourceName + "'.");
+                        return;
+                    }
+
+                    payload = new byte[stream.Length];
+                    int offset = 0;
+                    while (offset < payload.Length)
+                    {
+                        int read = stream.Read(payload, offset, payload.Length - offset);
+                        if (read <= 0)
+                        {
+                            break;
+                        }
+                        offset += read;
+                    }
+                }
+
+                string version;
+                try { version = self.GetName().Version.ToString(); } catch { version = "0"; }
+
+                string locationDir = SafeLocationDirectory();
+                string codeBaseDir = SafeCodeBaseDirectory();
+                string tempDir = Path.Combine(Path.GetTempPath(), Path.Combine("AtomicAx.Zpl.Render", Path.Combine(version, rid)));
+
+                foreach (string targetDir in new[] { locationDir, codeBaseDir, tempDir })
+                {
+                    if (string.IsNullOrEmpty(targetDir))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        Directory.CreateDirectory(targetDir);
+                        string target = Path.Combine(targetDir, module);
+
+                        if (!File.Exists(target) || new FileInfo(target).Length != payload.Length)
+                        {
+                            File.WriteAllBytes(target, payload);
+                            log.AppendLine(module + ": extracted embedded native to " + target);
+                        }
+                        else
+                        {
+                            log.AppendLine(module + ": embedded native already extracted at " + target);
+                        }
+
+                        if (LoadLibraryW(target) != IntPtr.Zero)
+                        {
+                            SetDllDirectoryW(targetDir);
+                            log.AppendLine(module + ": loaded extracted native from " + target);
+                            return;
+                        }
+
+                        log.AppendLine(module + ": LoadLibrary failed (Win32 error " + Marshal.GetLastWin32Error() + ") for extracted " + target);
+                    }
+                    catch (Exception ex)
+                    {
+                        log.AppendLine(module + ": extraction to " + targetDir + " failed: " + ex.Message);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                log.AppendLine(module + ": embedded extraction failed: " + ex.Message);
+            }
+        }
+
+        private static void StageBesideManagedAssembly(string managedSimpleName, string nativeFile, StringBuilder log)
+        {
+            try
+            {
+                if (GetModuleHandleW(nativeFile) != IntPtr.Zero)
+                {
+                    return;
+                }
+
+                Assembly managed = FindOrLoadManaged(managedSimpleName);
+                if (managed == null)
+                {
+                    log.AppendLine(nativeFile + ": managed '" + managedSimpleName + "' not loadable; skip staging.");
+                    return;
+                }
+
+                string managedDir = Path.GetDirectoryName(managed.Location);
+                log.AppendLine(managedSimpleName + " managed loaded from: " + managed.Location);
+
+                if (string.IsNullOrEmpty(managedDir))
+                {
+                    return;
+                }
+
+                string target = Path.Combine(managedDir, nativeFile);
+                if (File.Exists(target))
+                {
+                    log.AppendLine(nativeFile + ": already present beside managed assembly.");
+                    return;
+                }
+
+                string rid = Environment.Is64BitProcess ? "win-x64" : "win-x86";
+                string deployDir = SafeCodeBaseDirectory() ?? SafeLocationDirectory();
+                string source = Combine(deployDir, Path.Combine("runtimes", Path.Combine(rid, Path.Combine("native", nativeFile))));
+
+                if (!File.Exists(source))
+                {
+                    log.AppendLine(nativeFile + ": source not found for staging: " + source);
+                    return;
+                }
+
+                File.Copy(source, target, false);
+                log.AppendLine(nativeFile + ": staged beside managed assembly at " + target);
+            }
+            catch (Exception ex)
+            {
+                log.AppendLine(nativeFile + ": staging beside managed assembly failed: " + ex.Message);
+            }
+        }
+
+        private static Assembly FindOrLoadManaged(string simpleName)
+        {
+            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                try
+                {
+                    if (string.Equals(assembly.GetName().Name, simpleName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return assembly;
+                    }
+                }
+                catch
+                {
+                    // Dynamic assemblies etc. — ignore.
+                }
+            }
+
+            try
+            {
+                // Not loaded yet: force-load the MANAGED assembly (safe — does not touch the
+                // native type initializers). Resolution may be served by the host or by our
+                // ResolveFromDeployFolder fallback.
+                return Assembly.Load(simpleName);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static Assembly ResolveFromDeployFolder(object sender, ResolveEventArgs args)

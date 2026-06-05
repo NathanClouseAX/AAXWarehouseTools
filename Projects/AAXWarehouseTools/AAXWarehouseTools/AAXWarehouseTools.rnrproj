@@ -92,11 +92,6 @@
       <Name>AAXWHSLabelPreviewSampleData</Name>
       <Link>Classes\AAXWHSLabelPreviewSampleData</Link>
     </Content>
-    <Content Include="AxClass\AAXZplRenderProbe">
-      <SubType>Content</SubType>
-      <Name>AAXZplRenderProbe</Name>
-      <Link>Classes\AAXZplRenderProbe</Link>
-    </Content>
     <Content Include="AxClass\AAXZplRenderService">
       <SubType>Content</SubType>
       <Name>AAXZplRenderService</Name>
@@ -199,10 +194,16 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
+    <!-- Build-order reference ONLY. Private=False is CRITICAL: with Private=True every VS build
+         copied the UNMERGED C# output + all NuGet deps (including an x86 libSkiaSharp.dll picked
+         by SkiaSharp's AnyCPU targets) into the model bin, re-polluting the single-DLL payload
+         and breaking the renderer in the 64-bit AOS (LoadLibrary error 193). Deployment is owned
+         exclusively by the csproj's AAXCopyToModelBin target (ILRepack-merged standalone DLL). -->
     <ProjectReference Include="..\AtomicAx.Zpl.Render\AtomicAx.Zpl.Render.csproj">
       <Name>AtomicAx.Zpl.Render</Name>
       <Project>{3e5b9c7a-2d41-4f86-a9b3-c8e1f0d62547}</Project>
-      <Private>True</Private>
+      <Private>False</Private>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />

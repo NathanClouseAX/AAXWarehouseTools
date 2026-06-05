@@ -106,18 +106,31 @@ namespace AtomicAx.Zpl.Render
                 };
                 ZplElementDrawer drawer = new ZplElementDrawer(printerStorage, options);
 
-                List<byte[]> pngs = new List<byte[]>();
+                List<byte[]> rendered = new List<byte[]>();
                 if (analyzeInfo != null && analyzeInfo.LabelInfos != null)
                 {
                     foreach (LabelInfo labelInfo in analyzeInfo.LabelInfos)
                     {
-                        // One PNG per ^XA…^XZ block (each LabelInfo == one label).
-                        byte[] png = drawer.Draw(labelInfo.ZplElements, widthMm, heightMm, dpmm);
-                        pngs.Add(png);
+                        // One PNG per ^XA…^XZ block.
+                        rendered.Add(drawer.Draw(labelInfo.ZplElements, widthMm, heightMm, dpmm));
                     }
                 }
 
-                return pngs;
+                // A ^XA…^XZ block that is purely printer CONFIGURATION (e.g.
+                // ^XA~SD15^PR8,8^MNW^MTT…^XZ — darkness/print-rate/media setup) draws nothing
+                // and renders BLANK (a single uniform color). Drop those so the preview shows
+                // only real labels, not spurious blank images. Fallback: if every block is blank
+                // (degenerate, all-config ZPL) keep them all rather than returning nothing.
+                List<byte[]> printable = new List<byte[]>();
+                foreach (byte[] png in rendered)
+                {
+                    if (!IsBlankPng(png))
+                    {
+                        printable.Add(png);
+                    }
+                }
+
+                return printable.Count > 0 ? printable : rendered;
             }
             catch (ZplRenderException)
             {
@@ -135,7 +148,8 @@ namespace AtomicAx.Zpl.Render
                     || ex.Message.IndexOf("libHarfBuzzSharp", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     message += Environment.NewLine + "Native preloader log:" + Environment.NewLine
-                        + NativeLibraryPreloader.Diagnostics;
+                        + NativeLibraryPreloader.Diagnostics
+                        + Environment.NewLine + BuildSkiaLoadFailureReport(ex);
                 }
 
                 throw new ZplRenderException(message, ex);
@@ -151,6 +165,109 @@ namespace AtomicAx.Zpl.Render
         {
             IList<byte[]> pngs = RenderToPngList(zpl, dpmm, widthMm, heightMm);
             return new ZplRenderResult(pngs);
+        }
+
+        /// <summary>
+        /// Rotates a PNG image CLOCKWISE by 90°×<paramref name="quarterTurnsClockwise"/>, returning a
+        /// re-encoded PNG. The integration contract with X++ AAXZplRenderService.rotatePng:
+        ///  - turns = (((quarterTurnsClockwise % 4) + 4) % 4) — negative inputs normalize (e.g. -1 == 3).
+        ///  - turns == 0 -&gt; the SAME byte[] reference is returned unchanged (no decode/encode round-trip).
+        ///  - null/empty <paramref name="png"/> -&gt; ZplRenderException.
+        ///  - odd turns swap width/height; even turns preserve them.
+        ///  - any decode/encode failure -&gt; ZplRenderException (native-load failures get the preloader
+        ///    log appended, mirroring RenderToPngList for U-1 diagnosability).
+        /// SkiaSharp 3.119 surface used (verified against the package): SKBitmap.Decode(byte[]),
+        /// new SKBitmap(int,int), new SKCanvas(SKBitmap), SKCanvas.Translate(float,float),
+        /// SKCanvas.RotateDegrees(float), SKCanvas.DrawBitmap(SKBitmap,float,float,SKPaint),
+        /// SKImage.FromBitmap(SKBitmap), SKImage.Encode(SKEncodedImageFormat.Png,100), SKData.ToArray().
+        /// </summary>
+        public static byte[] RotatePng(byte[] png, int quarterTurnsClockwise)
+        {
+            if (png == null || png.Length == 0)
+            {
+                throw new ZplRenderException("Cannot rotate a null or empty PNG.");
+            }
+
+            int turns = ((quarterTurnsClockwise % 4) + 4) % 4;
+            if (turns == 0)
+            {
+                // Contract: turns==0 returns the SAME byte array reference, untouched.
+                return png;
+            }
+
+            // The type initializer already ran the native preloader, but be explicit (cheap, idempotent).
+            NativeLibraryPreloader.EnsureLoaded();
+
+            try
+            {
+                using (SKBitmap source = SKBitmap.Decode(png))
+                {
+                    if (source == null)
+                    {
+                        throw new ZplRenderException("PNG could not be decoded for rotation (SKBitmap.Decode returned null).");
+                    }
+
+                    // Odd quarter-turns swap the dimensions.
+                    bool swap = (turns % 2) != 0;
+                    int destWidth = swap ? source.Height : source.Width;
+                    int destHeight = swap ? source.Width : source.Height;
+
+                    using (SKBitmap rotated = new SKBitmap(destWidth, destHeight, source.ColorType, source.AlphaType))
+                    using (SKCanvas canvas = new SKCanvas(rotated))
+                    {
+                        canvas.Clear(SKColors.Transparent);
+
+                        // Place the rotation origin so the source lands inside the destination after a
+                        // CLOCKWISE rotation (Skia: positive degrees rotate clockwise, +y is down).
+                        switch (turns)
+                        {
+                            case 1: // 90° CW
+                                canvas.Translate(destWidth, 0);
+                                break;
+                            case 2: // 180°
+                                canvas.Translate(destWidth, destHeight);
+                                break;
+                            case 3: // 270° CW
+                                canvas.Translate(0, destHeight);
+                                break;
+                        }
+
+                        canvas.RotateDegrees(90f * turns);
+                        canvas.DrawBitmap(source, 0, 0, null);
+                        canvas.Flush();
+
+                        using (SKImage image = SKImage.FromBitmap(rotated))
+                        using (SKData data = image.Encode(SKEncodedImageFormat.Png, 100))
+                        {
+                            if (data == null)
+                            {
+                                throw new ZplRenderException("Rotated image could not be encoded to PNG (SKImage.Encode returned null).");
+                            }
+
+                            return data.ToArray();
+                        }
+                    }
+                }
+            }
+            catch (ZplRenderException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                string message = "PNG rotation failed: " + ex.Message;
+
+                if (ex is DllNotFoundException || ex is TypeInitializationException
+                    || ex.Message.IndexOf("libSkiaSharp", StringComparison.OrdinalIgnoreCase) >= 0
+                    || ex.Message.IndexOf("libHarfBuzzSharp", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    message += Environment.NewLine + "Native preloader log:" + Environment.NewLine
+                        + NativeLibraryPreloader.Diagnostics
+                        + Environment.NewLine + BuildSkiaLoadFailureReport(ex);
+                }
+
+                throw new ZplRenderException(message, ex);
+            }
         }
 
         /// <summary>
@@ -224,6 +341,137 @@ namespace AtomicAx.Zpl.Render
             }
 
             return records.ToArray();
+        }
+
+        /// <summary>
+        /// Ground-truth report for native-load failures: WHICH SkiaSharp instance was executing
+        /// (load contexts can duplicate identity-equal assemblies), every loaded SkiaSharp, and
+        /// on-disk existence for the loader's exact candidate paths (Location dir and
+        /// BaseDirectory, flat + x64 subdir — per SkiaSharp 3.119 LibraryLoader source).
+        /// </summary>
+        private static string BuildSkiaLoadFailureReport(Exception ex)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("== Skia load-failure report ==");
+
+            try
+            {
+                Exception innermost = ex;
+                while (innermost.InnerException != null)
+                {
+                    innermost = innermost.InnerException;
+                }
+
+                System.Reflection.Assembly throwing = null;
+                if (innermost.TargetSite != null && innermost.TargetSite.DeclaringType != null)
+                {
+                    throwing = innermost.TargetSite.DeclaringType.Assembly;
+                }
+
+                sb.AppendLine("Throwing site: " + (innermost.TargetSite == null ? "<unknown>" :
+                    innermost.TargetSite.DeclaringType + "." + innermost.TargetSite.Name));
+                sb.AppendLine("EXECUTING assembly: " + Describe(throwing));
+                sb.AppendLine("Compile-time-bound SkiaSharp: " + Describe(typeof(SKBitmap).Assembly));
+
+                int skiaCount = 0;
+                foreach (System.Reflection.Assembly a in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    string name = null;
+                    try { name = a.GetName().Name; } catch { }
+                    if (string.Equals(name, "SkiaSharp", StringComparison.OrdinalIgnoreCase))
+                    {
+                        skiaCount++;
+                        sb.AppendLine("Loaded SkiaSharp #" + skiaCount + ": " + Describe(a));
+                    }
+                }
+                sb.AppendLine("SkiaSharp instances in AppDomain: " + skiaCount);
+
+                string execDir = null;
+                try { execDir = (throwing == null || string.IsNullOrEmpty(throwing.Location)) ? null : System.IO.Path.GetDirectoryName(throwing.Location); } catch { }
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+
+                foreach (string root in new[] { execDir, baseDir })
+                {
+                    if (string.IsNullOrEmpty(root)) { sb.AppendLine("candidate root: <empty>"); continue; }
+                    foreach (string candidate in new[]
+                    {
+                        System.IO.Path.Combine(root, System.IO.Path.Combine("x64", "libSkiaSharp.dll")),
+                        System.IO.Path.Combine(root, "libSkiaSharp.dll")
+                    })
+                    {
+                        sb.AppendLine("exists " + candidate + ": " + System.IO.File.Exists(candidate));
+                    }
+                }
+            }
+            catch (Exception reportEx)
+            {
+                sb.AppendLine("<report failed: " + reportEx.Message + ">");
+            }
+
+            return sb.ToString();
+        }
+
+        private static string Describe(System.Reflection.Assembly assembly)
+        {
+            if (assembly == null)
+            {
+                return "<null>";
+            }
+
+            string location;
+            try { location = assembly.Location; } catch (Exception e) { location = "<" + e.Message + ">"; }
+            if (string.IsNullOrEmpty(location))
+            {
+                location = "<EMPTY Location — byte-loaded>";
+            }
+
+            string codeBase;
+            try { codeBase = assembly.CodeBase; } catch { codeBase = "<n/a>"; }
+
+            return assembly.FullName + " | Location=" + location + " | CodeBase=" + codeBase;
+        }
+
+        /// <summary>
+        /// True if a rendered PNG is visually blank — every pixel is the same color (nothing was
+        /// drawn). Used to drop configuration-only ^XA…^XZ blocks from the preview. Scans the raw
+        /// decoded pixel buffer and early-exits on the first differing pixel, so real labels
+        /// (which have a barcode/text near the top) return false almost immediately.
+        /// </summary>
+        private static bool IsBlankPng(byte[] png)
+        {
+            if (png == null || png.Length == 0)
+            {
+                return true;
+            }
+
+            using (SKBitmap bitmap = SKBitmap.Decode(png))
+            {
+                if (bitmap == null)
+                {
+                    // Undecodable — don't silently drop it; treat as non-blank (keep).
+                    return false;
+                }
+
+                byte[] pixels = bitmap.Bytes;
+                int bpp = bitmap.BytesPerPixel;
+                if (pixels == null || pixels.Length < bpp || bpp <= 0)
+                {
+                    return false;
+                }
+
+                for (int i = bpp; i + bpp <= pixels.Length; i += bpp)
+                {
+                    for (int b = 0; b < bpp; b++)
+                    {
+                        if (pixels[i + b] != pixels[b])
+                        {
+                            return false; // a pixel differs from the first → real content
+                        }
+                    }
+                }
+
+                return true; // uniform color → blank
+            }
         }
 
         private static bool TryParseFirst(Regex regex, string zpl, out int dots)

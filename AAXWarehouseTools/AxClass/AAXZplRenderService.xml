@@ -110,6 +110,49 @@ public final class AAXZplRenderService
     }
 
 ]]></Source>
+				</Method>
+				<Method>
+					<Name>rotatePng</Name>
+					<Source><![CDATA[
+    /// <summary>
+    /// Rotates a PNG image clockwise by the given number of quarter turns (90 degrees each).
+    /// </summary>
+    /// <param name = "_png">The source PNG as an X++ <c>container</c>.</param>
+    /// <param name = "_quarterTurnsClockwise">
+    /// Quarter turns clockwise; taken modulo 4 by the renderer. 0 returns the input bytes unchanged.
+    /// </param>
+    /// <returns>The rotated PNG as an X++ <c>container</c>.</returns>
+    /// <remarks>
+    /// Thin wrapper over <c>AtomicAx.Zpl.Render.ZplRenderService::RotatePng(byte[], int)</c>
+    /// (integration contract). Mirrors the existing container&lt;-&gt;byte[] interop used by
+    /// <c>bytesToContainer</c> / <c>pngContainerToStream</c> (III.7): the container is
+    /// converted to a CLR byte[] via the same Binary/MemoryStream bridge, rotated in the
+    /// C# library, and the result is wrapped back into a container. CLR errors surface as a
+    /// readable RenderFailed error, consistent with <c>renderToPngList</c>.
+    /// </remarks>
+    public static container rotatePng(container _png, int _quarterTurnsClockwise)
+    {
+        try
+        {
+            // container -> CLR byte[]: reuse the Binary/MemoryStream bridge already used by
+            // pngContainerToStream; ToArray() yields the System.Byte[] the C# API expects.
+            System.IO.MemoryStream sourceStream = AAXZplRenderService::pngContainerToStream(_png);
+            System.Byte[] sourceBytes = sourceStream.ToArray();
+
+            System.Byte[] rotatedBytes =
+                AtomicAx.Zpl.Render.ZplRenderService::RotatePng(sourceBytes, _quarterTurnsClockwise);
+
+            return AAXZplRenderService::bytesToContainer(rotatedBytes);
+        }
+        catch (Exception::CLRError)
+        {
+            System.Exception clrException = CLRInterop::getLastException();
+            throw error(strFmt("@AAXWarehouseTools:RenderFailed",
+                AAXZplRenderService::innermostMessage(clrException)));
+        }
+    }
+
+]]></Source>
 			</Method>
 			<Method>
 				<Name>pngContainerToStream</Name>

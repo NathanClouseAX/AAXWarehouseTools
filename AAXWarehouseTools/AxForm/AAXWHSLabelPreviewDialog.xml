@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
 	<Name>AAXWHSLabelPreviewDialog</Name>
 	<SourceCode>
@@ -13,10 +13,25 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     // AAXWHSLabelPreviewContext (parmPngList()->List of container, parmFinalZpl()->str,
     // parmBadgeText()->str). REQ-A-6/A-7/A-8, F27, U-5.
     AAXWHSLabelPreviewContext   context;
-    List                        pngs;           // List of container, one PNG per ^XA..^XZ block
+    List                        pngs;           // List of container, one PNG per ^XA..^XZ block (ORIGINAL, unrotated source)
     int                         currentIndex;   // 1-based page index
-    str                         currentUrl;     // temp-store URL of the page on display
-    Map                         pageUrls;       // REQ-A-7: lazy per-page temp-store URLs (Integer -> String)
+    str                         currentUrl;     // temp-store URL of the page on display (rotated if turns>0)
+    Map                         pageUrls;       // REQ-A-7: lazy temp-store URL cache, keyed by "page|turns" (String -> String)
+
+    // Feature 1 (rotate clockwise 90, unlimited clicks): per-PAGE cumulative rotation state.
+    // ALWAYS rotate FROM THE ORIGINAL container by the cumulative turn count â€” never re-rotate
+    // a rotated PNG. pageTurns maps 1-based page -> turns (0..3).
+    Map                         pageTurns;      // Integer -> Integer
+
+    // Feature 2 (seed-record selection): identity needed for the dialog to re-render via
+    // AAXWHSLabelPreviewController::buildContext (REQ-A-3 step 1).
+    TableId                     layoutTableId;
+    RecId                       layoutRecId;
+    TableId                     seedTableId;
+    RecId                       selectedSeedRecId;  // 0 = auto-resolve most-recent
+
+    // Feature 3 (edit + save the raw SOURCE ZPL): whether this layout type is savable.
+    boolean                     canSave;
 }
 ]]></Source>
 			</Method>
@@ -30,25 +45,67 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     {
         super();
 
-        // F27 temp-store URLs are short-lived; generate each page lazily on navigation (REQ-A-7).
-        pageUrls = new Map(Types::Integer, Types::String);
-
         context = element.args().parmObject() as AAXWHSLabelPreviewContext;
         if (!context)
         {
             return;
         }
 
-        pngs = context.parmPngList();
+        element.initFromContext(context);
+    }
+
+]]></Source>
+				</Method>
+				<Method>
+					<Name>initFromContext</Name>
+					<Source><![CDATA[
+    /// <summary>
+    /// (Re)initializes all form state from a preview context: PNGs, badge, final ZPL, the
+    /// data-source group, and â€” crucially â€” CLEARS all rotation state and URL caches before
+    /// rendering page 1. Called from init() and from the Refresh button (REQ-A-3 step 1).
+    /// </summary>
+    /// <param name = "_context">The preview context to bind.</param>
+    public void initFromContext(AAXWHSLabelPreviewContext _context)
+    {
+        context = _context;
+        pngs    = context.parmPngList();
+
+        // CLEAR caches + rotation state: the new render has fresh containers, so any cached
+        // temp-store URL or accumulated rotation from the previous seed record must be dropped
+        // (F27 temp-store URLs are short-lived and generated lazily on navigation, REQ-A-7).
+        pageUrls  = new Map(Types::String, Types::String);   // key "page|turns" -> URL
+        pageTurns = new Map(Types::Integer, Types::Integer);  // page -> cumulative turns (0..3)
+
+        // Re-render identity + seed selection state (REQ-A-3 step 1).
+        layoutTableId     = context.parmLayoutTableId();
+        layoutRecId       = context.parmLayoutRecId();
+        seedTableId       = context.parmSeedTableId();
+        selectedSeedRecId = context.parmSeedRecId();
 
         // Badge near the image: "Live record: %1" or "Sample data" (REQ-A-7).
         BadgeText.text(context.parmBadgeText());
 
-        // Read-only multiline ZPL field is the copy surface (CopyZpl affordance, REQ-A-7).
+        // EDITABLE raw SOURCE panel: the layout's stored text WITH $tokens$ (and, for template
+        // layouts, the {{Header}}/{{Row}}/{{Footer}} blocks). This is what "Save to layout" persists
+        // and what "Preview edits" re-renders — NEVER the translated result.
+        SourceZplText.text(context.parmSourceZpl());
+
+        // Read-only multiline TRANSLATED result (tokens substituted) — shows what the source
+        // RENDERS to, and is the copy surface (CopyZpl affordance, REQ-A-7).
         ZplText.text(context.parmFinalZpl());
 
+        // Save is a WRITE; only offer it for savable layout types (ZPL-type / document routing).
+        canSave = context.parmCanSave();
+        SourceZplText.allowEdit(canSave);
+        SaveButton.enabled(canSave);
+        SaveButton.visible(canSave);
+
+        // Data-source group: show the seed table label and the currently selected record.
+        SeedTableLabel.text(context.parmSeedTableLabel());
+        SeedRecordEdit.text(selectedSeedRecId ? int642str(selectedSeedRecId) : '');
+
         currentIndex = 1;
-        this.showPage(currentIndex);
+        element.showPage(currentIndex);
     }
 
 ]]></Source>
@@ -107,18 +164,26 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     /// <returns>The temp-store URL for the page, or an empty string on failure.</returns>
     private str urlForPage(int _page)
     {
-        // F27 temp-store URLs are short-lived: cache per page and (re)generate on navigation
-        // so a page opened after a delay still renders (no expired-URL 404).
-        if (pageUrls.exists(_page))
+        int turns = this.turnsForPage(_page);
+
+        // Cache key includes the cumulative rotation so each (page,turns) has a distinct URL â€”
+        // a rotated page must never reuse the upright page's URL (Feature 1).
+        str cacheKey = strFmt('%1|%2', _page, turns);
+
+        // F27 temp-store URLs are short-lived: cache per (page,turns) and (re)generate on
+        // navigation so a page opened after a delay still renders (no expired-URL 404).
+        if (pageUrls.exists(cacheKey))
         {
-            str cached = pageUrls.lookup(_page);
+            str cached = pageUrls.lookup(cacheKey);
             if (cached)
             {
                 return cached;
             }
         }
 
-        // List enumerator: walk to the _page-th container (1-based).
+        // List enumerator: walk to the _page-th ORIGINAL container (1-based). Rotation is
+        // always applied FROM THE ORIGINAL by the cumulative turn count â€” never re-rotate a
+        // rotated PNG (Feature 1).
         ListEnumerator listEnumerator = pngs.getEnumerator();
         int idx = 0;
         container pngContainer = conNull();
@@ -135,16 +200,62 @@ public class AAXWHSLabelPreviewDialog extends FormRun
         str url = '';
         if (conLen(pngContainer) > 0)
         {
+            // Apply cumulative rotation from the original. turns == 0 => original bytes.
+            container displayContainer = (turns == 0)
+                ? pngContainer
+                : AAXZplRenderService::rotatePng(pngContainer, turns);
+
             // container -> Stream (already-authored helper) -> temp store (F27, stream-only).
-            System.IO.MemoryStream stream = AAXZplRenderService::pngContainerToStream(pngContainer);
+            // Unique file name per (page,turns) avoids any client-side image cache collision.
+            System.IO.MemoryStream stream = AAXZplRenderService::pngContainerToStream(displayContainer);
             if (stream)
             {
-                url = File::SendFileToTempStore(stream, strFmt('LabelPreview_%1.png', _page));
+                url = File::SendFileToTempStore(stream, strFmt('LabelPreview_%1_%2.png', _page, turns));
             }
         }
 
-        pageUrls.insert(_page, url);
+        pageUrls.insert(cacheKey, url);
         return url;
+    }
+
+]]></Source>
+				</Method>
+				<Method>
+					<Name>turnsForPage</Name>
+					<Source><![CDATA[
+    /// <summary>
+    /// Returns the cumulative clockwise quarter-turns currently applied to a page (0..3).
+    /// </summary>
+    /// <param name = "_page">The 1-based page.</param>
+    /// <returns>The page's current rotation in quarter turns.</returns>
+    private int turnsForPage(int _page)
+    {
+        if (pageTurns && pageTurns.exists(_page))
+        {
+            return pageTurns.lookup(_page);
+        }
+
+        return 0;
+    }
+
+]]></Source>
+				</Method>
+				<Method>
+					<Name>rotateCurrentPage</Name>
+					<Source><![CDATA[
+    /// <summary>
+    /// Rotates the current page 90 degrees clockwise (unlimited clicks). Per-page cumulative
+    /// turns are tracked so navigation shows each page at its own rotation; rendering always
+    /// starts from the original container (Feature 1).
+    /// </summary>
+    public void rotateCurrentPage()
+    {
+        int turns = this.turnsForPage(currentIndex);
+        turns = (turns + 1) mod 4;
+        pageTurns.insert(currentIndex, turns);
+
+        // Re-show the current page; urlForPage rotates from the original by the new turn count.
+        element.showPage(currentIndex);
     }
 
 ]]></Source>
@@ -158,11 +269,230 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     public void downloadCurrentPage()
     {
         // Proven download pattern (File.SendFileToUser / WhsExternalServiceInstances):
-        // new Browser().navigate(url, false, false).
+        // new Browser().navigate(url, false, false). currentUrl is the CURRENTLY DISPLAYED
+        // (rotated) image URL, so Download honors the active rotation (Feature 1).
         if (currentUrl)
         {
             new Browser().navigate(currentUrl, false, false);
         }
+    }
+
+]]></Source>
+				</Method>
+				<Method>
+					<Name>refreshPreview</Name>
+					<Source><![CDATA[
+    /// <summary>
+    /// Re-renders the preview using the record currently chosen in the data-source selector
+    /// (REQ-A-3 step 1). Re-reads the layout row generically, rebuilds the context via the
+    /// controller, and re-initializes all form state (which clears rotation + URL caches).
+    /// </summary>
+    public void refreshPreview()
+    {
+        AAXWHSLabelPreviewContext   newContext;
+        Common                      layoutRecord;
+
+        layoutRecord = element.rereadLayoutRecord();
+        if (layoutRecord.RecId == 0)
+        {
+            return;
+        }
+
+        // Pin the resolved seed table so buildContext re-renders against the SAME table the
+        // selector looked up; selectedSeedRecId == 0 falls back to most-recent (REQ-A-3).
+        newContext = AAXWHSLabelPreviewController::buildContext(layoutRecord, seedTableId, selectedSeedRecId);
+        if (!newContext)
+        {
+            // A REQ-A-2 gate fired (already info()'d); leave the current preview untouched.
+            return;
+        }
+
+        element.initFromContext(newContext);
+    }
+
+]]></Source>
+				</Method>
+				<Method>
+					<Name>rereadLayoutRecord</Name>
+					<Source><![CDATA[
+    /// <summary>
+    /// Re-reads the originating layout row generically (the same idiom Refresh uses), so the
+    /// edit/save actions operate on a fresh buffer of the correct table.
+    /// </summary>
+    /// <returns>The layout <c>Common</c> buffer (RecId 0 when not found / identity missing).</returns>
+    private Common rereadLayoutRecord()
+    {
+        Common      layoutRecord;
+        DictTable   layoutDictTable;
+
+        if (!layoutTableId || !layoutRecId)
+        {
+            return layoutRecord;
+        }
+
+        // new DictTable(tableId).makeRecord() + select by RecId is the verified donor idiom
+        // (AssetBookOriginalDocuments / AuditPolicyCaseBuilder), reused from refreshPreview().
+        layoutDictTable = new DictTable(layoutTableId);
+        layoutRecord    = layoutDictTable.makeRecord();
+
+        select firstonly layoutRecord
+            where layoutRecord.RecId == layoutRecId;
+
+        return layoutRecord;
+    }
+
+]]></Source>
+				</Method>
+				<Method>
+					<Name>previewEdits</Name>
+					<Source><![CDATA[
+    /// <summary>
+    /// Re-renders the preview from the edited SOURCE text WITHOUT saving (Feature 3). Reads the
+    /// editable Source-ZPL control, translates+renders it via
+    /// <c>AAXWHSLabelPreviewController::renderFromSource</c> against the current seed, and
+    /// re-initializes all form state (which clears rotation + URL caches).
+    /// </summary>
+    public void previewEdits()
+    {
+        AAXWHSLabelPreviewContext   newContext;
+        Common                      layoutRecord;
+        str                         editedSource = SourceZplText.text();
+
+        if (!editedSource)
+        {
+            // Nothing to preview; leave the current image/translated ZPL untouched.
+            return;
+        }
+
+        layoutRecord = element.rereadLayoutRecord();
+        if (layoutRecord.RecId == 0)
+        {
+            return;
+        }
+
+        // Preview the UNSAVED edit: translate/render the override source (not the stored layout).
+        newContext = AAXWHSLabelPreviewController::renderFromSource(
+            layoutRecord, editedSource, seedTableId, selectedSeedRecId);
+
+        if (!newContext)
+        {
+            // Layout type not previewable (already info()'d upstream); keep current preview.
+            return;
+        }
+
+        element.initFromContext(newContext);
+    }
+
+]]></Source>
+				</Method>
+				<Method>
+					<Name>saveSource</Name>
+					<Source><![CDATA[
+    /// <summary>
+    /// Saves the edited raw SOURCE ZPL back to the layout (Feature 3), then re-previews the saved
+    /// state. Validates non-empty, calls <c>AAXWHSLabelPreviewController::saveSourceToLayout</c>
+    /// (which performs the Edit-access security gate) and <c>info()</c>s the returned message. On
+    /// success the dialog stays open showing the freshly saved/rendered state.
+    /// </summary>
+    public void saveSource()
+    {
+        str editedSource = SourceZplText.text();
+        container result;
+        boolean saved;
+        str message;
+
+        if (!canSave)
+        {
+            return;
+        }
+
+        if (!editedSource)
+        {
+            // Refuse to persist an empty source (it would blank the layout).
+            info("@AAXWarehouseTools:SaveEmptySource");
+            return;
+        }
+
+        // saveSourceToLayout returns [boolean success, str messageKey] (X++ has no scalar by-ref).
+        result  = AAXWHSLabelPreviewController::saveSourceToLayout(layoutTableId, layoutRecId, editedSource);
+        saved   = conPeek(result, 1);
+        message = conPeek(result, 2);
+
+        if (message)
+        {
+            info(message);
+        }
+
+        // On success, re-preview the SAVED state from the now-persisted layout (re-reads source),
+        // so the image, translated ZPL and source panel all reflect what was written.
+        if (saved)
+        {
+            element.refreshPreview();
+        }
+    }
+
+]]></Source>
+				</Method>
+				<Method>
+					<Name>setSelectedSeedRecId</Name>
+					<Source><![CDATA[
+    /// <summary>
+    /// Stores the seed record selected in the data-source selector (REQ-A-3 step 1). The
+    /// selector text is the record's RecId (the lookup returns RecId); empty/0 means
+    /// "auto-resolve most-recent" on the next Refresh.
+    /// </summary>
+    /// <param name = "_recIdText">The selector control text (a RecId, or empty).</param>
+    public void setSelectedSeedRecId(str _recIdText)
+    {
+        selectedSeedRecId = _recIdText ? str2int64(_recIdText) : 0;
+    }
+
+]]></Source>
+				</Method>
+				<Method>
+					<Name>lookupSeedRecord</Name>
+					<Source><![CDATA[
+    /// <summary>
+    /// Runs a generic record lookup over the runtime seed table for the data-source selector
+    /// (REQ-A-3 step 1). The lookup RETURNS the record's RecId (robust for any runtime table
+    /// where no natural key generalizes) and shows TitleField1 as a friendly display column.
+    /// </summary>
+    /// <param name = "_control">The selector control the lookup is attached to.</param>
+    /// <remarks>
+    /// Pattern verified against BudgetPlanColumnRule / AssetIntercompanyTransferMappingTable /
+    /// InventLocation: SysTableLookup::newParameters(tableId, control) + a Query data source
+    /// ordered by RecId desc + addLookupfield(RecId) as the returned value. Documented choice:
+    /// the control text becomes the RecId string; refreshPreview() parses it back to a RecId.
+    /// </remarks>
+    public void lookupSeedRecord(FormStringControl _control)
+    {
+        const FieldId RecIdFieldId = 65534; // Platform RecId FieldId (see WhsCustomLabelPrintCommandGenerator).
+
+        if (!seedTableId)
+        {
+            return;
+        }
+
+        SysTableLookup          sysTableLookup = SysTableLookup::newParameters(seedTableId, _control);
+        Query                   query = new Query();
+        QueryBuildDataSource    qbds = query.addDataSource(seedTableId);
+        SysDictTable            dictTable = SysDictTable::newTableId(seedTableId);
+        FieldId                 titleFieldId = dictTable ? dictTable.titleField1() : 0;
+
+        // Most-recent first, matching the auto-resolve default (REQ-A-3).
+        qbds.addSortField(RecIdFieldId, SortOrder::Descending);
+
+        // RecId is the RETURNED value (first lookup field), so the control captures a stable key.
+        sysTableLookup.addLookupfield(RecIdFieldId);
+
+        // Friendly display column when the table has a title field.
+        if (titleFieldId && titleFieldId != RecIdFieldId)
+        {
+            sysTableLookup.addLookupField(titleFieldId);
+        }
+
+        sysTableLookup.parmQuery(query);
+        sysTableLookup.performFormLookup();
     }
 
 ]]></Source>
@@ -218,6 +548,113 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     {
         super();
         element.downloadCurrentPage();
+    }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>RotateButton</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+    /// <summary>Rotates the current page 90 degrees clockwise (Feature 1, unlimited clicks).</summary>
+    public void clicked()
+    {
+        super();
+        element.rotateCurrentPage();
+    }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>RefreshButton</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+    /// <summary>Re-renders the preview using the selected seed record (REQ-A-3 step 1).</summary>
+    public void clicked()
+    {
+        super();
+        element.refreshPreview();
+    }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>PreviewEditsButton</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+    /// <summary>Re-renders the preview from the edited SOURCE text without saving (Feature 3).</summary>
+    public void clicked()
+    {
+        super();
+        element.previewEdits();
+    }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>SaveButton</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+    /// <summary>Saves the edited raw SOURCE ZPL back to the layout (Feature 3).</summary>
+    public void clicked()
+    {
+        super();
+        element.saveSource();
+    }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>SeedRecordEdit</Name>
+				<Type>String</Type>
+				<Methods>
+					<Method>
+						<Name>lookup</Name>
+						<Source><![CDATA[
+    /// <summary>Generic RecId lookup over the runtime seed table (REQ-A-3 step 1).</summary>
+    public void lookup()
+    {
+        // Do NOT call super(): SysTableLookup::performFormLookup drives the lookup form itself.
+        element.lookupSeedRecord(this);
+    }
+
+]]></Source>
+					</Method>
+					<Method>
+						<Name>modified</Name>
+						<Source><![CDATA[
+    /// <summary>Captures the chosen record's RecId from the control text (REQ-A-3 step 1).</summary>
+    public boolean modified()
+    {
+        boolean ret = super();
+
+        // The lookup returns the RecId as the control value; an empty/cleared field means
+        // "auto-resolve most-recent" (selectedSeedRecId == 0). Refresh applies it.
+        element.setSelectedSeedRecId(this.text());
+
+        return ret;
     }
 
 ]]></Source>
@@ -292,8 +729,45 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 										<FormControlExtension
 											i:nil="true" />
 									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormButtonControl">
+										<Name>RotateButton</Name>
+										<AutoDeclaration>Yes</AutoDeclaration>
+										<Text>@AAXWarehouseTools:RotateImage</Text>
+										<Type>Button</Type>
+										<FormControlExtension
+											i:nil="true" />
+									</AxFormControl>
 								</Controls>
 								<Caption>@AAXWarehouseTools:DownloadPng</Caption>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormButtonGroupControl">
+								<Name>EditGroup</Name>
+								<Type>ButtonGroup</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Controls>
+									<AxFormControl xmlns=""
+										i:type="AxFormButtonControl">
+										<Name>PreviewEditsButton</Name>
+										<AutoDeclaration>Yes</AutoDeclaration>
+										<Text>@AAXWarehouseTools:PreviewEdits</Text>
+										<Type>Button</Type>
+										<FormControlExtension
+											i:nil="true" />
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormButtonControl">
+										<Name>SaveButton</Name>
+										<AutoDeclaration>Yes</AutoDeclaration>
+										<Text>@AAXWarehouseTools:SaveToLayout</Text>
+										<Type>Button</Type>
+										<FormControlExtension
+											i:nil="true" />
+									</AxFormControl>
+								</Controls>
+								<Caption>@AAXWarehouseTools:EditSourceGroup</Caption>
 							</AxFormControl>
 						</Controls>
 						<Caption>@AAXWarehouseTools:GenerateLabelPreview</Caption>
@@ -332,6 +806,46 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormGroupControl">
+						<Name>DataSourceGroup</Name>
+						<Type>Group</Type>
+						<WidthMode>SizeToAvailable</WidthMode>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormStaticTextControl">
+								<Name>SeedTableLabel</Name>
+								<AllowEdit>No</AllowEdit>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<Type>StaticText</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<ShowLabel>No</ShowLabel>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>SeedRecordEdit</Name>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<Label>@AAXWarehouseTools:SeedRecord</Label>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormButtonControl">
+								<Name>RefreshButton</Name>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<Text>@AAXWarehouseTools:RefreshPreview</Text>
+								<Type>Button</Type>
+								<FormControlExtension
+									i:nil="true" />
+							</AxFormControl>
+						</Controls>
+						<ArrangeMethod>HorizontalLeft</ArrangeMethod>
+						<Caption>@AAXWarehouseTools:DataSourceGroup</Caption>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormGroupControl">
 						<Name>ImageGroup</Name>
 						<HeightMode>SizeToAvailable</HeightMode>
 						<Type>Group</Type>
@@ -353,6 +867,31 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 						</Controls>
 						<ArrangeMethod>Vertical</ArrangeMethod>
 						<FrameType>None</FrameType>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormGroupControl">
+						<Name>SourceZplGroup</Name>
+						<HeightMode>SizeToAvailable</HeightMode>
+						<Type>Group</Type>
+						<WidthMode>SizeToAvailable</WidthMode>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>SourceZplText</Name>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<HeightMode>SizeToAvailable</HeightMode>
+								<Type>String</Type>
+								<WidthMode>SizeToAvailable</WidthMode>
+								<FormControlExtension
+									i:nil="true" />
+								<MultiLine>Yes</MultiLine>
+								<ShowLabel>No</ShowLabel>
+							</AxFormControl>
+						</Controls>
+						<ArrangeMethod>Vertical</ArrangeMethod>
+						<Caption>@AAXWarehouseTools:SourceZplGroup</Caption>
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormGroupControl">
@@ -378,7 +917,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 							</AxFormControl>
 						</Controls>
 						<ArrangeMethod>Vertical</ArrangeMethod>
-						<Caption>@AAXWarehouseTools:CopyZpl</Caption>
+						<Caption>@AAXWarehouseTools:TranslatedZplGroup</Caption>
 					</AxFormControl>
 				</Controls>
 				<ArrangeMethod>Vertical</ArrangeMethod>

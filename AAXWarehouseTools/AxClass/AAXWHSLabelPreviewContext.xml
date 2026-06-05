@@ -14,8 +14,19 @@ public final class AAXWHSLabelPreviewContext
 {
     private List    pngList;
     private str     finalZpl;
+    private str     sourceZpl;      // RAW source (with $tokens$ / {{Header}}{{Row}}{{Footer}}) — the EDITABLE/SAVABLE text
+    private boolean canSave;        // Whether the dialog may offer "Save to layout" for this layout type
     private str     badgeText;
     private str     layoutDescription;
+
+    // REQ-A-3 step 1 (seed-record selection): the dialog re-renders by re-reading the
+    // layout row (identity below) and calling AAXWHSLabelPreviewController::buildContext()
+    // with a chosen seed record on the resolved seed table.
+    private TableId layoutTableId;
+    private RecId   layoutRecId;
+    private TableId seedTableId;
+    private RecId   seedRecId;
+    private str     seedTableLabel;
 }
 ]]></Declaration>
 		<Methods>
@@ -60,6 +71,51 @@ public final class AAXWHSLabelPreviewContext
 ]]></Source>
 			</Method>
 			<Method>
+				<Name>parmSourceZpl</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the RAW SOURCE ZPL of the layout — the text WITH unresolved <c>$tokens$</c>
+    /// (and, for template layouts, the <c>{{Header}}/{{Row}}/{{Footer}}</c> blocks). This is the
+    /// text the dialog makes EDITABLE and saves back to the layout; it must never be the
+    /// token-substituted result (saving substituted text would destroy the layout's tokens).
+    /// </summary>
+    /// <param name = "_sourceZpl">The raw source ZPL to set.</param>
+    /// <returns>The current raw source ZPL.</returns>
+    public str parmSourceZpl(str _sourceZpl = '')
+    {
+        if (!prmIsDefault(_sourceZpl))
+        {
+            sourceZpl = _sourceZpl;
+        }
+
+        return sourceZpl;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmCanSave</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets whether the previewed layout's raw source may be saved back from the dialog.
+    /// True for ZPL-type WHSLabelLayout and WHSDocumentRoutingLayout rows; the dialog hides/disables
+    /// the Save button when false (e.g. Variables/VariablesScript layouts are not previewable here).
+    /// </summary>
+    /// <param name = "_canSave">The save-allowed flag to set.</param>
+    /// <returns>The current save-allowed flag.</returns>
+    public boolean parmCanSave(boolean _canSave = false)
+    {
+        if (!prmIsDefault(_canSave))
+        {
+            canSave = _canSave;
+        }
+
+        return canSave;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
 				<Name>parmBadgeText</Name>
 				<Source><![CDATA[
     /// <summary>
@@ -95,6 +151,121 @@ public final class AAXWHSLabelPreviewContext
         }
 
         return layoutDescription;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmLayoutTableId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the table id of the source layout row (WHSLabelLayout or
+    /// WHSDocumentRoutingLayout), so the dialog can re-read it to re-render (REQ-A-3 step 1).
+    /// </summary>
+    /// <param name = "_layoutTableId">The layout table id to set.</param>
+    /// <returns>The current layout table id.</returns>
+    /// <remarks>
+    /// Standard parm idiom: the controller always sets a non-zero layout table id, so the
+    /// prmIsDefault(0) guard never blocks a real assignment (X++ disallows non-constant
+    /// default parameter values, hence the constant 0 default rather than the member).
+    /// </remarks>
+    public TableId parmLayoutTableId(TableId _layoutTableId = 0)
+    {
+        if (!prmIsDefault(_layoutTableId))
+        {
+            layoutTableId = _layoutTableId;
+        }
+
+        return layoutTableId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmLayoutRecId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the RecId of the source layout row, so the dialog can re-read it to
+    /// re-render (REQ-A-3 step 1).
+    /// </summary>
+    /// <param name = "_layoutRecId">The layout RecId to set.</param>
+    /// <returns>The current layout RecId.</returns>
+    public RecId parmLayoutRecId(RecId _layoutRecId = 0)
+    {
+        if (!prmIsDefault(_layoutRecId))
+        {
+            layoutRecId = _layoutRecId;
+        }
+
+        return layoutRecId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmSeedTableId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the resolved seed table id (the table the dialog's record selector
+    /// looks up, REQ-A-3 step 1).
+    /// </summary>
+    /// <param name = "_seedTableId">The seed table id to set.</param>
+    /// <returns>The current seed table id.</returns>
+    public TableId parmSeedTableId(TableId _seedTableId = 0)
+    {
+        if (!prmIsDefault(_seedTableId))
+        {
+            seedTableId = _seedTableId;
+        }
+
+        return seedTableId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmSeedRecId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the RecId of the seed record used for token substitution. 0 means
+    /// "auto-resolve most-recent" (the v1 default behavior, REQ-A-3).
+    /// </summary>
+    /// <param name = "_seedRecId">The seed RecId to set.</param>
+    /// <returns>The current seed RecId.</returns>
+    /// <remarks>
+    /// The member initializes to 0 (auto-resolve), so the prmIsDefault(0) guard is correct:
+    /// a non-zero pick is stored; a 0/auto-resolve pick simply leaves the member at its
+    /// initialized 0. Each Refresh builds a brand-new context, so there is no stale carry-over.
+    /// </remarks>
+    public RecId parmSeedRecId(RecId _seedRecId = 0)
+    {
+        if (!prmIsDefault(_seedRecId))
+        {
+            seedRecId = _seedRecId;
+        }
+
+        return seedRecId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmSeedTableLabel</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the display label of the seed table (DictTable.label()), shown in the
+    /// dialog's "Data source" group (REQ-A-3 step 1).
+    /// </summary>
+    /// <param name = "_seedTableLabel">The seed table label to set.</param>
+    /// <returns>The current seed table label.</returns>
+    public str parmSeedTableLabel(str _seedTableLabel = '')
+    {
+        if (!prmIsDefault(_seedTableLabel))
+        {
+            seedTableLabel = _seedTableLabel;
+        }
+
+        return seedTableLabel;
     }
 
 ]]></Source>

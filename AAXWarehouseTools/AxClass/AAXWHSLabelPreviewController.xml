@@ -25,135 +25,34 @@ public final class AAXWHSLabelPreviewController
     /// opens the preview dialog.
     /// </summary>
     /// <param name = "_args">
-    /// The menu-item args; <c>_args.record()</c> carries the selected layout row,
-    /// <c>_args.dataset()</c> identifies which form launched the preview.
+    /// The menu-item args; <c>_args.record()</c> carries the selected layout row (its
+    /// <c>TableId</c> selects the WHSLabelLayout vs WHSDocumentRoutingLayout resolution path).
     /// </param>
+    /// <remarks>
+    /// Thin wrapper over <c>buildContext()</c> with auto-resolved seed (seedRecId == 0), which
+    /// preserves the original live behavior; the dialog re-renders via the same buildContext.
+    /// </remarks>
     public static void main(Args _args)
     {
-        // X++ requires all declarations at the top of the method scope.
-        WHSDocumentRoutingLayout    documentRoutingLayout;
-        WHSLabelLayout              labelLayout;
-        WHSLabelLayoutVersion       labelLayoutVersion;
-        WHSLicensePlateLabel        seedLabel;
-        WhsDocumentRoutingTranslator translator;
         AAXWHSLabelPreviewContext   context;
         Args                        dialogArgs;
         FormRun                     formRun;
-        str                         zpl;
-        str                         finalZpl;
-        str                         badgeText;
-        str                         layoutDescription = '';
-        LanguageId                  labelLocale = '';
-        List                        pngList;
 
         if (!_args || !_args.record())
         {
             return;
         }
 
-        // REQ-A-2: per-table ZPL resolution (the production internal resolver
-        // WHSLabelLayout.getLayoutSource() is [Hookable(false)] internal and thus
-        // inaccessible cross-model, F9 — so resolution is replicated here).
-        switch (_args.dataset())
+        // REQ-A-3 (v1 default): auto-resolve the most-recent seed record (seedRecId == 0)
+        // on the resolved seed table, with sample fallback. The seed table is resolved
+        // inside buildContext from the layout type / data source (REQ-A-3 step 1).
+        context = AAXWHSLabelPreviewController::buildContext(_args.record(), 0, 0);
+        if (!context)
         {
-            case tableNum(WHSDocumentRoutingLayout):
-                // F13: ZPL lives directly on the table (EDT WHSZPL); no template/
-                // variables machinery exists for this table.
-                documentRoutingLayout = _args.record() as WHSDocumentRoutingLayout;
-                zpl = documentRoutingLayout.ZPL;
-                layoutDescription = documentRoutingLayout.Description;
-                break;
-
-            case tableNum(WHSLabelLayout):
-                labelLayout = _args.record() as WHSLabelLayout;
-                layoutDescription = labelLayout.Description;
-
-                // REQ-A-2 ORDER: check EnableTemplateTranslator FIRST — it is
-                // orthogonal to DefinitionType (separate field, enabled for any
-                // layout with a data source). The {{Header}}/{{Row}}/{{Footer}}
-                // grammar it drives is NOT the $token$ grammar (F7) and is not
-                // handled by WhsDocumentRoutingTranslator — feeding it through
-                // would preview garbage. v2 backlog.
-                if (labelLayout.EnableTemplateTranslator == NoYes::Yes)
-                {
-                    info("@AAXWarehouseTools:PreviewTemplateNotSupported");
-                    return;
-                }
-
-                // Only ZPL definition types are previewable in v1. Variables /
-                // VariablesScript depend on internal generators (F9) — v2 backlog.
-                if (labelLayout.DefinitionType != WHSLabelLayoutDefinitionType::ZPL)
-                {
-                    info("@AAXWarehouseTools:PreviewZplOnly");
-                    return;
-                }
-
-                // F11: the ZPL is versioned — read the active version's ZPL
-                // (tables are public).
-                select firstonly ZPL from labelLayoutVersion
-                    where labelLayoutVersion.RecId == labelLayout.ActiveVersion;
-                zpl = labelLayoutVersion.ZPL;
-                labelLocale = labelLayout.LabelLocale;
-
-                if (!zpl)
-                {
-                    info("@AAXWarehouseTools:NoActiveVersion");
-                    return;
-                }
-                break;
-
-            default:
-                return;
-        }
-
-        if (!zpl)
-        {
-            info("@AAXWarehouseTools:NoActiveVersion");
+            // A REQ-A-2 gate (template translator / non-ZPL / no active version) fired and
+            // already showed its info() — nothing to preview.
             return;
         }
-
-        // REQ-A-3 (v1 scope): AUTO-RESOLVE most-recent seed record + SAMPLE
-        // FALLBACK. The optional per-data-source seed dialog (REQ-A-3 step 1)
-        // is deferred to v2.
-        select firstonly seedLabel
-            order by RecId desc;
-
-        // REQ-A-4 / C-5: substitution exclusively via the standard translator (F6).
-        translator = WhsDocumentRoutingTranslator::construct();
-
-        if (seedLabel.RecId != 0)
-        {
-            // Live record found — bind it and badge accordingly (REQ-A-7).
-            translator = translator.withRecord(seedLabel);
-            badgeText = strFmt("@AAXWarehouseTools:LiveRecordBadge", seedLabel.LabelId);
-        }
-        else
-        {
-            badgeText = "@AAXWarehouseTools:SampleDataBadge";
-        }
-
-        // ALWAYS supply the sample map for record-less tokens (REQ-A-4/-5). Map
-        // name defaults to 'parameters'.
-        translator = translator.withParameterMap(AAXWHSLabelPreviewSampleData::sampleParameterMap());
-
-        // WHSLabelLayout carries a LabelLocale; apply it where present (REQ-A-4, F6).
-        if (labelLocale)
-        {
-            translator = translator.withLanguage(labelLocale);
-        }
-
-        finalZpl = translator.translate(zpl);
-
-        // REQ-A-6/-8: render. The wrapper handles dimension fallbacks and surfaces
-        // readable error() text on parse/render failure (REQ-A-8) — let it surface.
-        pngList = AAXZplRenderService::renderToPngList(finalZpl);
-
-        // Build the carrier and open the preview dialog (REQ-A-6/-7).
-        context = new AAXWHSLabelPreviewContext();
-        context.parmPngList(pngList);
-        context.parmFinalZpl(finalZpl);
-        context.parmBadgeText(badgeText);
-        context.parmLayoutDescription(layoutDescription);
 
         dialogArgs = new Args(formStr(AAXWHSLabelPreviewDialog));
         dialogArgs.parmObject(context);
@@ -162,6 +61,1102 @@ public final class AAXWHSLabelPreviewController
         formRun.init();
         formRun.run();
         formRun.wait();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>resolveLayoutZpl</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Resolves the previewable ZPL for a layout row, applying the REQ-A-2 gates.
+    /// </summary>
+    /// <param name = "_layoutRecord">A <c>WHSLabelLayout</c> or <c>WHSDocumentRoutingLayout</c> row.</param>
+    /// <returns>
+    /// The layout's ZPL, or an empty string when a gate fired (after showing its info()) or
+    /// the record type is unsupported.
+    /// </returns>
+    /// <remarks>
+    /// REQ-A-2: per-table ZPL resolution (the production internal resolver
+    /// WHSLabelLayout.getLayoutSource() is [Hookable(false)] internal and thus inaccessible
+    /// cross-model, F9 — so resolution is replicated here). Returning '' after an info() lets
+    /// callers (main and the dialog Refresh) abort uniformly without surfacing a second error.
+    /// </remarks>
+    public static str resolveLayoutZpl(Common _layoutRecord)
+    {
+        WHSDocumentRoutingLayout    documentRoutingLayout;
+        WHSLabelLayout              labelLayout;
+        WHSLabelLayoutVersion       labelLayoutVersion;
+        str                         zpl;
+
+        if (!_layoutRecord || _layoutRecord.RecId == 0)
+        {
+            return '';
+        }
+
+        switch (_layoutRecord.TableId)
+        {
+            case tableNum(WHSDocumentRoutingLayout):
+                // F13: ZPL lives directly on the table (EDT WHSZPL); no template/
+                // variables machinery exists for this table.
+                documentRoutingLayout = _layoutRecord as WHSDocumentRoutingLayout;
+                zpl = documentRoutingLayout.ZPL;
+                break;
+
+            case tableNum(WHSLabelLayout):
+                labelLayout = _layoutRecord as WHSLabelLayout;
+
+                // Only ZPL definition types are previewable. Variables / VariablesScript depend
+                // on the internal WhsLabelLayoutVariablesSourceGenerator (F9 / verified internal,
+                // confirmed by reading getLayoutSource() L109-117) — v2 backlog. This gate applies
+                // to BOTH plain and template layouts: production's getLayoutSource() only routes
+                // Variables through the internal generator, while ZPL (and template-over-ZPL)
+                // resolve to the active-version ZPL via getLayoutSourceFromLayoutVersion() (L124).
+                // EnableTemplateTranslator is now SUPPORTED for ZPL layouts (handled downstream in
+                // buildContext via the production WhsDocumentRoutingTemplateTranslator pipeline);
+                // it is no longer blocked here.
+                if (labelLayout.DefinitionType != WHSLabelLayoutDefinitionType::ZPL)
+                {
+                    info("@AAXWarehouseTools:PreviewZplOnly");
+                    return '';
+                }
+
+                // F11: the ZPL is versioned — read the active version's ZPL (tables are public).
+                // For template layouts this IS the {{Header}}/{{Row}}/{{Footer}} template source,
+                // exactly as production's getLayoutSource()->getLayoutSourceFromLayoutVersion()
+                // returns it for ZPL DefinitionType.
+                select firstonly ZPL from labelLayoutVersion
+                    where labelLayoutVersion.RecId == labelLayout.ActiveVersion;
+                zpl = labelLayoutVersion.ZPL;
+                break;
+
+            default:
+                return '';
+        }
+
+        if (!zpl)
+        {
+            info("@AAXWarehouseTools:NoActiveVersion");
+            return '';
+        }
+
+        return zpl;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>resolveSeedTable</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Resolves the seed table for a layout row 'based on label type' (REQ-A-3 step 1).
+    /// </summary>
+    /// <param name = "_layoutRecord">A <c>WHSLabelLayout</c> or <c>WHSDocumentRoutingLayout</c> row.</param>
+    /// <returns>The TableId of the natural seed/source table for the layout.</returns>
+    /// <remarks>
+    /// Mapping verified against Microsoft's print-command generators (the records each
+    /// generator binds via configureTranslatorForDefaultDataSource / configureQuery):
+    ///   - WHSDocumentRoutingLayout            -> WHSLicensePlateLabel
+    ///   - WHSLabelLayoutType::LicensePlateLabel -> WHSLicensePlateLabel
+    ///       (WhsLicensePlateLabelPrintCommandGenerator.withRecord(licensePlateLabel))
+    ///   - WHSLabelLayoutType::ContainerLabel  -> WHSContainerTable
+    ///       (WhsContainerLabelPrintCommandGenerator: configureQuery dataSourceTable(WHSContainerTable))
+    ///   - WHSLabelLayoutType::CustomLabel     -> WHSLabelLayoutDataSource.CustomLabelRootDataSourceTable
+    ///       (WhsCustomLabelPrintCommandGenerator binds the data-source query's root table)
+    /// If the layout has a LabelLayoutDataSource, the packed DataSourceQuery (F12) is unpacked
+    /// first and its FIRST enabled data-source table wins (DR-3); on any unpack failure the
+    /// type map below is used. Unknown/extension enum values fall back to WHSLicensePlateLabel.
+    /// </remarks>
+    public static TableId resolveSeedTable(Common _layoutRecord)
+    {
+        WHSLabelLayout          labelLayout;
+        WHSLabelLayoutDataSource layoutDataSource;
+        SysDictTable            customRoot;
+        TableId                 fromQuery;
+        TableId                 seedTableId = tableNum(WHSLicensePlateLabel);
+
+        if (!_layoutRecord || _layoutRecord.RecId == 0)
+        {
+            return seedTableId;
+        }
+
+        if (_layoutRecord.TableId == tableNum(WHSDocumentRoutingLayout))
+        {
+            // F13: document-routing layouts are license-plate driven (legacy path).
+            return tableNum(WHSLicensePlateLabel);
+        }
+
+        if (_layoutRecord.TableId != tableNum(WHSLabelLayout))
+        {
+            return seedTableId;
+        }
+
+        labelLayout = _layoutRecord as WHSLabelLayout;
+
+        // DR-3: prefer the layout's own data-source query when one is bound. The packed
+        // query (EDT PackedQueryRun, container, F12) unpacks via new Query(container) — the
+        // exact pattern used by WHSLabelLayout.getLayoutQuery() (verified donor). Take the
+        // FIRST enabled data source's table, mirroring the production WHSLabelLayout form's
+        // createTableListView().
+        if (labelLayout.LabelLayoutDataSource)
+        {
+            select firstonly DataSourceQuery, CustomLabelRootDataSourceTable from layoutDataSource
+                where layoutDataSource.LabelLayoutDataSourceId == labelLayout.LabelLayoutDataSource;
+
+            if (layoutDataSource.RecId != 0)
+            {
+                fromQuery = AAXWHSLabelPreviewController::firstDataSourceTableFromPackedQuery(layoutDataSource.DataSourceQuery);
+                if (fromQuery)
+                {
+                    return fromQuery;
+                }
+
+                // Custom-label root table is stored as a table NAME (EDT
+                // WhsLabelLayoutCustomLabelRootDataSourceTableName); resolve via SysDictTable.
+                if (layoutDataSource.CustomLabelRootDataSourceTable)
+                {
+                    customRoot = SysDictTable::newName(layoutDataSource.CustomLabelRootDataSourceTable);
+                    if (customRoot)
+                    {
+                        return customRoot.id();
+                    }
+                }
+            }
+        }
+
+        // Type map (provable bindings; unknown/extension values fall back to license plate).
+        switch (labelLayout.LayoutType)
+        {
+            case WHSLabelLayoutType::LicensePlateLabel:
+                seedTableId = tableNum(WHSLicensePlateLabel);
+                break;
+
+            case WHSLabelLayoutType::ContainerLabel:
+                seedTableId = tableNum(WHSContainerTable);
+                break;
+
+            case WHSLabelLayoutType::CustomLabel:
+                // No bound data source / unpack failed: best effort is the legacy fallback.
+                seedTableId = tableNum(WHSLicensePlateLabel);
+                break;
+
+            default:
+                seedTableId = tableNum(WHSLicensePlateLabel);
+                break;
+        }
+
+        return seedTableId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>firstDataSourceTableFromPackedQuery</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Unpacks a packed query (EDT <c>PackedQueryRun</c>, container) and returns the TableId of
+    /// its first enabled data source, or 0 on any failure (DR-3 fallback).
+    /// </summary>
+    /// <param name = "_packedQuery">The packed <c>DataSourceQuery</c> container (F12).</param>
+    /// <returns>The first enabled data-source TableId, or 0 if it cannot be determined.</returns>
+    /// <remarks>
+    /// new Query(container) is the verified unpack idiom (WHSLabelLayout.getLayoutQuery()
+    /// line: <c>return new Query(layoutDataSource.DataSourceQuery);</c>). Walking
+    /// dataSourceCount()/dataSourceNo(i).enabled()/.table() mirrors the production
+    /// WHSLabelLayout form's createTableListView(). All failures are swallowed so the caller
+    /// can fall back to the type map (DR-3 says: log nothing, just proceed).
+    /// </remarks>
+    private static TableId firstDataSourceTableFromPackedQuery(container _packedQuery)
+    {
+        Query                   query;
+        QueryBuildDataSource    qbds;
+        TableId                 result = 0;
+        int                     dsCount;
+        int                     i;
+
+        if (_packedQuery == conNull())
+        {
+            return 0;
+        }
+
+        try
+        {
+            query = new Query(_packedQuery);
+            dsCount = query.dataSourceCount();
+
+            for (i = 1; i <= dsCount; ++i)
+            {
+                qbds = query.dataSourceNo(i);
+                if (qbds && qbds.enabled() && qbds.table())
+                {
+                    result = qbds.table();
+                    break;
+                }
+            }
+        }
+        catch
+        {
+            // DR-3: unpack failure -> caller falls back to the type map. Proceed silently.
+            result = 0;
+        }
+
+        return result;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>buildContext</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the preview carrier for a layout row and a chosen seed record, running the same
+    /// translation/render pipeline as the live preview (REQ-A-3 step 1; reusable by the dialog
+    /// Refresh button to re-render with a different seed record).
+    /// </summary>
+    /// <param name = "_layoutRecord">A <c>WHSLabelLayout</c> or <c>WHSDocumentRoutingLayout</c> row.</param>
+    /// <param name = "_seedTableId">
+    /// The seed table; 0 to resolve it from the layout type / data source via resolveSeedTable().
+    /// </param>
+    /// <param name = "_seedRecId">
+    /// The chosen seed record's RecId; 0 to auto-resolve the most-recent row (RecId desc) — the
+    /// v1 default behavior (REQ-A-3).
+    /// </param>
+    /// <returns>
+    /// A populated <c>AAXWHSLabelPreviewContext</c>, or <c>null</c> when a REQ-A-2 gate fired
+    /// (resolveLayoutZpl returned '' after its info()).
+    /// </returns>
+    public static AAXWHSLabelPreviewContext buildContext(Common _layoutRecord, TableId _seedTableId, RecId _seedRecId)
+    {
+        // Live preview (REQ-A-3): resolve the RAW SOURCE from the layout (resolveLayoutZpl applies
+        // the REQ-A-2 gates) and run the shared translate+render pipeline. Passing _sourceZplOverride
+        // as connull() (== '') tells the core to read the source from the layout.
+        return AAXWHSLabelPreviewController::buildContextFromSource(_layoutRecord, '', _seedTableId, _seedRecId);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>renderFromSource</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Re-renders a preview from a CALLER-SUPPLIED raw source string instead of re-reading the
+    /// layout, so the dialog can preview UNSAVED source edits (the editable Source-ZPL panel).
+    /// Runs the identical translate+render pipeline as <c>buildContext()</c> (plain vs template
+    /// path still selected from the layout's <c>EnableTemplateTranslator</c>).
+    /// </summary>
+    /// <param name = "_layoutRecord">The layout row (re-read by the dialog via its table/RecId).</param>
+    /// <param name = "_sourceZplOverride">The edited raw source ZPL to translate and render.</param>
+    /// <param name = "_seedTableId">The seed table; 0 to resolve from the layout (REQ-A-3).</param>
+    /// <param name = "_seedRecId">The chosen seed RecId; 0 to auto-resolve most-recent (REQ-A-3).</param>
+    /// <returns>
+    /// A populated <c>AAXWHSLabelPreviewContext</c> carrying the override source (parmSourceZpl),
+    /// the translated result + PNGs, or <c>null</c> when the layout type is not previewable.
+    /// </returns>
+    public static AAXWHSLabelPreviewContext renderFromSource(
+        Common  _layoutRecord,
+        str     _sourceZplOverride,
+        TableId _seedTableId,
+        RecId   _seedRecId)
+    {
+        // An empty override would translate/render to nothing; treat it as a no-op gate. The dialog
+        // guards against this, but be defensive (a blank source is not a meaningful preview).
+        if (!_sourceZplOverride)
+        {
+            return null;
+        }
+
+        return AAXWHSLabelPreviewController::buildContextFromSource(_layoutRecord, _sourceZplOverride, _seedTableId, _seedRecId);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>buildContextFromSource</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Shared pipeline backing both <c>buildContext()</c> (live, reads source from the layout) and
+    /// <c>renderFromSource()</c> (previews an edited source override). Resolves the raw SOURCE,
+    /// carries it on <c>parmSourceZpl</c>, runs the standard translator (REQ-A-4/C-5) and renders.
+    /// </summary>
+    /// <param name = "_layoutRecord">A <c>WHSLabelLayout</c> or <c>WHSDocumentRoutingLayout</c> row.</param>
+    /// <param name = "_sourceZplOverride">
+    /// '' => read the source from the layout via resolveLayoutZpl() (live preview). Non-empty =>
+    /// translate/render THIS source instead (unsaved-edit preview); the REQ-A-2 gates are then taken
+    /// only to classify the layout (template vs plain, savability), not to source the text.
+    /// </param>
+    /// <param name = "_seedTableId">The seed table; 0 to resolve from the layout type/data source.</param>
+    /// <param name = "_seedRecId">The chosen seed RecId; 0 to auto-resolve most-recent (REQ-A-3).</param>
+    /// <returns>A populated context, or <c>null</c> when a REQ-A-2 gate fired / type unsupported.</returns>
+    private static AAXWHSLabelPreviewContext buildContextFromSource(
+        Common  _layoutRecord,
+        str     _sourceZplOverride,
+        TableId _seedTableId,
+        RecId   _seedRecId)
+    {
+        AAXWHSLabelPreviewContext   context;
+        WhsDocumentRoutingTranslator translator;
+        Common                      seedRecord;
+        DictTable                   seedDictTable;
+        SysDictTable                seedSysDictTable;
+        WHSLabelLayout              labelLayout;
+        WHSDocumentRoutingLayout    documentRoutingLayout;
+        TableId                     seedTableId = _seedTableId;
+        boolean                     isTemplateLayout = false;
+        str                         sourceZpl;
+        str                         finalZpl;
+        str                         badgeText;
+        str                         layoutDescription = '';
+        str                         seedTableLabel = '';
+        LanguageId                  labelLocale = '';
+        List                        pngList;
+
+        if (!_layoutRecord || _layoutRecord.RecId == 0)
+        {
+            return null;
+        }
+
+        // REQ-A-2 gates (replicated resolver). '' => a gate fired and already info()'d => not
+        // previewable / not savable. For template ZPL layouts this returns the
+        // {{Header}}/{{Row}}/{{Footer}} template source (the active-version ZPL).
+        str layoutSource = AAXWHSLabelPreviewController::resolveLayoutZpl(_layoutRecord);
+        if (!layoutSource)
+        {
+            return null;
+        }
+
+        // RAW SOURCE under preview: the edited override when supplied, else the layout's stored
+        // source. This is exactly the text the dialog edits and saves (NEVER the translated result).
+        sourceZpl = _sourceZplOverride ? _sourceZplOverride : layoutSource;
+
+        // Human-readable description + locale (label layouts carry a LabelLocale, F6).
+        if (_layoutRecord.TableId == tableNum(WHSLabelLayout))
+        {
+            labelLayout = _layoutRecord as WHSLabelLayout;
+            layoutDescription = labelLayout.Description;
+            labelLocale = labelLayout.LabelLocale;
+            isTemplateLayout = (labelLayout.EnableTemplateTranslator == NoYes::Yes);
+        }
+        else if (_layoutRecord.TableId == tableNum(WHSDocumentRoutingLayout))
+        {
+            documentRoutingLayout = _layoutRecord as WHSDocumentRoutingLayout;
+            layoutDescription = documentRoutingLayout.Description;
+        }
+
+        // Resolve the seed table when the caller did not pin one (REQ-A-3 step 1). For template
+        // layouts this resolves to the first data-source ("Row") table of the layout query —
+        // the table the template iterates over.
+        if (!seedTableId)
+        {
+            seedTableId = AAXWHSLabelPreviewController::resolveSeedTable(_layoutRecord);
+        }
+
+        // Seed-table display label for the dialog's "Data source" group.
+        seedSysDictTable = SysDictTable::newTableId(seedTableId);
+        if (seedSysDictTable)
+        {
+            seedTableLabel = seedSysDictTable.label();
+        }
+
+        // === TEMPLATE PIPELINE (EnableTemplateTranslator = Yes) ===
+        // Replicate the production WhsLabelPrintCommandGenerator template path exactly via
+        // PUBLIC APIs. buildTemplateContext takes the SOURCE explicitly, so the edited override
+        // flows straight through (the {{Header}}/{{Row}}/{{Footer}} blocks are what the user edits).
+        if (isTemplateLayout)
+        {
+            context = AAXWHSLabelPreviewController::buildTemplateContext(
+                labelLayout, sourceZpl, layoutDescription, labelLocale,
+                seedTableId, seedTableLabel, _seedRecId);
+
+            if (context)
+            {
+                // Carry the RAW SOURCE + savability so the dialog's edit/save surface is correct.
+                context.parmSourceZpl(sourceZpl);
+                context.parmCanSave(true);
+            }
+
+            return context;
+        }
+
+        // === PLAIN ZPL PIPELINE ===
+        // Resolve the seed record on the runtime seed table (generic Common buffer):
+        //   _seedRecId != 0 -> that specific record;
+        //   _seedRecId == 0 -> most-recent row (RecId desc), the v1 default (REQ-A-3).
+        // new DictTable(tableId).makeRecord() + select-by-RecId is the verified donor idiom.
+        seedDictTable = new DictTable(seedTableId);
+        seedRecord = seedDictTable.makeRecord();
+
+        if (_seedRecId != 0)
+        {
+            select firstonly seedRecord
+                where seedRecord.RecId == _seedRecId;
+        }
+        else
+        {
+            select firstonly seedRecord
+                order by RecId desc;
+        }
+
+        // REQ-A-4 / C-5: substitution exclusively via the standard translator (F6).
+        translator = WhsDocumentRoutingTranslator::construct();
+
+        // Track the record names that get a LIVE binding, so the per-token sample-map pass below
+        // never shadows live data (translateMatches L519 prefers a parameter map over a record of
+        // the same name). The seed record binds under the DEFAULT name '' (withRecord(seedRecord)),
+        // which the sample-map pass already skips, but we register it explicitly for clarity.
+        Set boundRecordNames = new Set(Types::String);
+
+        if (seedRecord.RecId != 0)
+        {
+            // Live record found — bind it and badge with a friendly identifier (REQ-A-7).
+            // withRecord uses the table-name key; the generator donors call withRecord(record)
+            // with the default key, so the unqualified form matches production behavior.
+            translator = translator.withRecord(seedRecord);
+            boundRecordNames.add('');
+            badgeText = strFmt("@AAXWarehouseTools:LiveRecordBadge",
+                AAXWHSLabelPreviewController::seedRecordIdentifier(seedRecord, seedTableId));
+        }
+        else
+        {
+            badgeText = "@AAXWarehouseTools:SampleDataBadge";
+        }
+
+        // ALWAYS supply the sample map for record-less tokens (REQ-A-4/-5). Map name
+        // defaults to 'parameters'.
+        translator = translator.withParameterMap(AAXWHSLabelPreviewSampleData::sampleParameterMap());
+
+        // REQ-A-4/-5 (no-data case): qualified tokens like $WHSLicensePlateLabel.LicensePlateId$ or
+        // $InventTable_1.ItemId$ resolve from NEITHER the default-bound seed record (it registers
+        // under '') NOR the 'parameters' map. Scan the raw SOURCE and attach one named, type-aware
+        // sample map per record name that has no live binding (incl. the seed table's own name when
+        // it has no live row), so every qualified token renders populated.
+        translator = AAXWHSLabelPreviewController::attachQualifiedSampleMaps(translator, sourceZpl, boundRecordNames);
+
+        // WHSLabelLayout carries a LabelLocale; apply it where present (REQ-A-4, F6).
+        if (labelLocale)
+        {
+            translator = translator.withLanguage(labelLocale);
+        }
+
+        // Translate the RAW SOURCE (possibly edited) -> read-only translated result for display.
+        finalZpl = translator.translate(sourceZpl);
+
+        // REQ-A-6/-8: render. The wrapper handles dimension fallbacks and surfaces readable
+        // error() text on parse/render failure (REQ-A-8) — let it surface.
+        pngList = AAXZplRenderService::renderToPngList(finalZpl);
+
+        // Build the carrier (REQ-A-6/-7) including the layout identity + seed table so the
+        // dialog can re-render with a different seed record (REQ-A-3 step 1).
+        context = new AAXWHSLabelPreviewContext();
+        context.parmPngList(pngList);
+        context.parmFinalZpl(finalZpl);
+        context.parmSourceZpl(sourceZpl);   // RAW SOURCE — the editable/savable text
+        context.parmCanSave(true);          // ZPL-type layouts (both tables) are savable in place
+        context.parmBadgeText(badgeText);
+        context.parmLayoutDescription(layoutDescription);
+        context.parmLayoutTableId(_layoutRecord.TableId);
+        context.parmLayoutRecId(_layoutRecord.RecId);
+        context.parmSeedTableId(seedTableId);
+        context.parmSeedRecId(seedRecord.RecId);
+        context.parmSeedTableLabel(seedTableLabel);
+
+        return context;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>buildTemplateContext</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the preview carrier for a template-translator label layout
+    /// (<c>EnableTemplateTranslator == Yes</c>), replicating the production
+    /// <c>WhsLabelPrintCommandGenerator</c> template pipeline through PUBLIC APIs only.
+    /// </summary>
+    /// <param name = "_labelLayout">The template <c>WHSLabelLayout</c> row.</param>
+    /// <param name = "_templateSource">
+    /// The layout's template source string (active-version ZPL with {{Header}}/{{Row}}/{{Footer}}
+    /// blocks), as already resolved by <c>resolveLayoutZpl()</c>.
+    /// </param>
+    /// <param name = "_layoutDescription">Human-readable layout description for the dialog header.</param>
+    /// <param name = "_labelLocale">The layout's <c>LabelLocale</c> (applied to the translator, F6).</param>
+    /// <param name = "_seedTableId">The resolved seed/"Row" table id (for the carrier + dialog selector).</param>
+    /// <param name = "_seedTableLabel">The seed table's display label (for the carrier).</param>
+    /// <param name = "_seedRecId">
+    /// The chosen seed record's RecId; &gt; 0 adds a RecId range on the query's FIRST data source so
+    /// the user's selection drives the row expansion; 0 uses the full query result (like printing).
+    /// </param>
+    /// <returns>A populated <c>AAXWHSLabelPreviewContext</c>, or <c>null</c> when a gate fired.</returns>
+    /// <remarks>
+    /// PRODUCTION SEQUENCE REPLICATED (WhsLabelPrintCommandGenerator):
+    ///   printLabels() L76 -> instantiateTranslator() L45 (translator + withLanguage(LabelLocale))
+    ///     -> EnableTemplateTranslator branch -> translateLabelTemplate() L105:
+    ///        queryRunForLabelLayout() L150 [labelLayout.getLayoutQuery() L76 = new Query(
+    ///        layoutDataSource.DataSourceQuery); configureQuery(); new QueryRun(query)]
+    ///        then WhsDocumentRoutingTemplateTranslator::newFromTemplateAndQueryRun(
+    ///            labelLayout.getLayoutSource(printer) L209, queryRun) L93
+    ///          .updateQuerySelectionFields(...) L325  [internal, perf-only - see deviation]
+    ///          .withTranslator(translator) L267
+    ///          .translateTemplateToLabelCollector(this) L293.
+    /// We use the PUBLIC translateTemplate() L280 instead of the internal
+    /// translateTemplateToLabelCollector(this): translateTemplate() runs the IDENTICAL logic with
+    /// the framework's own WhsDocumentRoutingTemplateTranslatorStringListLabelCollector and returns
+    /// the List&lt;str&gt; of expanded labels - byte-for-byte the same per-section $token$ pass
+    /// (the template translator calls translator.translate(...) on every non-Row section and on
+    /// each Row body INTERNALLY, L309/L352/L391). So there is NO separate $token$ pass here - that
+    /// would double-translate. RowsPerLabel/MaxLabels chunking yields one List entry per emitted
+    /// label (buildLabelBodies L373) - each is rendered to its own PNG block here.
+    ///
+    /// getLayoutQuery()/getLayoutSource() are [Hookable(false)] internal (F9) so we replicate them:
+    ///   - source = the active-version ZPL (resolveLayoutZpl, == getLayoutSourceFromLayoutVersion);
+    ///   - query  = new Query(layoutDataSource.DataSourceQuery), the exact body of getLayoutQuery().
+    /// EnableTemplateTranslator REQUIRES a LabelLayoutDataSource (WHSLabelLayout.validateWrite L144),
+    /// so the bound-data-source branch is the normal path; the no-data-source guard is defensive.
+    /// </remarks>
+    private static AAXWHSLabelPreviewContext buildTemplateContext(
+        WHSLabelLayout  _labelLayout,
+        str             _templateSource,
+        str             _layoutDescription,
+        LanguageId      _labelLocale,
+        TableId         _seedTableId,
+        str             _seedTableLabel,
+        RecId           _seedRecId)
+    {
+        AAXWHSLabelPreviewContext       context;
+        WhsDocumentRoutingTranslator    translator;
+        WHSLabelLayoutDataSource        layoutDataSource;
+        Query                           query;
+        QueryRun                        queryRun;
+        List                            labelList;
+        ListEnumerator                  labelEnum;
+        List                            pngList = new List(Types::Container);
+        str                             finalZpl = '';
+        str                             badgeText;
+        int                             labelCount;
+
+        // Replica of WHSLabelLayout.getLayoutQuery() L76: the packed DataSourceQuery (F12,
+        // EDT PackedQueryRun) unpacks via new Query(container). A template layout always has a
+        // LabelLayoutDataSource (validateWrite L144); if somehow absent, the production internal
+        // provider fallback is inaccessible (C-2) - fail gracefully rather than guess.
+        if (!_labelLayout.LabelLayoutDataSource)
+        {
+            info("@AAXWarehouseTools:PreviewTemplateNoDataSource");
+            return null;
+        }
+
+        select firstonly DataSourceQuery from layoutDataSource
+            where layoutDataSource.LabelLayoutDataSourceId == _labelLayout.LabelLayoutDataSource;
+
+        if (!layoutDataSource || layoutDataSource.DataSourceQuery == conNull())
+        {
+            info("@AAXWarehouseTools:PreviewTemplateNoDataSource");
+            return null;
+        }
+
+        query = new Query(layoutDataSource.DataSourceQuery);
+
+        // SEED-RECORD REFINEMENT (preview-only; production scopes the query to the printed record
+        // in configureQuery(), e.g. WhsContainerLabelPrintCommandGenerator L81 adds a key range on
+        // the root data source). We add an analogous RecId range on the FIRST enabled data source -
+        // the template's "Row" table - so the user's selected record drives the row expansion.
+        // _seedRecId == 0 adds no range => the FULL query result expands, exactly as printing does
+        // when no specific record is supplied (documented behavior).
+        if (_seedRecId > 0)
+        {
+            AAXWHSLabelPreviewController::addSeedRecIdRange(query, _seedRecId);
+        }
+
+        // Production builds the QueryRun via new QueryRun(query) (queryRunForLabelLayout L150).
+        queryRun = new QueryRun(query);
+
+        // Replica of instantiateTranslator() L45: a standard translator carrying the layout locale.
+        // It is passed to the template translator (withTranslator) - the template translator's
+        // QueryRun iterator binds each row's records into THIS translator per-row (withRecord),
+        // exactly like production. We pre-load the sample map for record-less $tokens$ (REQ-A-4/-5);
+        // the iterator never resets parameter maps, so the sample map survives every row.
+        translator = WhsDocumentRoutingTranslator::construct();
+        if (_labelLocale)
+        {
+            translator = translator.withLanguage(_labelLocale);
+        }
+        translator = translator.withParameterMap(AAXWHSLabelPreviewSampleData::sampleParameterMap());
+
+        // Per-token qualified sample maps for record names that the template iterator will NOT
+        // live-bind. VERIFIED SAFE: parameter maps and records live in SEPARATE translator maps
+        // (recordNameToParameterMapMap vs recordsUnderTranslation), and the iterator only ever
+        // calls withRecord(record, qbds.name()) per row (WhsDocumentRoutingTemplateTranslator-
+        // QueryRunIterator.updateTranslatorFromIterator L74-80) - it never touches parameter maps,
+        // so our named maps coexist and survive every row. We EXCLUDE the query's enabled
+        // datasource alias names (the names the iterator binds, e.g. InventTable_1) so we never
+        // SHADOW a live row record (translateMatches L519 prefers a parameter map of the same
+        // name). Header/footer tokens referencing OTHER names then resolve from sample data even
+        // with thin data. NOTE: with ZERO rows the row-datasource tokens stay unresolved by design
+        // (no live row, and shadowing them would break the populated case) - documented limitation.
+        translator = AAXWHSLabelPreviewController::attachQualifiedSampleMaps(
+            translator, _templateSource, AAXWHSLabelPreviewController::enabledDataSourceNames(query));
+
+        // Production: newFromTemplateAndQueryRun(source, queryRun).withTranslator(translator)
+        // .translateTemplateToLabelCollector(this). We use the public translateTemplate() which is
+        // the framework's own collector-backed equivalent (returns List<str>). DEVIATION: we omit
+        // the internal updateQuerySelectionFields() (L325) - it is a flight-gated, CustomLabel+ZPL
+        // -only SELECT-field optimization (limits returned columns); omitting it selects all fields,
+        // which is functionally identical for a preview (only marginally less efficient).
+        labelList = WhsDocumentRoutingTemplateTranslator::newFromTemplateAndQueryRun(_templateSource, queryRun)
+                        .withTranslator(translator)
+                        .translateTemplate();
+
+        // labelList: one entry per emitted label after RowsPerLabel/MaxLabels chunking. Render each
+        // to its own PNG block(s) and concatenate - the dialog already pages through N images.
+        if (labelList)
+        {
+            labelEnum = labelList.getEnumerator();
+            while (labelEnum.moveNext())
+            {
+                str labelZpl = labelEnum.current();
+
+                labelCount++;
+                finalZpl += (finalZpl ? '\n\n' : '') + labelZpl;
+
+                // REQ-A-6/-8: render. Each label string may itself contain multiple ^XA..^XZ
+                // blocks; renderToPngList returns one container per block - append them all.
+                List labelPngs = AAXZplRenderService::renderToPngList(labelZpl);
+                ListEnumerator pngEnum = labelPngs.getEnumerator();
+                while (pngEnum.moveNext())
+                {
+                    pngList.addEnd(pngEnum.current());
+                }
+            }
+        }
+
+        // Badge: the produced label count is cheaply available (the QueryRun is consumed by the
+        // template translator, so a pre-render ROW count is not - DECISION: badge by produced
+        // label count, which is exact and free). Zero labels => sample/empty fallback.
+        if (labelCount > 0)
+        {
+            badgeText = strFmt("@AAXWarehouseTools:TemplateDataBadge", labelCount);
+        }
+        else
+        {
+            badgeText = "@AAXWarehouseTools:SampleDataBadge";
+        }
+
+        context = new AAXWHSLabelPreviewContext();
+        context.parmPngList(pngList);
+        context.parmFinalZpl(finalZpl);
+        context.parmBadgeText(badgeText);
+        context.parmLayoutDescription(_layoutDescription);
+        context.parmLayoutTableId(_labelLayout.TableId);
+        context.parmLayoutRecId(_labelLayout.RecId);
+        context.parmSeedTableId(_seedTableId);
+        context.parmSeedRecId(_seedRecId);
+        context.parmSeedTableLabel(_seedTableLabel);
+
+        return context;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addSeedRecIdRange</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds a <c>RecId == _seedRecId</c> range on the first enabled data source of a query, so a
+    /// preview's selected seed record drives the template's row expansion.
+    /// </summary>
+    /// <param name = "_query">The layout query (unpacked from the packed DataSourceQuery).</param>
+    /// <param name = "_seedRecId">The chosen seed record's RecId (caller guarantees &gt; 0).</param>
+    /// <remarks>
+    /// Mirrors the production scoping pattern (e.g. WhsContainerLabelPrintCommandGenerator
+    /// .configureQuery L81: dataSource.addRange(field).value(queryValue(...))), but keyed on RecId
+    /// of the FIRST enabled data source (the template "Row" table - newFromTemplateAndQueryRun
+    /// defaults the row table to dataSourceNo(1), QueryRunIterator.resolveRowTableDataSource L91).
+    /// addRange/value(queryValue) and dataSourceNo are standard PUBLIC kernel APIs (used by the MS
+    /// generators above). Failures are swallowed: a missing data source simply leaves the full
+    /// query result, which is still a valid (broader) preview.
+    /// </remarks>
+    private static void addSeedRecIdRange(Query _query, RecId _seedRecId)
+    {
+        QueryBuildDataSource    qbds;
+        int                     dsCount;
+        int                     i;
+
+        try
+        {
+            dsCount = _query.dataSourceCount();
+            for (i = 1; i <= dsCount; ++i)
+            {
+                qbds = _query.dataSourceNo(i);
+                if (qbds && qbds.enabled())
+                {
+                    qbds.addRange(fieldNum(Common, RecId)).value(queryValue(_seedRecId));
+                    return;
+                }
+            }
+        }
+        catch
+        {
+            // Best effort: leave the full query result on any failure.
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>enabledDataSourceNames</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Collects the alias names of all enabled data sources of a query - exactly the record names
+    /// the template iterator live-binds per row via <c>withRecord(record, qbds.name())</c>
+    /// (WhsDocumentRoutingTemplateTranslatorQueryRunIterator.updateTranslatorFromIterator L74-80).
+    /// </summary>
+    /// <param name = "_query">The unpacked layout query.</param>
+    /// <returns>
+    /// A <c>Set(Types::String)</c> of enabled data-source names, so the qualified sample-map pass can
+    /// SKIP them and avoid shadowing live row records (precedence safety).
+    /// </returns>
+    private static Set enabledDataSourceNames(Query _query)
+    {
+        Set                     names = new Set(Types::String);
+        QueryBuildDataSource    qbds;
+        int                     dsCount;
+        int                     i;
+
+        if (!_query)
+        {
+            return names;
+        }
+
+        try
+        {
+            dsCount = _query.dataSourceCount();
+            for (i = 1; i <= dsCount; ++i)
+            {
+                qbds = _query.dataSourceNo(i);
+                if (qbds && qbds.enabled())
+                {
+                    names.add(qbds.name());
+                }
+            }
+        }
+        catch
+        {
+            // Best effort: a partial set just means a header/footer token MIGHT show sample data
+            // under a name the iterator also binds; the live row still wins per-row when no map
+            // exists for that name, so returning whatever we collected is the safe choice.
+        }
+
+        return names;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>seedRecordIdentifier</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns a friendly identifier for a seed record for the "Live record: %1" badge.
+    /// </summary>
+    /// <param name = "_seedRecord">The bound seed record (runtime <c>Common</c> buffer).</param>
+    /// <param name = "_seedTableId">The seed table id.</param>
+    /// <returns>The record's TitleField1 value when available; otherwise "RecId &lt;n&gt;".</returns>
+    /// <remarks>
+    /// Generic title-field read off a runtime buffer: <c>common.(dictTable.titleField1())</c>
+    /// is the verified donor idiom (WrkCtrBulkEditController). Falls back to the RecId when the
+    /// table has no title field (e.g. WHSLicensePlateLabel's TitleField may differ by table).
+    /// </remarks>
+    private static str seedRecordIdentifier(Common _seedRecord, TableId _seedTableId)
+    {
+        SysDictTable    dictTable = SysDictTable::newTableId(_seedTableId);
+        FieldId         titleFieldId = dictTable ? dictTable.titleField1() : 0;
+        str             titleValue;
+
+        if (titleFieldId)
+        {
+            titleValue = any2Str(_seedRecord.(titleFieldId));
+            if (titleValue)
+            {
+                return titleValue;
+            }
+        }
+
+        return strFmt('RecId %1', _seedRecord.RecId);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>scanRecordTokens</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Scans the raw layout ZPL for $record.field$ placeholders and groups the referenced field
+    /// names by record name (F7 token grammar), so the caller can build one named sample map per
+    /// record name that has no live binding.
+    /// </summary>
+    /// <param name = "_zpl">The raw, pre-translation layout ZPL.</param>
+    /// <returns>
+    /// A <c>Map(Types::String, Types::Class)</c> mapping each record name to a
+    /// <c>Set(Types::String)</c> of field names. Unqualified tokens ($Field$) are grouped under the
+    /// empty-string record name ''. Method-indicator tokens ($Rec.method()$) are EXCLUDED: a named
+    /// parameter map cannot satisfy a () token (the translator THROWS for a () token whose name
+    /// resolves to a parameter map - translateMatches L521-524), so we never add a method name as a
+    /// sample field and never attach a map for a name referenced ONLY via method tokens.
+    /// </returns>
+    /// <remarks>
+    /// Uses the EXACT F7 regex from the production translator (WhsDocumentRoutingTranslator
+    /// FieldRegexString L16) via System.Text.RegularExpressions interop, mirroring how the framework
+    /// itself enumerates matches (fieldsRequiredToTranslate L421-447: Matches/GetEnumerator,
+    /// match.Groups.get_Item(groupName), group.Success/group.Value). PUBLIC CLR APIs only (C-2).
+    /// </remarks>
+    public static Map scanRecordTokens(str _zpl)
+    {
+        Map recordToFields = new Map(Types::String, Types::Class);
+
+        if (!_zpl)
+        {
+            return recordToFields;
+        }
+
+        // Exact F7 grammar (copy of WhsDocumentRoutingTranslator.FieldRegexString L16).
+        str fieldRegexString = @'\$(?:(?<record>[a-zA-Z0-9_]+?)\.)?(?<field>[a-zA-Z0-9_]+?)(?<methodIndicator>\(\))?(?:\[(?<lineIndex>[0-9]{1,3})\])?(?::(?<format>.*?))?\$';
+
+        System.Text.RegularExpressions.Regex regex = new System.Text.RegularExpressions.Regex(fieldRegexString);
+        System.Text.RegularExpressions.MatchCollection matches = regex.Matches(_zpl);
+        System.Collections.IEnumerator enumerator = matches.GetEnumerator();
+
+        while (enumerator.MoveNext())
+        {
+            System.Text.RegularExpressions.Match match = enumerator.Current;
+
+            System.Text.RegularExpressions.Group recordGroup = match.Groups.get_Item('record');
+            System.Text.RegularExpressions.Group fieldGroup  = match.Groups.get_Item('field');
+            System.Text.RegularExpressions.Group methodGroup = match.Groups.get_Item('methodIndicator');
+
+            if (!fieldGroup.Success)
+            {
+                // $$ literal etc. - nothing to substitute.
+                continue;
+            }
+
+            // Skip display-method tokens: a parameter map cannot back a () token (see method header).
+            if (methodGroup.Success)
+            {
+                continue;
+            }
+
+            str recordName = recordGroup.Success ? recordGroup.Value : '';
+            str fieldName  = fieldGroup.Value;
+
+            Set fieldSet;
+            if (recordToFields.exists(recordName))
+            {
+                fieldSet = recordToFields.lookup(recordName);
+            }
+            else
+            {
+                fieldSet = new Set(Types::String);
+                recordToFields.insert(recordName, fieldSet);
+            }
+
+            fieldSet.add(fieldName);
+        }
+
+        return recordToFields;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>attachQualifiedSampleMaps</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// For every DISTINCT record name in the layout's tokens that has NO live binding, attaches a
+    /// named String-&gt;String sample map (field-&gt;sampleValueForField) to the translator via
+    /// <c>withParameterMap(map, recordName)</c>, so record-qualified tokens resolve even when their
+    /// table has no live row or the layout references record names beyond the seed.
+    /// </summary>
+    /// <param name = "_translator">The translator under construction (already carries any live records).</param>
+    /// <param name = "_zpl">The raw, pre-translation layout ZPL to scan.</param>
+    /// <param name = "_boundRecordNames">
+    /// A <c>Set(Types::String)</c> of record names that ARE live-bound on the translator
+    /// (withRecord). These are SKIPPED: a named parameter map would SHADOW a live record of the same
+    /// name (translateMatches L519 takes the parameter-map branch whenever a map exists for the
+    /// name, even if a record is also bound) - so we only fill gaps, never override live data.
+    /// </param>
+    /// <returns>The same translator instance (for chaining).</returns>
+    /// <remarks>
+    /// The empty-string record name ('') is NEVER given a qualified map here - unqualified tokens are
+    /// served by the existing fixed sampleParameterMap() (default name 'parameters' != '') and by any
+    /// live seed record bound under the default name. Adding a '' parameter map would shadow the
+    /// default-bound live seed record (precedence safety).
+    /// </remarks>
+    public static WhsDocumentRoutingTranslator attachQualifiedSampleMaps(
+        WhsDocumentRoutingTranslator _translator,
+        str                          _zpl,
+        Set                          _boundRecordNames)
+    {
+        Map             recordToFields = AAXWHSLabelPreviewController::scanRecordTokens(_zpl);
+        MapEnumerator   me             = recordToFields.getEnumerator();
+
+        while (me.moveNext())
+        {
+            str recordName = me.currentKey();
+
+            // Unqualified tokens are handled by sampleParameterMap()/the seed record - skip ''.
+            if (!recordName)
+            {
+                continue;
+            }
+
+            // Never shadow a live record bound under this same name (precedence safety).
+            if (_boundRecordNames && _boundRecordNames.in(recordName))
+            {
+                continue;
+            }
+
+            Set fieldSet  = me.currentValue();
+            Map sampleMap = AAXWHSLabelPreviewSampleData::sampleMapForRecordTokens(recordName, fieldSet);
+
+            if (sampleMap)
+            {
+                _translator = _translator.withParameterMap(sampleMap, recordName);
+            }
+        }
+
+        return _translator;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>saveSourceToLayout</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Writes an edited RAW SOURCE ZPL back to the originating layout row (the dialog's
+    /// "Save to layout" action). Handles both layout tables, gates on Edit access (SECURITY),
+    /// and returns a localized message for the caller to <c>info()</c>.
+    /// </summary>
+    /// <param name = "_layoutTableId">The layout table id (WHSLabelLayout or WHSDocumentRoutingLayout).</param>
+    /// <param name = "_layoutRecId">The layout row's RecId.</param>
+    /// <param name = "_newSourceZpl">The raw source to persist (WITH $tokens$ / {{...}} blocks).</param>
+    /// <returns>
+    /// A two-element <c>container</c> [<c>boolean</c> success, <c>str</c> messageKey]: success is
+    /// <c>true</c> on a committed write, <c>false</c> on a security decline or failure; messageKey is
+    /// a localized label the caller <c>info()</c>s. (X++ has no by-reference scalar parameters, so the
+    /// message is returned in the container rather than via a <c>str&amp;</c> out-param — see report.)
+    /// </returns>
+    /// <remarks>
+    /// STORAGE PER TYPE (verified):
+    ///   - WHSDocumentRoutingLayout: ZPL is a direct field (F13) — update by RecId.
+    ///   - WHSLabelLayout (DefinitionType::ZPL): the source lives in the ACTIVE version row
+    ///     (WHSLabelLayoutVersion.ZPL keyed by WHSLabelLayout.ActiveVersion, F11). The active
+    ///     version is EDITABLE IN PLACE — there is NO publish/lock/status field on
+    ///     WHSLabelLayoutVersion (only ZPL/LabelLayoutId/VersionNumber; ZPL has no AllowEdit=No),
+    ///     and Microsoft's own WHSLabelLayout form binds WHSLabelLayoutZPL straight to
+    ///     WHSLabelLayoutVersion.ZPL for editing. So we update the active version in place; we do
+    ///     NOT invent a new-version workflow (createNewVersionForLabelLayout is internal, C-2).
+    /// SECURITY: writing is gated on hasTableAccess(tableNum(target), AccessType::Edit) — the exact
+    /// MS idiom (BudgetControlConfigurationManager L1998/2013). The existing AAXWHSLabelPreviewView
+    /// privilege is read-level; see report for the dedicated-save-privilege recommendation.
+    /// Variables/VariablesScript never reach here (resolveLayoutZpl gates them out upstream).
+    /// </remarks>
+    public static container saveSourceToLayout(
+        TableId _layoutTableId,
+        RecId   _layoutRecId,
+        str     _newSourceZpl)
+    {
+        WHSDocumentRoutingLayout    documentRoutingLayout;
+        WHSLabelLayout              labelLayout;
+        WHSLabelLayoutVersion       labelLayoutVersion;
+
+        if (!_layoutTableId || !_layoutRecId)
+        {
+            return [false, "@AAXWarehouseTools:SaveFailed"];
+        }
+
+        switch (_layoutTableId)
+        {
+            case tableNum(WHSDocumentRoutingLayout):
+                // SECURITY: Edit access on the target table (write gate).
+                if (!hasTableAccess(tableNum(WHSDocumentRoutingLayout), AccessType::Edit))
+                {
+                    return [false, "@AAXWarehouseTools:SaveAccessDenied"];
+                }
+
+                // F13: ZPL is a direct field — update by RecId.
+                ttsbegin;
+                select forupdate firstonly documentRoutingLayout
+                    where documentRoutingLayout.RecId == _layoutRecId;
+
+                if (documentRoutingLayout.RecId == 0)
+                {
+                    ttsabort;
+                    return [false, "@AAXWarehouseTools:SaveLayoutGone"];
+                }
+
+                documentRoutingLayout.ZPL = _newSourceZpl;
+                if (!documentRoutingLayout.validateWrite())
+                {
+                    ttsabort;
+                    return [false, "@AAXWarehouseTools:SaveFailed"];
+                }
+
+                documentRoutingLayout.update();
+                ttscommit;
+
+                return [true, "@AAXWarehouseTools:SaveSucceeded"];
+
+            case tableNum(WHSLabelLayout):
+                // SECURITY: editing the version ZPL is a write on WHSLabelLayoutVersion; gate it.
+                if (!hasTableAccess(tableNum(WHSLabelLayoutVersion), AccessType::Edit))
+                {
+                    return [false, "@AAXWarehouseTools:SaveAccessDenied"];
+                }
+
+                select firstonly labelLayout
+                    where labelLayout.RecId == _layoutRecId;
+
+                if (labelLayout.RecId == 0)
+                {
+                    return [false, "@AAXWarehouseTools:SaveLayoutGone"];
+                }
+
+                // Variables/VariablesScript are not previewable/savable (resolveLayoutZpl gates
+                // them); guard defensively in case this is ever called directly.
+                if (labelLayout.DefinitionType != WHSLabelLayoutDefinitionType::ZPL)
+                {
+                    return [false, "@AAXWarehouseTools:SaveZplOnly"];
+                }
+
+                if (!labelLayout.ActiveVersion)
+                {
+                    return [false, "@AAXWarehouseTools:SaveNoActiveVersion"];
+                }
+
+                // F11: source lives in the active version row. Select it FORUPDATE by RecId.
+                // findByRecId(RecId, true) is the public [Hookable(false)] forupdate selector.
+                ttsbegin;
+                labelLayoutVersion = WHSLabelLayoutVersion::findByRecId(labelLayout.ActiveVersion, true);
+
+                if (labelLayoutVersion.RecId == 0)
+                {
+                    ttsabort;
+                    return [false, "@AAXWarehouseTools:SaveNoActiveVersion"];
+                }
+
+                labelLayoutVersion.ZPL = _newSourceZpl;
+                if (!labelLayoutVersion.validateWrite())
+                {
+                    ttsabort;
+                    return [false, "@AAXWarehouseTools:SaveFailed"];
+                }
+
+                labelLayoutVersion.update();
+                ttscommit;
+
+                return [true, "@AAXWarehouseTools:SaveSucceeded"];
+
+            default:
+                return [false, "@AAXWarehouseTools:SaveFailed"];
+        }
     }
 
 ]]></Source>

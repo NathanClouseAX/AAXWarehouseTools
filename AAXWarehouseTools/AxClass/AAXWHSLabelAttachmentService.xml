@@ -20,9 +20,10 @@ internal final class AAXWHSLabelAttachmentService
 				<Source><![CDATA[
     /// <summary>
     /// Idempotently creates the <c>LBLPREV</c> document type in the current company if it does not
-    /// already exist. The DocuType MUST carry <c>ActionClassId = classNum(DocuActionFile)</c> or
-    /// <c>DocumentManagement::attachFileForRecord</c> throws when it validates the type (F25/F26).
-    /// DocuType is per-company, so this is safe to call from each company-scoped batch chunk.
+    /// already exist. The DocuType MUST carry an ActionClassId that derives from
+    /// <c>DocuActionFile</c> or <c>DocumentManagement::attachFileForRecord</c> throws when it
+    /// validates the type (F25/F26). DocuType is per-company, so this is safe to call from each
+    /// company-scoped batch chunk.
     /// </summary>
     public static void ensureDocuType()
     {
@@ -36,8 +37,10 @@ internal final class AAXWHSLabelAttachmentService
             docuType.Name          = "@AAXWarehouseTools:DocuTypeLabelPreview";
             docuType.TypeGroup     = DocuTypeGroup::File;
             docuType.FilePlace     = DocuFilePlace::Archive;
-            // REQUIRED — attachFile() validates ActionClassId is DocuActionFile or it throws (F25/F26).
-            docuType.ActionClassId = classNum(DocuActionFile);
+            // DocuActionFile itself is ABSTRACT (DocuType.insert() instantiates the action class
+            // and would throw); DocuActionArchive is the concrete final subclass and still
+            // satisfies attachFile()'s isEqualOrSuperclass(_, DocuActionFile) check (F25/F26).
+            docuType.ActionClassId = classNum(DocuActionArchive);
             docuType.insert();
             ttscommit;
         }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AtomicAx.Zpl.Render;
+using SkiaSharp;
 using Xunit;
 
 namespace AtomicAx.Zpl.Render.Tests
@@ -178,6 +179,111 @@ namespace AtomicAx.Zpl.Render.Tests
 
             Assert.Single(records);
             Assert.Equal("Rec", records[0]);
+        }
+
+        // ---- RotatePng (integration contract with X++ AAXZplRenderService.rotatePng) ----
+
+        // Renders the canonical 4x2 label (812x406 dots @ 8 dpmm) to a single PNG for rotation tests.
+        private static byte[] RenderSinglePng()
+        {
+            IList<byte[]> pngs = ZplRenderService.RenderToPngList(Valid4x2, 8);
+            Assert.Single(pngs);
+            AssertPng(pngs[0]);
+            return pngs[0];
+        }
+
+        // Decodes a PNG with SkiaSharp and returns (width, height) in pixels.
+        private static (int Width, int Height) DecodeDimensions(byte[] png)
+        {
+            using (SKBitmap bmp = SKBitmap.Decode(png))
+            {
+                Assert.NotNull(bmp);
+                return (bmp.Width, bmp.Height);
+            }
+        }
+
+        [Fact]
+        public void RotatePng_OneTurn_SwapsDimensions_AndStaysValidPng()
+        {
+            byte[] original = RenderSinglePng();
+            (int w0, int h0) = DecodeDimensions(original);
+
+            byte[] rotated = ZplRenderService.RotatePng(original, 1);
+
+            AssertPng(rotated);
+            (int w1, int h1) = DecodeDimensions(rotated);
+            // Odd quarter-turn swaps width/height.
+            Assert.Equal(h0, w1);
+            Assert.Equal(w0, h1);
+            // A 4x2 label is non-square, so the swap is observable.
+            Assert.NotEqual(w0, h0);
+        }
+
+        [Fact]
+        public void RotatePng_TwoTurns_PreservesDimensions()
+        {
+            byte[] original = RenderSinglePng();
+            (int w0, int h0) = DecodeDimensions(original);
+
+            byte[] rotated = ZplRenderService.RotatePng(original, 2);
+
+            AssertPng(rotated);
+            (int w2, int h2) = DecodeDimensions(rotated);
+            Assert.Equal(w0, w2);
+            Assert.Equal(h0, h2);
+        }
+
+        [Fact]
+        public void RotatePng_FourTurns_PreservesDimensions()
+        {
+            byte[] original = RenderSinglePng();
+            (int w0, int h0) = DecodeDimensions(original);
+
+            byte[] rotated = ZplRenderService.RotatePng(original, 4);
+
+            AssertPng(rotated);
+            (int w4, int h4) = DecodeDimensions(rotated);
+            Assert.Equal(w0, w4);
+            Assert.Equal(h0, h4);
+        }
+
+        [Fact]
+        public void RotatePng_ZeroTurns_ReturnsSameReferenceUnchanged()
+        {
+            byte[] original = RenderSinglePng();
+
+            byte[] result = ZplRenderService.RotatePng(original, 0);
+
+            // Contract: turns==0 returns the SAME byte[] reference (no decode/encode round-trip).
+            Assert.Same(original, result);
+        }
+
+        [Fact]
+        public void RotatePng_NegativeOne_EqualsThreeTurns_Dimensionally()
+        {
+            byte[] original = RenderSinglePng();
+
+            byte[] minusOne = ZplRenderService.RotatePng(original, -1);
+            byte[] three = ZplRenderService.RotatePng(original, 3);
+
+            AssertPng(minusOne);
+            AssertPng(three);
+            (int wm, int hm) = DecodeDimensions(minusOne);
+            (int w3, int h3) = DecodeDimensions(three);
+            Assert.Equal(w3, wm);
+            Assert.Equal(h3, hm);
+
+            // And both equal the dimension swap (odd turn) vs the original.
+            (int w0, int h0) = DecodeDimensions(original);
+            Assert.Equal(h0, wm);
+            Assert.Equal(w0, hm);
+        }
+
+        [Fact]
+        public void RotatePng_NullOrEmpty_ThrowsZplRenderException()
+        {
+            Assert.Throws<ZplRenderException>(() => ZplRenderService.RotatePng(null, 1));
+            Assert.Throws<ZplRenderException>(() => ZplRenderService.RotatePng(new byte[0], 1));
         }
     }
 }

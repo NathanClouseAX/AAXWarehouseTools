@@ -1,7 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net472</TargetFrameworks>
+    <!-- net472 is the AOS deployment target (the ILRepack/model-bin targets below are net472-gated).
+         net8.0 is built ONLY so the xunit test project (net8.0) can ProjectReference the library and
+         exercise the same source — it ships nothing and does not affect the deployed artifact. -->
+    <TargetFrameworks>net472;net8.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Version>1.0.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
@@ -11,69 +14,94 @@
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
-    <!-- net472 native asset resolution: emit the runtime DLLs into the build output. -->
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-    <!-- DR-2 APPLIED (2026-06-04): strong-naming removed. Build-time signing succeeded (CS8002
-         warning only), but the .NET FRAMEWORK RUNTIME in the AOS enforces the rule the compiler
-         no longer does: a strong-named assembly cannot LOAD unsigned dependencies
-         (FUSION_E_SIGNATURE_CHECK_FAILED 0x80131044 on BinaryKits.Zpl.Viewer, PKT=null) — seen
-         live on Feature A preview. net8 tests passed because modern .NET dropped that rule.
-         Unsigned (PublicKeyToken=null) is the proven sibling precedent (F29/F35). -->
+    <!-- DR-2 APPLIED (2026-06-04): unsigned (PublicKeyToken=null) — the .NET Framework runtime
+         in the AOS rejects strong-named->unsigned loads (0x80131044); sibling precedent F29/F35. -->
     <SignAssembly>false</SignAssembly>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- Pinned per WP-0.2 / F34 / DR-1. -->
     <PackageReference Include="BinaryKits.Zpl.Viewer" Version="1.3.1" />
-    <!-- Windows native assets are NOT declared by the BinaryKits nuspec (it lists Linux only, F34)
-         -> add explicitly, matching the SkiaSharp/HarfBuzzSharp line the Viewer resolves (3.119.1 / 8.3.x). -->
+    <!-- Native asset SOURCE packages (no managed lib): natives are embedded as resources below. -->
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.119.1" />
     <PackageReference Include="HarfBuzzSharp.NativeAssets.Win32" Version="8.3.1.2" />
+    <!-- Merge tool: all managed dependencies are ILRepack-ed INTO AtomicAx.Zpl.Render.dll so the
+         X++ payload is ONE standalone assembly. This removes every load-fabric failure mode seen
+         live in the AOS: BinaryKits' SkiaSharp reference is rewritten to point inside the merged
+         assembly (no Fusion resolution, no duplicate load contexts, no identity collision with
+         ElectronicReporting's SkiaSharp/zxing), and SkiaSharp's native LibraryLoader probes next
+         to the MERGED assembly's Location (the model bin), which we fully control. -->
+    <PackageReference Include="ILRepack" Version="2.0.43">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
 
-  <!-- net472 needs reference assemblies for the build host; provide them via NuGet so the
-       build is self-contained regardless of which targeting packs are installed. -->
+  <!-- net472 needs reference assemblies for the build host. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
   </ItemGroup>
 
-  <!-- A classic net472 (non-self-contained) build does NOT auto-copy the win-x64 native
-       assets out of the NuGet packages. Stage them into the build output's
-       runtimes\win-x64\native so the lib is self-contained for the net8 test/probe and so the
-       post-build model-bin copy has a single source. Paths resolved from the restored packages. -->
-  <!-- ARCH-CORRECT native staging (U-1 round 3): SkiaSharp's own net4xx .targets drop an
-       arch-picked native (x86 for AnyCPU!) into the build output ROOT — flat-copying *.dll
-       therefore shipped an x86 libSkiaSharp into the 64-bit AOS (LoadLibrary error 193).
-       Fix: never ship flat natives; stage BOTH win-x64 and win-x86 under runtimes\ and let
-       the NativeLibraryPreloader pick by process bitness. -->
-  <Target Name="AAXStageNatives" AfterTargets="Build" Condition="'$(TargetFramework)' == 'net472'">
+  <!-- Natives ship INSIDE the assembly as embedded resources; the NativeLibraryPreloader
+       extracts them beside the assembly (or to %TEMP%) and LoadLibrary-s them at first use.
+       AOS is x64-only (verified); win-x64 embedded, file-probing fallbacks remain for x86. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <EmbeddedResource Include="$(NuGetPackageRoot)skiasharp.nativeassets.win32\3.119.1\runtimes\win-x64\native\libSkiaSharp.dll">
+      <LogicalName>AAX.Natives.win-x64.libSkiaSharp.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(NuGetPackageRoot)harfbuzzsharp.nativeassets.win32\8.3.1.2\runtimes\win-x64\native\libHarfBuzzSharp.dll">
+      <LogicalName>AAX.Natives.win-x64.libHarfBuzzSharp.dll</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- Merge the managed payload into ONE assembly. /internalize hides every merged type, so the
+       only public surface is AtomicAx.Zpl.Render's own API and merged SkiaSharp/zxing types can
+       never clash with ElectronicReporting's copies in the same AOS process. zxing.presentation
+       (WPF satellite, never used by BinaryKits) is excluded. -->
+  <Target Name="AAXILRepack" AfterTargets="Build" Condition="'$(TargetFramework)' == 'net472' and '$(AAXSkipDeploy)' != 'true'">
+    <PropertyGroup>
+      <AAXOut>$(OutDir.TrimEnd('\'))</AAXOut>
+      <AAXMergedDir>$(OutDir)merged\</AAXMergedDir>
+      <AAXILRepackExe>$(NuGetPackageRoot)ilrepack\2.0.43\tools\ILRepack.exe</AAXILRepackExe>
+      <AAXRefAsmDir>$(NuGetPackageRoot)microsoft.netframework.referenceassemblies.net472\1.0.3\build\.NETFramework\v4.7.2</AAXRefAsmDir>
+    </PropertyGroup>
     <ItemGroup>
-      <AAXNativeSrc Include="$(NuGetPackageRoot)skiasharp.nativeassets.win32\3.119.1\runtimes\win-x64\native\libSkiaSharp.dll" Arch="win-x64" />
-      <AAXNativeSrc Include="$(NuGetPackageRoot)skiasharp.nativeassets.win32\3.119.1\runtimes\win-x86\native\libSkiaSharp.dll" Arch="win-x86" />
-      <AAXNativeSrc Include="$(NuGetPackageRoot)harfbuzzsharp.nativeassets.win32\8.3.1.2\runtimes\win-x64\native\libHarfBuzzSharp.dll" Arch="win-x64" />
-      <AAXNativeSrc Include="$(NuGetPackageRoot)harfbuzzsharp.nativeassets.win32\8.3.1.2\runtimes\win-x86\native\libHarfBuzzSharp.dll" Arch="win-x86" />
+      <!-- Primary FIRST; its identity/version/attributes win. -->
+      <AAXMergeInput Include="$(OutDir)AtomicAx.Zpl.Render.dll" />
+      <AAXMergeInput Include="$(OutDir)BinaryKits.Zpl.Viewer.dll" />
+      <AAXMergeInput Include="$(OutDir)BinaryKits.Zpl.Label.dll" />
+      <AAXMergeInput Include="$(OutDir)SkiaSharp.dll" />
+      <AAXMergeInput Include="$(OutDir)SkiaSharp.HarfBuzz.dll" />
+      <AAXMergeInput Include="$(OutDir)HarfBuzzSharp.dll" />
+      <AAXMergeInput Include="$(OutDir)zxing.dll" />
+      <AAXMergeInput Include="$(OutDir)SixLabors.ImageSharp.dll" />
+      <AAXMergeInput Include="$(OutDir)System.Buffers.dll" />
+      <AAXMergeInput Include="$(OutDir)System.Memory.dll" />
+      <AAXMergeInput Include="$(OutDir)System.Numerics.Vectors.dll" />
+      <AAXMergeInput Include="$(OutDir)System.Runtime.CompilerServices.Unsafe.dll" />
+      <AAXMergeInput Include="$(OutDir)System.Text.Encoding.CodePages.dll" />
     </ItemGroup>
-    <Copy SourceFiles="@(AAXNativeSrc)" DestinationFiles="@(AAXNativeSrc->'$(OutDir)runtimes\%(Arch)\native\%(Filename)%(Extension)')" SkipUnchangedFiles="false" />
+    <MakeDir Directories="$(AAXMergedDir)" />
+    <Exec Command="&quot;$(AAXILRepackExe)&quot; /internalize /parallel /targetplatform:v4 /lib:&quot;$(AAXOut)&quot; /lib:&quot;$(AAXRefAsmDir)&quot; /out:&quot;$(AAXMergedDir)AtomicAx.Zpl.Render.dll&quot; @(AAXMergeInput->'&quot;%(FullPath)&quot;', ' ')" />
+    <Message Importance="high" Text="AAX: ILRepack merged $(AAXMergedDir)AtomicAx.Zpl.Render.dll" />
   </Target>
 
-  <!-- WP-0.2 post-build copy: managed payload (EXCLUDING any stray root-level natives that
-       SkiaSharp's targets placed there) + the full runtimes\ tree, structure preserved. -->
-  <Target Name="AAXCopyToModelBin" AfterTargets="AAXStageNatives" Condition="'$(TargetFramework)' == 'net472'">
+  <!-- Deploy ONLY the merged standalone assembly; scrub every previously-shipped payload file
+       so nothing stale can shadow it. -->
+  <Target Name="AAXCopyToModelBin" AfterTargets="AAXILRepack" Condition="'$(TargetFramework)' == 'net472' and '$(AAXSkipDeploy)' != 'true'">
     <PropertyGroup>
       <AAXModelBin>C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin\</AAXModelBin>
     </PropertyGroup>
     <ItemGroup>
-      <AAXManaged Include="$(OutDir)*.dll" Exclude="$(OutDir)libSkiaSharp.dll;$(OutDir)libHarfBuzzSharp.dll" />
-      <AAXNative Include="$(OutDir)runtimes\**\*.dll" />
-      <AAXStaleFlatNatives Include="$(AAXModelBin)libSkiaSharp.dll;$(AAXModelBin)libHarfBuzzSharp.dll" />
+      <AAXStalePayload Include="$(AAXModelBin)BinaryKits.Zpl.Viewer.dll;$(AAXModelBin)BinaryKits.Zpl.Label.dll;$(AAXModelBin)SkiaSharp.dll;$(AAXModelBin)SkiaSharp.HarfBuzz.dll;$(AAXModelBin)HarfBuzzSharp.dll;$(AAXModelBin)zxing.dll;$(AAXModelBin)zxing.presentation.dll;$(AAXModelBin)SixLabors.ImageSharp.dll;$(AAXModelBin)System.Buffers.dll;$(AAXModelBin)System.Memory.dll;$(AAXModelBin)System.Numerics.Vectors.dll;$(AAXModelBin)System.Runtime.CompilerServices.Unsafe.dll;$(AAXModelBin)System.Text.Encoding.CodePages.dll;$(AAXModelBin)libSkiaSharp.dll;$(AAXModelBin)libHarfBuzzSharp.dll" />
     </ItemGroup>
     <MakeDir Directories="$(AAXModelBin)" />
-    <Delete Files="@(AAXStaleFlatNatives)" ContinueOnError="true" />
-    <Copy SourceFiles="@(AAXManaged)" DestinationFolder="$(AAXModelBin)" SkipUnchangedFiles="false" />
-    <Copy SourceFiles="@(AAXNative)" DestinationFiles="@(AAXNative->'$(AAXModelBin)runtimes\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="false" />
-    <Message Importance="high" Text="AAX: copied net472 managed DLLs + runtimes\win-x64+win-x86 natives to $(AAXModelBin)" />
+    <Delete Files="@(AAXStalePayload)" ContinueOnError="true" />
+    <RemoveDir Directories="$(AAXModelBin)runtimes" ContinueOnError="true" />
+    <Copy SourceFiles="$(AAXMergedDir)AtomicAx.Zpl.Render.dll" DestinationFolder="$(AAXModelBin)" SkipUnchangedFiles="false" />
+    <Message Importance="high" Text="AAX: deployed SINGLE standalone AtomicAx.Zpl.Render.dll to $(AAXModelBin) and scrubbed the old multi-DLL payload" />
   </Target>
 
 </Project>

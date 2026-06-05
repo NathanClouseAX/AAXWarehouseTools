@@ -38,6 +38,8 @@ CaptureZplHash=ZPL hash
  ;SHA-256 hash of the captured ZPL, used for dedup.
 CopyZpl=Copy ZPL
  ;Button label in the preview dialog to copy the final ZPL to the clipboard.
+DataSourceGroup=Data source
+ ;Caption of the preview dialog group containing the seed-table label, record selector and Refresh button.
 DocuTypeLabelPreview=Label preview
  ;Name of the LBLPREV document type used for work attachments.
 DownloadPng=Download PNG
@@ -72,8 +74,12 @@ PreviewPrevPage=Previous label
  ;Prev navigation button on the multi-label preview dialog.
 PreviewRetentionDays=Label preview retention days
  ;Age in days after which label preview attachments are purged.
+PreviewTemplateNoDataSource=Add a data source to the layout to preview its template.
+ ;Shown when a template layout has no usable LabelLayoutDataSource query to expand.
 PreviewTemplateNotSupported=Preview does not support layouts that use the template translator.
- ;Shown for label layouts with EnableTemplateTranslator = Yes.
+ ;Retired 2026-06-04 (template layouts are now supported); kept for compatibility.
+TemplateDataBadge=Template: %1 label(s)
+ ;Badge shown when the preview expanded a template layout; %1 = number of labels produced.
 PreviewToWorkAttachment=Print label preview to work attachment
  ;Parameter toggle that enables mobile-flow label capture.
 PreviewToWorkAttachmentHelp=When enabled, ZPL labels printed from mobile flows are rendered as images and attached to the related work record. Automatically turns off after the configured number of days. Applies only to ZPL labels that have a related work record.
@@ -84,9 +90,39 @@ PrivCaptureAdminister=Administer label preview capture
  ;Security privilege for the capture toggle and batch jobs.
 PrivPreviewView=Generate label preview
  ;Security privilege for the on-demand preview button.
+RefreshPreview=Refresh preview
+ ;Button that re-renders the preview using the selected seed record.
 RenderFailed=The label could not be rendered: %1
  ;Error shown when the ZPL renderer rejects the label, %1 = renderer message.
+RotateImage=Rotate 90°
+ ;ActionPane button that rotates the current preview page 90 degrees clockwise.
 SampleDataBadge=Sample data
  ;Badge shown when the preview used synthetic sample values.
+SeedRecord=Record
+ ;Label of the seed-record selector in the preview dialog's Data source group.
+EditSourceGroup=Edit source
+ ;ActionPane button group caption for the source-edit actions.
+PreviewEdits=Preview edits
+ ;ActionPane button: re-renders the preview from the edited source ZPL without saving.
+SaveAccessDenied=You do not have permission to edit this layout.
+ ;Info message when the user lacks Edit access to the layout table.
+SaveEmptySource=Enter the source ZPL before saving.
+ ;Info message when the source panel is empty on save.
+SaveFailed=The source ZPL could not be saved.
+ ;Info message when validation or the write failed.
+SaveLayoutGone=The layout no longer exists; nothing was saved.
+ ;Info message when the layout row was deleted before saving.
+SaveNoActiveVersion=Activate a layout version before saving.
+ ;Info message when the label layout has no active version to write to.
+SaveSucceeded=The source ZPL was saved to the layout.
+ ;Info message after a successful save.
+SaveToLayout=Save to layout
+ ;ActionPane button: saves the edited source ZPL back to the label layout.
+SaveZplOnly=Only layouts with definition type 'ZPL' can be saved here.
+ ;Info message when a non-ZPL definition type reaches save.
+SourceZplGroup=Source ZPL (editable)
+ ;Caption of the editable raw-source ZPL panel (with $tokens$ / template blocks).
+TranslatedZplGroup=Translated ZPL (rendered result)
+ ;Caption of the read-only token-substituted ZPL panel; what the source renders to.
 WorkNoLongerExists=The work record no longer exists; the label image was not attached.
  ;Staging note when the target work was deleted before the render batch ran.
