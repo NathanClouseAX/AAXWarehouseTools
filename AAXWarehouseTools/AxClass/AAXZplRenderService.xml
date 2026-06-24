@@ -25,14 +25,27 @@ public final class AAXZplRenderService
     /// <param name = "_heightMm">Label height in mm; 0 = parse ^LL from the ZPL, else fallback.</param>
     /// <returns>A <c>List</c> of <c>Types::Container</c>, one PNG per label block.</returns>
     /// <remarks>
-    /// REQ-R-2: catches the renderer's ZplDimensionsMissingException and re-invokes with the
-    /// parameter fallbacks (X++ owns fallback policy); all other CLR errors surface as readable errors.
+    /// REQ-R-2: dpmm is resolved to a non-zero value UP FRONT and passed on the FIRST render call,
+    /// so the C# renderer can parse the label's own ^PW/^LL when width/height are 0 (the label's
+    /// declared size WINS by default). When the caller supplies explicit width/height (the dialog's
+    /// size-override box), those override ^PW/^LL. Only when the label declares NO ^PW/^LL AND the
+    /// caller supplied no size does the renderer throw ZplDimensionsMissingException — caught here
+    /// and retried with the configured WHSParameters fallback (default 4x6 in). All other CLR errors
+    /// surface as a readable @AAXWarehouseTools:RenderFailed error (X++ owns fallback policy).
     /// </remarks>
     public static List renderToPngList(str _zpl, int _dpmm = 0, real _widthMm = 0, real _heightMm = 0)
     {
+        WHSParameters p = WHSParameters::find();
+
+        // Resolve density UP FRONT so the FIRST call never trips the C# "dpmm <= 0" guard, which
+        // would otherwise throw before ^PW/^LL is ever parsed (the original ordering bug). With
+        // _widthMm/_heightMm == 0 the renderer parses the label's declared ^PW/^LL (label size wins);
+        // with explicit dims it uses them (the form size-override case).
+        int dpmm = _dpmm > 0 ? _dpmm : p.aaxPreviewDefaultDpmm();
+
         try
         {
-            return AAXZplRenderService::renderOnce(_zpl, _dpmm, _widthMm, _heightMm);
+            return AAXZplRenderService::renderOnce(_zpl, dpmm, _widthMm, _heightMm);
         }
         catch (Exception::CLRError)
         {
@@ -40,17 +53,16 @@ public final class AAXZplRenderService
 
             if (AAXZplRenderService::containsExceptionType(clrException, DimensionsMissingExceptionType))
             {
-                // Dimensions absent from ZPL/arguments: re-invoke with the configured
-                // WHSParameters fallbacks (REQ-R-2 / WP-2.1 accessors).
-                WHSParameters parameters = WHSParameters::find();
-
+                // The label declares NO ^PW/^LL and the caller gave no size: re-invoke with the
+                // configured WHSParameters fallbacks (default 4x6 in @ 8 dpmm). Explicit caller
+                // dims (if any) still win over the fallback width/height.
                 try
                 {
                     return AAXZplRenderService::renderOnce(
                         _zpl,
-                        _dpmm > 0 ? _dpmm : parameters.aaxPreviewDefaultDpmm(),
-                        _widthMm > 0 ? _widthMm : parameters.aaxPreviewDefaultWidthMm(),
-                        _heightMm > 0 ? _heightMm : parameters.aaxPreviewDefaultHeightMm());
+                        dpmm,
+                        _widthMm > 0 ? _widthMm : p.aaxPreviewDefaultWidthMm(),
+                        _heightMm > 0 ? _heightMm : p.aaxPreviewDefaultHeightMm());
                 }
                 catch (Exception::CLRError)
                 {

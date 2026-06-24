@@ -12,7 +12,10 @@
 public final class WHSParameters_AAXWarehouseTools_Extension
 {
     // NOTE: table-extension classes cannot declare fields/consts (compiler restriction) —
-    // the locked defaults (14 / 8 / 101.6 / 50.8 / 30, REQ-B-1) are inlined in the accessors.
+    // defaults are inlined. USER-FACING UNITS: the size/density fields store INCHES and DPI
+    // (defaults: auto-off 14 days, retention 14 days, 203 DPI, 4 in wide, 6 in tall). The field
+    // names keep their *Mm/*Dpmm suffix to avoid a schema change / DB sync; the accessors below
+    // convert to the renderer's native mm / dots-per-mm (inch x 25.4; dpmm = round(DPI / 25.4)).
 }
 ]]></Declaration>
 		<Methods>
@@ -33,11 +36,13 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxPreviewDefaultDpmm</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Render density fallback (dots/mm); unset falls back to 8 dpmm = 203 DPI (REQ-B-1).
+    /// Render density in dots/mm for the renderer. The field stores DPI (default 203); this
+    /// converts DPI -> dpmm (203 DPI -> 8 dpmm).
     /// </summary>
     public int aaxPreviewDefaultDpmm()
     {
-        return this.AAXPreviewDefaultDpmm > 0 ? this.AAXPreviewDefaultDpmm : 8;
+        int dpi = this.AAXPreviewDefaultDpi > 0 ? this.AAXPreviewDefaultDpi : 203;
+        return real2int(round(dpi / 25.4, 1.0));
     }
 
 ]]></Source>
@@ -46,11 +51,13 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxPreviewDefaultWidthMm</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Render width fallback in mm; unset falls back to 101.6 mm = 4 in (REQ-B-1).
+    /// Render width in mm for the renderer. The field stores inches (default 4); this converts
+    /// inches -> mm (4 in -> 101.6 mm).
     /// </summary>
     public real aaxPreviewDefaultWidthMm()
     {
-        return this.AAXPreviewDefaultWidthMm > 0 ? this.AAXPreviewDefaultWidthMm : 101.6;
+        real widthIn = this.AAXPreviewDefaultWidthIn > 0 ? this.AAXPreviewDefaultWidthIn : 4;
+        return widthIn * 25.4;
     }
 
 ]]></Source>
@@ -59,11 +66,13 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxPreviewDefaultHeightMm</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Render height fallback in mm; unset falls back to 50.8 mm = 2 in (REQ-B-1).
+    /// Render height in mm for the renderer. The field stores inches (default 6); this converts
+    /// inches -> mm (6 in -> 152.4 mm).
     /// </summary>
     public real aaxPreviewDefaultHeightMm()
     {
-        return this.AAXPreviewDefaultHeightMm > 0 ? this.AAXPreviewDefaultHeightMm : 50.8;
+        real heightIn = this.AAXPreviewDefaultHeightIn > 0 ? this.AAXPreviewDefaultHeightIn : 6;
+        return heightIn * 25.4;
     }
 
 ]]></Source>
@@ -72,11 +81,58 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxPreviewRetentionDays</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Attachment retention window in days for the purge batch; unset falls back to 30 (REQ-S-5).
+    /// Attachment retention window in days for the purge batch; unset falls back to 14 (REQ-S-5).
     /// </summary>
     public int aaxPreviewRetentionDays()
     {
-        return this.AAXPreviewRetentionDays > 0 ? this.AAXPreviewRetentionDays : 30;
+        return this.AAXPreviewRetentionDays > 0 ? this.AAXPreviewRetentionDays : 14;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>aaxApplyPreviewDefaultsIfUnset</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Sets each unset (zero) label-preview parameter field to its default, so the parameters form
+    /// shows sensible starting values. Units: days / days / DPI / inches / inches.
+    /// </summary>
+    public void aaxApplyPreviewDefaultsIfUnset()
+    {
+        if (!this.AAXPreviewAutoOffDays)
+        {
+            this.AAXPreviewAutoOffDays = 14;
+        }
+        if (!this.AAXPreviewRetentionDays)
+        {
+            this.AAXPreviewRetentionDays = 14;
+        }
+        if (!this.AAXPreviewDefaultDpi)
+        {
+            this.AAXPreviewDefaultDpi = 203;   // DPI
+        }
+        if (!this.AAXPreviewDefaultWidthIn)
+        {
+            this.AAXPreviewDefaultWidthIn = 4;  // inches
+        }
+        if (!this.AAXPreviewDefaultHeightIn)
+        {
+            this.AAXPreviewDefaultHeightIn = 6; // inches
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>initValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Applies the label-preview parameter defaults to a newly initialized parameters record.
+    /// </summary>
+    public void initValue()
+    {
+        next initValue();
+        this.aaxApplyPreviewDefaultsIfUnset();
     }
 
 ]]></Source>

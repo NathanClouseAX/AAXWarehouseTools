@@ -122,6 +122,11 @@
       <Name>AAXWHSLabelCaptureStatus</Name>
       <Link>Base Enums\AAXWHSLabelCaptureStatus</Link>
     </Content>
+    <Content Include="AxFormExtension\WHSLabelLayout.AAXWarehouseTools">
+      <SubType>Content</SubType>
+      <Name>WHSLabelLayout.AAXWarehouseTools</Name>
+      <Link>Form Extensions\WHSLabelLayout.AAXWarehouseTools</Link>
+    </Content>
     <Content Include="AxForm\AAXWHSLabelPreviewDialog">
       <SubType>Content</SubType>
       <Name>AAXWHSLabelPreviewDialog</Name>
@@ -131,11 +136,6 @@
       <SubType>Content</SubType>
       <Name>WHSDocumentRoutingLayout.AAXWarehouseTools</Name>
       <Link>Form Extensions\WHSDocumentRoutingLayout.AAXWarehouseTools</Link>
-    </Content>
-    <Content Include="AxFormExtension\WHSLabelLayout.AAXWarehouseTools">
-      <SubType>Content</SubType>
-      <Name>WHSLabelLayout.AAXWarehouseTools</Name>
-      <Link>Form Extensions\WHSLabelLayout.AAXWarehouseTools</Link>
     </Content>
     <Content Include="AxFormExtension\WHSParameters.AAXWarehouseTools">
       <SubType>Content</SubType>

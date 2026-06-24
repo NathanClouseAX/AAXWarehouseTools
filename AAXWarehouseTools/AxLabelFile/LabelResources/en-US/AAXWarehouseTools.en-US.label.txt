@@ -62,12 +62,12 @@ PreviewAttachmentTurnsOff=Label preview attachment turns off
  ;Read-only timestamp showing when capture auto-disables.
 PreviewAutoOffDays=Auto-off days
  ;Number of days after enabling before capture automatically turns off.
-PreviewDefaultDpmm=Default print density (dots/mm)
- ;Render density fallback used when the ZPL does not specify dimensions.
-PreviewDefaultHeightMm=Default label height (mm)
- ;Render height fallback used when the ZPL does not specify dimensions.
-PreviewDefaultWidthMm=Default label width (mm)
- ;Render width fallback used when the ZPL does not specify dimensions.
+PreviewDefaultDpi=Default print density (DPI)
+ ;Render density fallback in DPI (e.g. 203, 300, 600) used when the ZPL does not specify dimensions.
+PreviewDefaultHeightIn=Default label height (in)
+ ;Render height fallback in inches used when the ZPL does not specify dimensions.
+PreviewDefaultWidthIn=Default label width (in)
+ ;Render width fallback in inches used when the ZPL does not specify dimensions.
 PreviewNextPage=Next label
  ;Next navigation button on the multi-label preview dialog.
 PreviewPrevPage=Previous label
@@ -94,6 +94,8 @@ RefreshPreview=Refresh preview
  ;Button that re-renders the preview using the selected seed record.
 RenderFailed=The label could not be rendered: %1
  ;Error shown when the ZPL renderer rejects the label, %1 = renderer message.
+RenderProducedNoImage=The captured ZPL produced no label image (no ^XA..^XZ block was found).
+ ;Render-batch error when a staged ZPL renders to zero images; the row is marked Error/Poison.
 RotateImage=Rotate 90°
  ;ActionPane button that rotates the current preview page 90 degrees clockwise.
 SampleDataBadge=Sample data
@@ -124,5 +126,17 @@ SourceZplGroup=Source ZPL (editable)
  ;Caption of the editable raw-source ZPL panel (with $tokens$ / template blocks).
 TranslatedZplGroup=Translated ZPL (rendered result)
  ;Caption of the read-only token-substituted ZPL panel; what the source renders to.
+LabelSizeGroup=Label size
+ ;Caption of the preview dialog group with the optional size-override controls.
+OverrideLabelSize=Override label size
+ ;Checkbox: when on, the Width/Height/DPI below force the render size instead of the label's own ^PW/^LL.
+LabelWidthIn=Width (in)
+ ;Override label width in inches (preview dialog).
+LabelHeightIn=Height (in)
+ ;Override label height in inches (preview dialog).
+LabelDpi=DPI
+ ;Override print density in dots per inch (e.g. 203, 300, 600).
+SizeOverrideHint=Leave off to use the label's own size (4x6 in if it declares none).
+ ;Hint under the size-override controls in the preview dialog.
 WorkNoLongerExists=The work record no longer exists; the label image was not attached.
  ;Staging note when the target work was deleted before the render batch ran.

@@ -46,33 +46,33 @@
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormIntegerControl">
-						<Name>AAXParameters_PreviewDefaultDpmm</Name>
+						<Name>AAXParameters_PreviewDefaultDpi</Name>
 						<Type>Integer</Type>
 						<FormControlExtension
 							i:nil="true" />
-						<DataField>AAXPreviewDefaultDpmm</DataField>
+						<DataField>AAXPreviewDefaultDpi</DataField>
 						<DataSource>WHSParameters</DataSource>
-						<Label>@AAXWarehouseTools:PreviewDefaultDpmm</Label>
+						<Label>@AAXWarehouseTools:PreviewDefaultDpi</Label>
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormRealControl">
-						<Name>AAXParameters_PreviewDefaultWidthMm</Name>
+						<Name>AAXParameters_PreviewDefaultWidthIn</Name>
 						<Type>Real</Type>
 						<FormControlExtension
 							i:nil="true" />
-						<DataField>AAXPreviewDefaultWidthMm</DataField>
+						<DataField>AAXPreviewDefaultWidthIn</DataField>
 						<DataSource>WHSParameters</DataSource>
-						<Label>@AAXWarehouseTools:PreviewDefaultWidthMm</Label>
+						<Label>@AAXWarehouseTools:PreviewDefaultWidthIn</Label>
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormRealControl">
-						<Name>AAXParameters_PreviewDefaultHeightMm</Name>
+						<Name>AAXParameters_PreviewDefaultHeightIn</Name>
 						<Type>Real</Type>
 						<FormControlExtension
 							i:nil="true" />
-						<DataField>AAXPreviewDefaultHeightMm</DataField>
+						<DataField>AAXPreviewDefaultHeightIn</DataField>
 						<DataSource>WHSParameters</DataSource>
-						<Label>@AAXWarehouseTools:PreviewDefaultHeightMm</Label>
+						<Label>@AAXWarehouseTools:PreviewDefaultHeightIn</Label>
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormIntegerControl">

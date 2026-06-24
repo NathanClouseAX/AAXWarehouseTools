@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
 	<Name>AAXWHSLabelPreviewDialog</Name>
 	<SourceCode>
@@ -55,10 +55,10 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     }
 
 ]]></Source>
-				</Method>
-				<Method>
-					<Name>initFromContext</Name>
-					<Source><![CDATA[
+			</Method>
+			<Method>
+				<Name>initFromContext</Name>
+				<Source><![CDATA[
     /// <summary>
     /// (Re)initializes all form state from a preview context: PNGs, badge, final ZPL, the
     /// data-source group, and â€” crucially â€” CLEARS all rotation state and URL caches before
@@ -100,9 +100,20 @@ public class AAXWHSLabelPreviewDialog extends FormRun
         SaveButton.enabled(canSave);
         SaveButton.visible(canSave);
 
-        // Data-source group: show the seed table label and the currently selected record.
+        // Data-source group: show the seed table label and the currently selected record's
+        // natural identifier (e.g. ContainerId), not its RecId.
         SeedTableLabel.text(context.parmSeedTableLabel());
-        SeedRecordEdit.text(selectedSeedRecId ? int642str(selectedSeedRecId) : '');
+        SeedRecordEdit.text(element.seedRecordIdentifierText(selectedSeedRecId));
+
+        // "Label size" override box: repopulate from the context so a Refresh/Preview-edits cycle
+        // keeps the user's chosen size. When the context carries no override (initial open / no
+        // size box), fall back to the displayed defaults (4 x 6 in @ 203 DPI) and leave it OFF.
+        boolean overrideOn = context.parmOverrideSize();
+        OverrideSizeCheck.value(overrideOn);
+        SizeWidthIn.realValue(context.parmOverrideWidthIn()  > 0 ? context.parmOverrideWidthIn()  : 4);
+        SizeHeightIn.realValue(context.parmOverrideHeightIn() > 0 ? context.parmOverrideHeightIn() : 6);
+        SizeDpi.value(context.parmOverrideDpi() > 0 ? context.parmOverrideDpi() : 203);
+        element.applySizeControlsEnabled(overrideOn);
 
         currentIndex = 1;
         element.showPage(currentIndex);
@@ -219,10 +230,10 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     }
 
 ]]></Source>
-				</Method>
-				<Method>
-					<Name>turnsForPage</Name>
-					<Source><![CDATA[
+			</Method>
+			<Method>
+				<Name>turnsForPage</Name>
+				<Source><![CDATA[
     /// <summary>
     /// Returns the cumulative clockwise quarter-turns currently applied to a page (0..3).
     /// </summary>
@@ -239,10 +250,10 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     }
 
 ]]></Source>
-				</Method>
-				<Method>
-					<Name>rotateCurrentPage</Name>
-					<Source><![CDATA[
+			</Method>
+			<Method>
+				<Name>rotateCurrentPage</Name>
+				<Source><![CDATA[
     /// <summary>
     /// Rotates the current page 90 degrees clockwise (unlimited clicks). Per-page cumulative
     /// turns are tracked so navigation shows each page at its own rotation; rendering always
@@ -278,10 +289,10 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     }
 
 ]]></Source>
-				</Method>
-				<Method>
-					<Name>refreshPreview</Name>
-					<Source><![CDATA[
+			</Method>
+			<Method>
+				<Name>refreshPreview</Name>
+				<Source><![CDATA[
     /// <summary>
     /// Re-renders the preview using the record currently chosen in the data-source selector
     /// (REQ-A-3 step 1). Re-reads the layout row generically, rebuilds the context via the
@@ -291,6 +302,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     {
         AAXWHSLabelPreviewContext   newContext;
         Common                      layoutRecord;
+        container                   sizeArgs = element.sizeOverrideArgs();
 
         layoutRecord = element.rereadLayoutRecord();
         if (layoutRecord.RecId == 0)
@@ -299,8 +311,12 @@ public class AAXWHSLabelPreviewDialog extends FormRun
         }
 
         // Pin the resolved seed table so buildContext re-renders against the SAME table the
-        // selector looked up; selectedSeedRecId == 0 falls back to most-recent (REQ-A-3).
-        newContext = AAXWHSLabelPreviewController::buildContext(layoutRecord, seedTableId, selectedSeedRecId);
+        // selector looked up; selectedSeedRecId == 0 falls back to most-recent (REQ-A-3). The
+        // "Label size" override (all 0 when off) drives the render size — label's own ^PW/^LL wins
+        // by default; an explicit size overrides it (sizeArgs = [widthMm, heightMm, dpmm]).
+        newContext = AAXWHSLabelPreviewController::buildContext(
+            layoutRecord, seedTableId, selectedSeedRecId,
+            conPeek(sizeArgs, 1), conPeek(sizeArgs, 2), conPeek(sizeArgs, 3));
         if (!newContext)
         {
             // A REQ-A-2 gate fired (already info()'d); leave the current preview untouched.
@@ -311,10 +327,10 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     }
 
 ]]></Source>
-				</Method>
-				<Method>
-					<Name>rereadLayoutRecord</Name>
-					<Source><![CDATA[
+			</Method>
+			<Method>
+				<Name>rereadLayoutRecord</Name>
+				<Source><![CDATA[
     /// <summary>
     /// Re-reads the originating layout row generically (the same idiom Refresh uses), so the
     /// edit/save actions operate on a fresh buffer of the correct table.
@@ -342,10 +358,10 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     }
 
 ]]></Source>
-				</Method>
-				<Method>
-					<Name>previewEdits</Name>
-					<Source><![CDATA[
+			</Method>
+			<Method>
+				<Name>previewEdits</Name>
+				<Source><![CDATA[
     /// <summary>
     /// Re-renders the preview from the edited SOURCE text WITHOUT saving (Feature 3). Reads the
     /// editable Source-ZPL control, translates+renders it via
@@ -357,6 +373,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
         AAXWHSLabelPreviewContext   newContext;
         Common                      layoutRecord;
         str                         editedSource = SourceZplText.text();
+        container                   sizeArgs = element.sizeOverrideArgs();
 
         if (!editedSource)
         {
@@ -371,8 +388,10 @@ public class AAXWHSLabelPreviewDialog extends FormRun
         }
 
         // Preview the UNSAVED edit: translate/render the override source (not the stored layout).
+        // The "Label size" override (all 0 when off) drives the render size, same as Refresh.
         newContext = AAXWHSLabelPreviewController::renderFromSource(
-            layoutRecord, editedSource, seedTableId, selectedSeedRecId);
+            layoutRecord, editedSource, seedTableId, selectedSeedRecId,
+            conPeek(sizeArgs, 1), conPeek(sizeArgs, 2), conPeek(sizeArgs, 3));
 
         if (!newContext)
         {
@@ -384,10 +403,10 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     }
 
 ]]></Source>
-				</Method>
-				<Method>
-					<Name>saveSource</Name>
-					<Source><![CDATA[
+			</Method>
+			<Method>
+				<Name>saveSource</Name>
+				<Source><![CDATA[
     /// <summary>
     /// Saves the edited raw SOURCE ZPL back to the layout (Feature 3), then re-previews the saved
     /// state. Validates non-empty, calls <c>AAXWHSLabelPreviewController::saveSourceToLayout</c>
@@ -432,41 +451,207 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     }
 
 ]]></Source>
-				</Method>
-				<Method>
-					<Name>setSelectedSeedRecId</Name>
-					<Source><![CDATA[
+			</Method>
+			<Method>
+				<Name>seedIdentifierFieldId</Name>
+				<Source><![CDATA[
     /// <summary>
-    /// Stores the seed record selected in the data-source selector (REQ-A-3 step 1). The
-    /// selector text is the record's RecId (the lookup returns RecId); empty/0 means
-    /// "auto-resolve most-recent" on the next Refresh.
+    /// The field whose value identifies a seed record to the user — the natural key shown in the
+    /// selector instead of RecId (e.g. WHSContainerTable -> ContainerId). Uses the table's
+    /// TitleField1; falls back to RecId only when the table exposes no title field.
     /// </summary>
-    /// <param name = "_recIdText">The selector control text (a RecId, or empty).</param>
-    public void setSelectedSeedRecId(str _recIdText)
+    /// <returns>The identifier FieldId, or RecId (65534) when none is available.</returns>
+    private FieldId seedIdentifierFieldId()
     {
-        selectedSeedRecId = _recIdText ? str2int64(_recIdText) : 0;
+        SysDictTable    dictTable;
+        FieldId         titleFieldId;
+
+        if (!seedTableId)
+        {
+            return fieldNum(Common, RecId);
+        }
+
+        dictTable    = SysDictTable::newTableId(seedTableId);
+        titleFieldId = dictTable ? dictTable.titleField1() : 0;
+
+        return titleFieldId ? titleFieldId : fieldNum(Common, RecId);
     }
 
 ]]></Source>
-				</Method>
-				<Method>
-					<Name>lookupSeedRecord</Name>
-					<Source><![CDATA[
+			</Method>
+			<Method>
+				<Name>resolveSeedRecIdFromIdentifier</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Resolves the identifier text from the seed selector back to a RecId by matching the table's
+    /// identifier field (most-recent first if non-unique). RecId-fallback tables parse the text
+    /// directly. Empty / no match -> 0 (auto-resolve most-recent on the next Refresh).
+    /// </summary>
+    /// <param name = "_identifierText">The selector control text (an identifier, or empty).</param>
+    /// <returns>The matching record's RecId, or 0.</returns>
+    private RecId resolveSeedRecIdFromIdentifier(str _identifierText)
+    {
+        FieldId                 idFieldId;
+        Query                   query;
+        QueryBuildDataSource    qbds;
+        QueryRun                queryRun;
+
+        if (!_identifierText || !seedTableId)
+        {
+            return 0;
+        }
+
+        idFieldId = element.seedIdentifierFieldId();
+
+        // No natural identifier: the control text is the RecId itself (legacy behavior).
+        if (idFieldId == fieldNum(Common, RecId))
+        {
+            return str2int64(_identifierText);
+        }
+
+        query = new Query();
+        qbds  = query.addDataSource(seedTableId);
+        qbds.addRange(idFieldId).value(queryValue(_identifierText));
+        qbds.addSortField(fieldNum(Common, RecId), SortOrder::Descending);
+
+        queryRun = new QueryRun(query);
+        if (queryRun.next())
+        {
+            return queryRun.getNo(1).RecId;
+        }
+
+        return 0;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>seedRecordIdentifierText</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The identifier text to DISPLAY in the seed selector for a given RecId (the table's
+    /// identifier-field value, e.g. ContainerId). Empty when there is no record / no selection.
+    /// </summary>
+    /// <param name = "_seedRecId">The selected seed record's RecId (0 = none).</param>
+    /// <returns>The display identifier, or an empty string.</returns>
+    private str seedRecordIdentifierText(RecId _seedRecId)
+    {
+        FieldId idFieldId;
+        Common  seedBuffer;
+
+        if (!_seedRecId || !seedTableId)
+        {
+            return '';
+        }
+
+        idFieldId = element.seedIdentifierFieldId();
+
+        if (idFieldId == fieldNum(Common, RecId))
+        {
+            return int642str(_seedRecId);
+        }
+
+        seedBuffer = new DictTable(seedTableId).makeRecord();
+        select firstonly seedBuffer
+            where seedBuffer.RecId == _seedRecId;
+
+        return seedBuffer.RecId ? any2Str(seedBuffer.(idFieldId)) : '';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>setSelectedSeedRecId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Stores the seed record chosen in the data-source selector (REQ-A-3 step 1). The selector
+    /// text is the record's natural identifier (e.g. ContainerId), resolved back to a RecId here.
+    /// Empty / no match means "auto-resolve most-recent" on the next Refresh (selectedSeedRecId 0).
+    /// </summary>
+    /// <param name = "_identifierText">The selector control text (an identifier, or empty).</param>
+    public void setSelectedSeedRecId(str _identifierText)
+    {
+        selectedSeedRecId = element.resolveSeedRecIdFromIdentifier(_identifierText);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>applySizeControlsEnabled</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Enables/disables the Width/Height/DPI inputs to match the "Override label size" checkbox.
+    /// The checkbox itself stays enabled; only the three numeric inputs follow its state.
+    /// </summary>
+    /// <param name = "_enabled">True when the override is on (inputs editable).</param>
+    public void applySizeControlsEnabled(boolean _enabled)
+    {
+        SizeWidthIn.enabled(_enabled);
+        SizeHeightIn.enabled(_enabled);
+        SizeDpi.enabled(_enabled);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>sizeOverrideArgs</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Computes the render size-override arguments from the "Label size" box, as a packed
+    /// container [real widthMm, real heightMm, int dpmm] for the controller render calls.
+    /// </summary>
+    /// <returns>
+    /// [widthMm, heightMm, dpmm]. All ZERO when the override checkbox is off or width/height are not
+    /// both &gt; 0 — which tells the renderer to use the label own ^PW/^LL (or the 4x6 fallback).
+    /// </returns>
+    /// <remarks>
+    /// Unit conversions (verified): inches -&gt; mm is *25.4; DPI -&gt; dpmm (int) is
+    /// real2int(round(dpi / 25.4, 1.0)) — nearest integer dpmm (203-&gt;8, 300-&gt;12, 600-&gt;24). dpmm
+    /// 0 lets the controller/wrapper apply the configured density default (8 dpmm). X++ has no
+    /// scalar by-ref, so the three values are returned in a container and unpacked by the caller.
+    /// </remarks>
+    private container sizeOverrideArgs()
+    {
+        real widthMm  = 0;
+        real heightMm = 0;
+        int  dpmm     = 0;
+
+        // Only honor the override when the box is checked AND both dimensions are positive; an
+        // incomplete size would otherwise force a degenerate render (the user clicks Refresh).
+        if (OverrideSizeCheck.value() && SizeWidthIn.realValue() > 0 && SizeHeightIn.realValue() > 0)
+        {
+            widthMm  = SizeWidthIn.realValue()  * 25.4;   // inches -> mm
+            heightMm = SizeHeightIn.realValue() * 25.4;   // inches -> mm
+
+            // DPI -> dpmm (int): nearest integer dots/mm. 0 (or non-positive DPI) defers to the
+            // configured density default in AAXZplRenderService.renderToPngList.
+            if (SizeDpi.value() > 0)
+            {
+                dpmm = real2int(round(SizeDpi.value() / 25.4, 1.0));
+            }
+        }
+
+        return [widthMm, heightMm, dpmm];
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>lookupSeedRecord</Name>
+				<Source><![CDATA[
     /// <summary>
     /// Runs a generic record lookup over the runtime seed table for the data-source selector
-    /// (REQ-A-3 step 1). The lookup RETURNS the record's RecId (robust for any runtime table
-    /// where no natural key generalizes) and shows TitleField1 as a friendly display column.
+    /// (REQ-A-3 step 1). The lookup RETURNS the table's natural identifier (e.g. ContainerId) as
+    /// the displayed/captured value — NOT the RecId — and shows TitleField2 as an extra column.
     /// </summary>
     /// <param name = "_control">The selector control the lookup is attached to.</param>
     /// <remarks>
-    /// Pattern verified against BudgetPlanColumnRule / AssetIntercompanyTransferMappingTable /
-    /// InventLocation: SysTableLookup::newParameters(tableId, control) + a Query data source
-    /// ordered by RecId desc + addLookupfield(RecId) as the returned value. Documented choice:
-    /// the control text becomes the RecId string; refreshPreview() parses it back to a RecId.
+    /// SysTableLookup over the runtime tableId, ordered most-recent first. The returned identifier
+    /// is resolved back to a RecId in setSelectedSeedRecId via the same identifier field.
     /// </remarks>
     public void lookupSeedRecord(FormStringControl _control)
     {
-        const FieldId RecIdFieldId = 65534; // Platform RecId FieldId (see WhsCustomLabelPrintCommandGenerator).
+        const FieldId RecIdFieldId = 65534; // Platform RecId FieldId.
 
         if (!seedTableId)
         {
@@ -477,18 +662,19 @@ public class AAXWHSLabelPreviewDialog extends FormRun
         Query                   query = new Query();
         QueryBuildDataSource    qbds = query.addDataSource(seedTableId);
         SysDictTable            dictTable = SysDictTable::newTableId(seedTableId);
-        FieldId                 titleFieldId = dictTable ? dictTable.titleField1() : 0;
+        FieldId                 idFieldId = element.seedIdentifierFieldId();
+        FieldId                 titleField2Id = dictTable ? dictTable.titleField2() : 0;
 
         // Most-recent first, matching the auto-resolve default (REQ-A-3).
         qbds.addSortField(RecIdFieldId, SortOrder::Descending);
 
-        // RecId is the RETURNED value (first lookup field), so the control captures a stable key.
-        sysTableLookup.addLookupfield(RecIdFieldId);
+        // The natural identifier (e.g. ContainerId) is the RETURNED/displayed value, not RecId.
+        sysTableLookup.addLookupfield(idFieldId);
 
-        // Friendly display column when the table has a title field.
-        if (titleFieldId && titleFieldId != RecIdFieldId)
+        // Extra context column (e.g. ShipmentId for containers), when distinct from the identifier.
+        if (titleField2Id && titleField2Id != idFieldId)
         {
-            sysTableLookup.addLookupField(titleFieldId);
+            sysTableLookup.addLookupField(titleField2Id);
         }
 
         sysTableLookup.parmQuery(query);
@@ -573,24 +759,6 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 				</Methods>
 			</Control>
 			<Control>
-				<Name>RefreshButton</Name>
-				<Type>Button</Type>
-				<Methods>
-					<Method>
-						<Name>clicked</Name>
-						<Source><![CDATA[
-    /// <summary>Re-renders the preview using the selected seed record (REQ-A-3 step 1).</summary>
-    public void clicked()
-    {
-        super();
-        element.refreshPreview();
-    }
-
-]]></Source>
-					</Method>
-				</Methods>
-			</Control>
-			<Control>
 				<Name>PreviewEditsButton</Name>
 				<Type>Button</Type>
 				<Methods>
@@ -661,6 +829,45 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 					</Method>
 				</Methods>
 			</Control>
+			<Control>
+				<Name>RefreshButton</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+    /// <summary>Re-renders the preview using the selected seed record (REQ-A-3 step 1).</summary>
+    public void clicked()
+    {
+        super();
+        element.refreshPreview();
+    }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>OverrideSizeCheck</Name>
+				<Type>CheckBox</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+    /// <summary>
+    /// Enables/disables the Width/Height/DPI inputs to follow the override toggle. Does NOT
+    /// auto-render — the user clicks Refresh/Preview to re-render at the new size (kept simple).
+    /// </summary>
+    public void clicked()
+    {
+        super();
+        element.applySizeControlsEnabled(this.value());
+    }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
 		</DataControls>
 		<Members xmlns="" />
 	</SourceCode>
@@ -696,19 +903,19 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 										i:type="AxFormButtonControl">
 										<Name>PrevPageButton</Name>
 										<AutoDeclaration>Yes</AutoDeclaration>
-										<Text>@AAXWarehouseTools:PreviewPrevPage</Text>
 										<Type>Button</Type>
 										<FormControlExtension
 											i:nil="true" />
+										<Text>@AAXWarehouseTools:PreviewPrevPage</Text>
 									</AxFormControl>
 									<AxFormControl xmlns=""
 										i:type="AxFormButtonControl">
 										<Name>NextPageButton</Name>
 										<AutoDeclaration>Yes</AutoDeclaration>
-										<Text>@AAXWarehouseTools:PreviewNextPage</Text>
 										<Type>Button</Type>
 										<FormControlExtension
 											i:nil="true" />
+										<Text>@AAXWarehouseTools:PreviewNextPage</Text>
 									</AxFormControl>
 								</Controls>
 								<Caption>@AAXWarehouseTools:LabelNofM</Caption>
@@ -724,19 +931,19 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 										i:type="AxFormButtonControl">
 										<Name>DownloadPngButton</Name>
 										<AutoDeclaration>Yes</AutoDeclaration>
-										<Text>@AAXWarehouseTools:DownloadPng</Text>
 										<Type>Button</Type>
 										<FormControlExtension
 											i:nil="true" />
+										<Text>@AAXWarehouseTools:DownloadPng</Text>
 									</AxFormControl>
 									<AxFormControl xmlns=""
 										i:type="AxFormButtonControl">
 										<Name>RotateButton</Name>
 										<AutoDeclaration>Yes</AutoDeclaration>
-										<Text>@AAXWarehouseTools:RotateImage</Text>
 										<Type>Button</Type>
 										<FormControlExtension
 											i:nil="true" />
+										<Text>@AAXWarehouseTools:RotateImage</Text>
 									</AxFormControl>
 								</Controls>
 								<Caption>@AAXWarehouseTools:DownloadPng</Caption>
@@ -752,19 +959,19 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 										i:type="AxFormButtonControl">
 										<Name>PreviewEditsButton</Name>
 										<AutoDeclaration>Yes</AutoDeclaration>
-										<Text>@AAXWarehouseTools:PreviewEdits</Text>
 										<Type>Button</Type>
 										<FormControlExtension
 											i:nil="true" />
+										<Text>@AAXWarehouseTools:PreviewEdits</Text>
 									</AxFormControl>
 									<AxFormControl xmlns=""
 										i:type="AxFormButtonControl">
 										<Name>SaveButton</Name>
 										<AutoDeclaration>Yes</AutoDeclaration>
-										<Text>@AAXWarehouseTools:SaveToLayout</Text>
 										<Type>Button</Type>
 										<FormControlExtension
 											i:nil="true" />
+										<Text>@AAXWarehouseTools:SaveToLayout</Text>
 									</AxFormControl>
 								</Controls>
 								<Caption>@AAXWarehouseTools:EditSourceGroup</Caption>
@@ -785,142 +992,225 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 					i:nil="true" />
 				<Controls>
 					<AxFormControl xmlns=""
-						i:type="AxFormStaticTextControl">
-						<Name>BadgeText</Name>
-						<AllowEdit>No</AllowEdit>
-						<AutoDeclaration>Yes</AutoDeclaration>
-						<Type>StaticText</Type>
-						<FormControlExtension
-							i:nil="true" />
-						<ShowLabel>No</ShowLabel>
-					</AxFormControl>
-					<AxFormControl xmlns=""
-						i:type="AxFormStaticTextControl">
-						<Name>PagerText</Name>
-						<AllowEdit>No</AllowEdit>
-						<AutoDeclaration>Yes</AutoDeclaration>
-						<Type>StaticText</Type>
-						<FormControlExtension
-							i:nil="true" />
-						<ShowLabel>No</ShowLabel>
-					</AxFormControl>
-					<AxFormControl xmlns=""
-						i:type="AxFormGroupControl">
-						<Name>DataSourceGroup</Name>
-						<Type>Group</Type>
-						<WidthMode>SizeToAvailable</WidthMode>
+						i:type="AxFormTabControl">
+						<Name>FormTabControl1</Name>
+						<Type>Tab</Type>
 						<FormControlExtension
 							i:nil="true" />
 						<Controls>
 							<AxFormControl xmlns=""
-								i:type="AxFormStaticTextControl">
-								<Name>SeedTableLabel</Name>
-								<AllowEdit>No</AllowEdit>
-								<AutoDeclaration>Yes</AutoDeclaration>
-								<Type>StaticText</Type>
+								i:type="AxFormTabPageControl">
+								<Name>FormTabPageControl1</Name>
+								<Type>TabPage</Type>
 								<FormControlExtension
 									i:nil="true" />
-								<ShowLabel>No</ShowLabel>
+								<Controls>
+									<AxFormControl xmlns=""
+										i:type="AxFormStaticTextControl">
+										<Name>PagerText</Name>
+										<AllowEdit>No</AllowEdit>
+										<AutoDeclaration>Yes</AutoDeclaration>
+										<Type>StaticText</Type>
+										<FormControlExtension
+											i:nil="true" />
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormGroupControl">
+										<Name>DataSourceGroup</Name>
+										<Type>Group</Type>
+										<WidthMode>SizeToAvailable</WidthMode>
+										<FormControlExtension
+											i:nil="true" />
+										<Controls>
+											<AxFormControl xmlns=""
+												i:type="AxFormStaticTextControl">
+												<Name>BadgeText</Name>
+												<AllowEdit>No</AllowEdit>
+												<AutoDeclaration>Yes</AutoDeclaration>
+												<Type>StaticText</Type>
+												<Visible>No</Visible>
+												<FormControlExtension
+													i:nil="true" />
+											</AxFormControl>
+											<AxFormControl xmlns=""
+												i:type="AxFormStaticTextControl">
+												<Name>SeedTableLabel</Name>
+												<AllowEdit>No</AllowEdit>
+												<AutoDeclaration>Yes</AutoDeclaration>
+												<Type>StaticText</Type>
+												<FormControlExtension
+													i:nil="true" />
+											</AxFormControl>
+											<AxFormControl xmlns=""
+												i:type="AxFormStringControl">
+												<Name>SeedRecordEdit</Name>
+												<AutoDeclaration>Yes</AutoDeclaration>
+												<Type>String</Type>
+												<FormControlExtension
+													i:nil="true" />
+												<Label>@AAXWarehouseTools:SeedRecord</Label>
+											</AxFormControl>
+											<AxFormControl xmlns=""
+												i:type="AxFormButtonControl">
+												<Name>RefreshButton</Name>
+												<AutoDeclaration>Yes</AutoDeclaration>
+												<Type>Button</Type>
+												<FormControlExtension
+													i:nil="true" />
+												<Text>@AAXWarehouseTools:RefreshPreview</Text>
+											</AxFormControl>
+										</Controls>
+										<ArrangeMethod>HorizontalLeft</ArrangeMethod>
+										<Caption>@AAXWarehouseTools:DataSourceGroup</Caption>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormGroupControl">
+										<Name>LabelSizeGroup</Name>
+										<Type>Group</Type>
+										<WidthMode>SizeToAvailable</WidthMode>
+										<FormControlExtension
+											i:nil="true" />
+										<Controls>
+											<AxFormControl xmlns=""
+												i:type="AxFormCheckBoxControl">
+												<Name>OverrideSizeCheck</Name>
+												<AutoDeclaration>Yes</AutoDeclaration>
+												<Type>CheckBox</Type>
+												<FormControlExtension
+													i:nil="true" />
+												<Label>@AAXWarehouseTools:OverrideLabelSize</Label>
+											</AxFormControl>
+											<AxFormControl xmlns=""
+												i:type="AxFormRealControl">
+												<Name>SizeWidthIn</Name>
+												<AutoDeclaration>Yes</AutoDeclaration>
+												<Type>Real</Type>
+												<FormControlExtension
+													i:nil="true" />
+												<Label>@AAXWarehouseTools:LabelWidthIn</Label>
+											</AxFormControl>
+											<AxFormControl xmlns=""
+												i:type="AxFormRealControl">
+												<Name>SizeHeightIn</Name>
+												<AutoDeclaration>Yes</AutoDeclaration>
+												<Type>Real</Type>
+												<FormControlExtension
+													i:nil="true" />
+												<Label>@AAXWarehouseTools:LabelHeightIn</Label>
+											</AxFormControl>
+											<AxFormControl xmlns=""
+												i:type="AxFormIntegerControl">
+												<Name>SizeDpi</Name>
+												<AutoDeclaration>Yes</AutoDeclaration>
+												<Type>Integer</Type>
+												<FormControlExtension
+													i:nil="true" />
+												<Label>@AAXWarehouseTools:LabelDpi</Label>
+											</AxFormControl>
+											<AxFormControl xmlns=""
+												i:type="AxFormStaticTextControl">
+												<Name>SizeHintText</Name>
+												<AllowEdit>No</AllowEdit>
+												<AutoDeclaration>Yes</AutoDeclaration>
+												<Type>StaticText</Type>
+												<Visible>No</Visible>
+												<FormControlExtension
+													i:nil="true" />
+												<Text>@AAXWarehouseTools:SizeOverrideHint</Text>
+											</AxFormControl>
+										</Controls>
+										<ArrangeMethod>HorizontalLeft</ArrangeMethod>
+										<Caption>@AAXWarehouseTools:LabelSizeGroup</Caption>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormGroupControl">
+										<Name>ImageGroup</Name>
+										<HeightMode>SizeToAvailable</HeightMode>
+										<Type>Group</Type>
+										<WidthMode>SizeToAvailable</WidthMode>
+										<FormControlExtension
+											i:nil="true" />
+										<Controls>
+											<AxFormControl xmlns=""
+												i:type="AxFormImageControl">
+												<Name>PreviewImage</Name>
+												<AutoDeclaration>Yes</AutoDeclaration>
+												<HeightMode>SizeToAvailable</HeightMode>
+												<Type>Image</Type>
+												<WidthMode>SizeToAvailable</WidthMode>
+												<FormControlExtension
+													i:nil="true" />
+												<ShowLabel>No</ShowLabel>
+											</AxFormControl>
+										</Controls>
+										<FrameType>None</FrameType>
+									</AxFormControl>
+								</Controls>
+								<Caption>Preview</Caption>
 							</AxFormControl>
 							<AxFormControl xmlns=""
-								i:type="AxFormStringControl">
-								<Name>SeedRecordEdit</Name>
-								<AutoDeclaration>Yes</AutoDeclaration>
-								<Label>@AAXWarehouseTools:SeedRecord</Label>
-								<Type>String</Type>
+								i:type="AxFormTabPageControl">
+								<Name>FormTabPageControl2</Name>
+								<Type>TabPage</Type>
 								<FormControlExtension
 									i:nil="true" />
-							</AxFormControl>
-							<AxFormControl xmlns=""
-								i:type="AxFormButtonControl">
-								<Name>RefreshButton</Name>
-								<AutoDeclaration>Yes</AutoDeclaration>
-								<Text>@AAXWarehouseTools:RefreshPreview</Text>
-								<Type>Button</Type>
-								<FormControlExtension
-									i:nil="true" />
+								<Controls>
+									<AxFormControl xmlns=""
+										i:type="AxFormGroupControl">
+										<Name>ZplGroup</Name>
+										<HeightMode>SizeToAvailable</HeightMode>
+										<Type>Group</Type>
+										<Visible>No</Visible>
+										<WidthMode>SizeToAvailable</WidthMode>
+										<FormControlExtension
+											i:nil="true" />
+										<Controls>
+											<AxFormControl xmlns=""
+												i:type="AxFormStringControl">
+												<Name>ZplText</Name>
+												<AllowEdit>No</AllowEdit>
+												<AutoDeclaration>Yes</AutoDeclaration>
+												<HeightMode>SizeToAvailable</HeightMode>
+												<Type>String</Type>
+												<WidthMode>SizeToAvailable</WidthMode>
+												<FormControlExtension
+													i:nil="true" />
+												<MultiLine>Yes</MultiLine>
+												<ShowLabel>No</ShowLabel>
+											</AxFormControl>
+										</Controls>
+										<Caption>@AAXWarehouseTools:TranslatedZplGroup</Caption>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormGroupControl">
+										<Name>SourceZplGroup</Name>
+										<HeightMode>SizeToAvailable</HeightMode>
+										<Type>Group</Type>
+										<WidthMode>SizeToAvailable</WidthMode>
+										<FormControlExtension
+											i:nil="true" />
+										<Controls>
+											<AxFormControl xmlns=""
+												i:type="AxFormStringControl">
+												<Name>SourceZplText</Name>
+												<AutoDeclaration>Yes</AutoDeclaration>
+												<HeightMode>SizeToAvailable</HeightMode>
+												<Type>String</Type>
+												<WidthMode>SizeToAvailable</WidthMode>
+												<FormControlExtension
+													i:nil="true" />
+												<MultiLine>Yes</MultiLine>
+												<ShowLabel>No</ShowLabel>
+											</AxFormControl>
+										</Controls>
+										<Caption>@AAXWarehouseTools:SourceZplGroup</Caption>
+									</AxFormControl>
+								</Controls>
+								<Caption>ZPL</Caption>
 							</AxFormControl>
 						</Controls>
-						<ArrangeMethod>HorizontalLeft</ArrangeMethod>
-						<Caption>@AAXWarehouseTools:DataSourceGroup</Caption>
-					</AxFormControl>
-					<AxFormControl xmlns=""
-						i:type="AxFormGroupControl">
-						<Name>ImageGroup</Name>
-						<HeightMode>SizeToAvailable</HeightMode>
-						<Type>Group</Type>
-						<WidthMode>SizeToAvailable</WidthMode>
-						<FormControlExtension
-							i:nil="true" />
-						<Controls>
-							<AxFormControl xmlns=""
-								i:type="AxFormImageControl">
-								<Name>PreviewImage</Name>
-								<AutoDeclaration>Yes</AutoDeclaration>
-								<HeightMode>SizeToAvailable</HeightMode>
-								<Type>Image</Type>
-								<WidthMode>SizeToAvailable</WidthMode>
-								<FormControlExtension
-									i:nil="true" />
-								<ShowLabel>No</ShowLabel>
-							</AxFormControl>
-						</Controls>
-						<ArrangeMethod>Vertical</ArrangeMethod>
-						<FrameType>None</FrameType>
-					</AxFormControl>
-					<AxFormControl xmlns=""
-						i:type="AxFormGroupControl">
-						<Name>SourceZplGroup</Name>
-						<HeightMode>SizeToAvailable</HeightMode>
-						<Type>Group</Type>
-						<WidthMode>SizeToAvailable</WidthMode>
-						<FormControlExtension
-							i:nil="true" />
-						<Controls>
-							<AxFormControl xmlns=""
-								i:type="AxFormStringControl">
-								<Name>SourceZplText</Name>
-								<AutoDeclaration>Yes</AutoDeclaration>
-								<HeightMode>SizeToAvailable</HeightMode>
-								<Type>String</Type>
-								<WidthMode>SizeToAvailable</WidthMode>
-								<FormControlExtension
-									i:nil="true" />
-								<MultiLine>Yes</MultiLine>
-								<ShowLabel>No</ShowLabel>
-							</AxFormControl>
-						</Controls>
-						<ArrangeMethod>Vertical</ArrangeMethod>
-						<Caption>@AAXWarehouseTools:SourceZplGroup</Caption>
-					</AxFormControl>
-					<AxFormControl xmlns=""
-						i:type="AxFormGroupControl">
-						<Name>ZplGroup</Name>
-						<HeightMode>SizeToAvailable</HeightMode>
-						<Type>Group</Type>
-						<WidthMode>SizeToAvailable</WidthMode>
-						<FormControlExtension
-							i:nil="true" />
-						<Controls>
-							<AxFormControl xmlns=""
-								i:type="AxFormStringControl">
-								<Name>ZplText</Name>
-								<AllowEdit>No</AllowEdit>
-								<AutoDeclaration>Yes</AutoDeclaration>
-								<HeightMode>SizeToAvailable</HeightMode>
-								<Type>String</Type>
-								<WidthMode>SizeToAvailable</WidthMode>
-								<FormControlExtension
-									i:nil="true" />
-								<MultiLine>Yes</MultiLine>
-								<ShowLabel>No</ShowLabel>
-							</AxFormControl>
-						</Controls>
-						<ArrangeMethod>Vertical</ArrangeMethod>
-						<Caption>@AAXWarehouseTools:TranslatedZplGroup</Caption>
 					</AxFormControl>
 				</Controls>
-				<ArrangeMethod>Vertical</ArrangeMethod>
 				<FrameType>None</FrameType>
 			</AxFormControl>
 		</Controls>

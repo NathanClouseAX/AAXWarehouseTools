@@ -28,21 +28,21 @@
 		</AxTableField>
 		<AxTableField xmlns=""
 			i:type="AxTableFieldInt">
-			<Name>AAXPreviewDefaultDpmm</Name>
+			<Name>AAXPreviewDefaultDpi</Name>
 			<AssetClassification>Customer Content</AssetClassification>
-			<Label>@AAXWarehouseTools:PreviewDefaultDpmm</Label>
+			<Label>@AAXWarehouseTools:PreviewDefaultDpi</Label>
 		</AxTableField>
 		<AxTableField xmlns=""
 			i:type="AxTableFieldReal">
-			<Name>AAXPreviewDefaultWidthMm</Name>
+			<Name>AAXPreviewDefaultWidthIn</Name>
 			<AssetClassification>Customer Content</AssetClassification>
-			<Label>@AAXWarehouseTools:PreviewDefaultWidthMm</Label>
+			<Label>@AAXWarehouseTools:PreviewDefaultWidthIn</Label>
 		</AxTableField>
 		<AxTableField xmlns=""
 			i:type="AxTableFieldReal">
-			<Name>AAXPreviewDefaultHeightMm</Name>
+			<Name>AAXPreviewDefaultHeightIn</Name>
 			<AssetClassification>Customer Content</AssetClassification>
-			<Label>@AAXWarehouseTools:PreviewDefaultHeightMm</Label>
+			<Label>@AAXWarehouseTools:PreviewDefaultHeightIn</Label>
 		</AxTableField>
 		<AxTableField xmlns=""
 			i:type="AxTableFieldInt">

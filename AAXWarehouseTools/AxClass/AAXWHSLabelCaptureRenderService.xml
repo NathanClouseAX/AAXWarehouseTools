@@ -207,6 +207,14 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
             staging.WidthMm,
             staging.HeightMm);
 
+        // The renderer produced no image (e.g. captured ZPL had no ^XA..^XZ label block). Fail
+        // VISIBLY (Error -> Poison via the per-row catch) rather than silently marking Done with
+        // nothing attached, so a data-quality problem surfaces instead of looking like success.
+        if (!pngs || pngs.elements() == 0)
+        {
+            throw error("@AAXWarehouseTools:RenderProducedNoImage");
+        }
+
         // Step 4: attach each PNG (DocumentManagement manages its own transaction, F25).
         str             timestamp = AAXWHSLabelCaptureRenderService::timestampForFileName();
         int             seq;

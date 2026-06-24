@@ -61,6 +61,50 @@ public final class AAXWHSLabelPreviewController
         formRun.init();
         formRun.run();
         formRun.wait();
+
+        // The dialog can save edited ZPL back to the layout (the active WHSLabelLayoutVersion, or
+        // WHSDocumentRoutingLayout.ZPL). The dialog is modal (wait() blocks until it closes), so on
+        // return re-read the calling layout form's data source — the saved value then shows
+        // immediately instead of the stale pre-edit data.
+        AAXWHSLabelPreviewController::refreshCallerLayoutForm(_args);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>refreshCallerLayoutForm</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Re-reads the calling layout form's data source after the preview dialog closes, so a ZPL
+    /// edit saved from the dialog is reflected without the user manually refreshing the form.
+    /// </summary>
+    /// <param name = "_args">The menu-item args whose <c>caller()</c> is the launching form.</param>
+    /// <remarks>
+    /// Works for both host forms (WHSLabelLayout and WHSDocumentRoutingLayout): research(true)
+    /// re-runs the form's root query — including the joined WHSLabelLayoutVersion that carries the
+    /// label-layout ZPL — and retains the cursor position. No-op when not launched from a form.
+    /// </remarks>
+    private static void refreshCallerLayoutForm(Args _args)
+    {
+        FormRun         callerFormRun;
+        FormDataSource  callerDataSource;
+
+        if (!_args)
+        {
+            return;
+        }
+
+        callerFormRun = _args.caller() as FormRun;
+        if (!callerFormRun)
+        {
+            return;
+        }
+
+        callerDataSource = callerFormRun.dataSource();
+        if (callerDataSource)
+        {
+            callerDataSource.research(true);
+        }
     }
 
 ]]></Source>
@@ -321,16 +365,27 @@ public final class AAXWHSLabelPreviewController
     /// The chosen seed record's RecId; 0 to auto-resolve the most-recent row (RecId desc) — the
     /// v1 default behavior (REQ-A-3).
     /// </param>
+    /// <param name = "_widthMm">Optional size override, width in mm; 0 = label's own ^PW / 4x6 fallback.</param>
+    /// <param name = "_heightMm">Optional size override, height in mm; 0 = label's own ^LL / 4x6 fallback.</param>
+    /// <param name = "_dpmm">Optional density override in dots/mm; 0 = configured default (8 dpmm).</param>
     /// <returns>
     /// A populated <c>AAXWHSLabelPreviewContext</c>, or <c>null</c> when a REQ-A-2 gate fired
     /// (resolveLayoutZpl returned '' after its info()).
     /// </returns>
-    public static AAXWHSLabelPreviewContext buildContext(Common _layoutRecord, TableId _seedTableId, RecId _seedRecId)
+    public static AAXWHSLabelPreviewContext buildContext(
+        Common  _layoutRecord,
+        TableId _seedTableId,
+        RecId   _seedRecId,
+        real    _widthMm = 0,
+        real    _heightMm = 0,
+        int     _dpmm = 0)
     {
         // Live preview (REQ-A-3): resolve the RAW SOURCE from the layout (resolveLayoutZpl applies
         // the REQ-A-2 gates) and run the shared translate+render pipeline. Passing _sourceZplOverride
-        // as connull() (== '') tells the core to read the source from the layout.
-        return AAXWHSLabelPreviewController::buildContextFromSource(_layoutRecord, '', _seedTableId, _seedRecId);
+        // as connull() (== '') tells the core to read the source from the layout. The size override
+        // (all 0 = label's own ^PW/^LL or 4x6 fallback) flows through to renderToPngList.
+        return AAXWHSLabelPreviewController::buildContextFromSource(
+            _layoutRecord, '', _seedTableId, _seedRecId, _widthMm, _heightMm, _dpmm);
     }
 
 ]]></Source>
@@ -348,6 +403,9 @@ public final class AAXWHSLabelPreviewController
     /// <param name = "_sourceZplOverride">The edited raw source ZPL to translate and render.</param>
     /// <param name = "_seedTableId">The seed table; 0 to resolve from the layout (REQ-A-3).</param>
     /// <param name = "_seedRecId">The chosen seed RecId; 0 to auto-resolve most-recent (REQ-A-3).</param>
+    /// <param name = "_widthMm">Optional size override, width in mm; 0 = label's own ^PW / 4x6 fallback.</param>
+    /// <param name = "_heightMm">Optional size override, height in mm; 0 = label's own ^LL / 4x6 fallback.</param>
+    /// <param name = "_dpmm">Optional density override in dots/mm; 0 = configured default (8 dpmm).</param>
     /// <returns>
     /// A populated <c>AAXWHSLabelPreviewContext</c> carrying the override source (parmSourceZpl),
     /// the translated result + PNGs, or <c>null</c> when the layout type is not previewable.
@@ -356,7 +414,10 @@ public final class AAXWHSLabelPreviewController
         Common  _layoutRecord,
         str     _sourceZplOverride,
         TableId _seedTableId,
-        RecId   _seedRecId)
+        RecId   _seedRecId,
+        real    _widthMm = 0,
+        real    _heightMm = 0,
+        int     _dpmm = 0)
     {
         // An empty override would translate/render to nothing; treat it as a no-op gate. The dialog
         // guards against this, but be defensive (a blank source is not a meaningful preview).
@@ -365,7 +426,8 @@ public final class AAXWHSLabelPreviewController
             return null;
         }
 
-        return AAXWHSLabelPreviewController::buildContextFromSource(_layoutRecord, _sourceZplOverride, _seedTableId, _seedRecId);
+        return AAXWHSLabelPreviewController::buildContextFromSource(
+            _layoutRecord, _sourceZplOverride, _seedTableId, _seedRecId, _widthMm, _heightMm, _dpmm);
     }
 
 ]]></Source>
@@ -386,12 +448,18 @@ public final class AAXWHSLabelPreviewController
     /// </param>
     /// <param name = "_seedTableId">The seed table; 0 to resolve from the layout type/data source.</param>
     /// <param name = "_seedRecId">The chosen seed RecId; 0 to auto-resolve most-recent (REQ-A-3).</param>
+    /// <param name = "_widthMm">Optional size override, width in mm; 0 = label's own ^PW / 4x6 fallback.</param>
+    /// <param name = "_heightMm">Optional size override, height in mm; 0 = label's own ^LL / 4x6 fallback.</param>
+    /// <param name = "_dpmm">Optional density override in dots/mm; 0 = configured default (8 dpmm).</param>
     /// <returns>A populated context, or <c>null</c> when a REQ-A-2 gate fired / type unsupported.</returns>
     private static AAXWHSLabelPreviewContext buildContextFromSource(
         Common  _layoutRecord,
         str     _sourceZplOverride,
         TableId _seedTableId,
-        RecId   _seedRecId)
+        RecId   _seedRecId,
+        real    _widthMm = 0,
+        real    _heightMm = 0,
+        int     _dpmm = 0)
     {
         AAXWHSLabelPreviewContext   context;
         WhsDocumentRoutingTranslator translator;
@@ -465,13 +533,16 @@ public final class AAXWHSLabelPreviewController
         {
             context = AAXWHSLabelPreviewController::buildTemplateContext(
                 labelLayout, sourceZpl, layoutDescription, labelLocale,
-                seedTableId, seedTableLabel, _seedRecId);
+                seedTableId, seedTableLabel, _seedRecId, _widthMm, _heightMm, _dpmm);
 
             if (context)
             {
                 // Carry the RAW SOURCE + savability so the dialog's edit/save surface is correct.
                 context.parmSourceZpl(sourceZpl);
                 context.parmCanSave(true);
+
+                // Stamp the size override so the dialog repopulates its "Label size" box on re-init.
+                AAXWHSLabelPreviewController::stampSizeOverride(context, _widthMm, _heightMm, _dpmm);
             }
 
             return context;
@@ -507,11 +578,29 @@ public final class AAXWHSLabelPreviewController
 
         if (seedRecord.RecId != 0)
         {
-            // Live record found — bind it and badge with a friendly identifier (REQ-A-7).
-            // withRecord uses the table-name key; the generator donors call withRecord(record)
-            // with the default key, so the unqualified form matches production behavior.
+            // Unqualified tokens ($Field$) resolve from the empty-named record (LP-style labels
+            // call withRecord(record) with the default '' key).
             translator = translator.withRecord(seedRecord);
             boundRecordNames.add('');
+
+            // Record-QUALIFIED tokens — e.g. a container label's $WHSContainerTable.ContainerId$ —
+            // only resolve when the record is registered under that EXACT name (withRecord defaults
+            // to '', which qualified tokens never match). Bind the SELECTED seed record under its
+            // table name AND under any $Table_n.Field$ datasource alias the ZPL uses, and mark those
+            // names bound so the sample-map pass below does not shadow them with synthetic data.
+            // Without this, picking a container changed nothing — the qualified tokens fell through
+            // to sample values regardless of the selection.
+            Set           seedNames    = AAXWHSLabelPreviewController::seedRecordNamesForTable(sourceZpl, tableId2Name(seedTableId));
+            SetEnumerator seedNameEnum = seedNames.getEnumerator();
+            str           seedName;
+
+            while (seedNameEnum.moveNext())
+            {
+                seedName = seedNameEnum.current();
+                translator = translator.withRecord(seedRecord, seedName);
+                boundRecordNames.add(seedName);
+            }
+
             badgeText = strFmt("@AAXWarehouseTools:LiveRecordBadge",
                 AAXWHSLabelPreviewController::seedRecordIdentifier(seedRecord, seedTableId));
         }
@@ -541,8 +630,9 @@ public final class AAXWHSLabelPreviewController
         finalZpl = translator.translate(sourceZpl);
 
         // REQ-A-6/-8: render. The wrapper handles dimension fallbacks and surfaces readable
-        // error() text on parse/render failure (REQ-A-8) — let it surface.
-        pngList = AAXZplRenderService::renderToPngList(finalZpl);
+        // error() text on parse/render failure (REQ-A-8) — let it surface. The size override
+        // (all 0 = label's own ^PW/^LL or 4x6 fallback) is passed through to the renderer.
+        pngList = AAXZplRenderService::renderToPngList(finalZpl, _dpmm, _widthMm, _heightMm);
 
         // Build the carrier (REQ-A-6/-7) including the layout identity + seed table so the
         // dialog can re-render with a different seed record (REQ-A-3 step 1).
@@ -559,7 +649,43 @@ public final class AAXWHSLabelPreviewController
         context.parmSeedRecId(seedRecord.RecId);
         context.parmSeedTableLabel(seedTableLabel);
 
+        // Stamp the size override so the dialog repopulates its "Label size" box on re-init.
+        AAXWHSLabelPreviewController::stampSizeOverride(context, _widthMm, _heightMm, _dpmm);
+
         return context;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>stampSizeOverride</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Records the size-override values (mm + dpmm) onto a preview context, converted back to the
+    /// dialog units (inches + DPI), so the dialog can repopulate its "Label size" controls when it
+    /// re-initializes from a freshly built context (Refresh / Preview edits / paging).
+    /// </summary>
+    /// <param name = "_context">The context to stamp.</param>
+    /// <param name = "_widthMm">The override width in mm (0 = no override).</param>
+    /// <param name = "_heightMm">The override height in mm (0 = no override).</param>
+    /// <param name = "_dpmm">The override density in dots/mm (0 = configured default).</param>
+    /// <remarks>
+    /// Inverse of the dialog unit conversion: mm -&gt; in is /25.4; dpmm -&gt; DPI is *25.4 (rounded to
+    /// nearest int, the inverse of round(dpi/25.4)). The override is considered ON only when BOTH a
+    /// width AND a height were supplied (the dialog enables the size box as a unit).
+    /// </remarks>
+    private static void stampSizeOverride(
+        AAXWHSLabelPreviewContext _context,
+        real                      _widthMm,
+        real                      _heightMm,
+        int                       _dpmm)
+    {
+        boolean overrideOn = (_widthMm > 0 && _heightMm > 0);
+
+        _context.parmOverrideSize(overrideOn);
+        _context.parmOverrideWidthIn(_widthMm > 0 ? _widthMm / 25.4 : 0);
+        _context.parmOverrideHeightIn(_heightMm > 0 ? _heightMm / 25.4 : 0);
+        _context.parmOverrideDpi(_dpmm > 0 ? real2int(round(_dpmm * 25.4, 1.0)) : 0);
     }
 
 ]]></Source>
@@ -585,6 +711,9 @@ public final class AAXWHSLabelPreviewController
     /// The chosen seed record's RecId; &gt; 0 adds a RecId range on the query's FIRST data source so
     /// the user's selection drives the row expansion; 0 uses the full query result (like printing).
     /// </param>
+    /// <param name = "_widthMm">Optional size override, width in mm; 0 = label's own ^PW / 4x6 fallback.</param>
+    /// <param name = "_heightMm">Optional size override, height in mm; 0 = label's own ^LL / 4x6 fallback.</param>
+    /// <param name = "_dpmm">Optional density override in dots/mm; 0 = configured default (8 dpmm).</param>
     /// <returns>A populated <c>AAXWHSLabelPreviewContext</c>, or <c>null</c> when a gate fired.</returns>
     /// <remarks>
     /// PRODUCTION SEQUENCE REPLICATED (WhsLabelPrintCommandGenerator):
@@ -619,7 +748,10 @@ public final class AAXWHSLabelPreviewController
         LanguageId      _labelLocale,
         TableId         _seedTableId,
         str             _seedTableLabel,
-        RecId           _seedRecId)
+        RecId           _seedRecId,
+        real            _widthMm = 0,
+        real            _heightMm = 0,
+        int             _dpmm = 0)
     {
         AAXWHSLabelPreviewContext       context;
         WhsDocumentRoutingTranslator    translator;
@@ -717,8 +849,9 @@ public final class AAXWHSLabelPreviewController
                 finalZpl += (finalZpl ? '\n\n' : '') + labelZpl;
 
                 // REQ-A-6/-8: render. Each label string may itself contain multiple ^XA..^XZ
-                // blocks; renderToPngList returns one container per block - append them all.
-                List labelPngs = AAXZplRenderService::renderToPngList(labelZpl);
+                // blocks; renderToPngList returns one container per block - append them all. The
+                // size override (all 0 = label's own ^PW/^LL or 4x6 fallback) is passed through.
+                List labelPngs = AAXZplRenderService::renderToPngList(labelZpl, _dpmm, _widthMm, _heightMm);
                 ListEnumerator pngEnum = labelPngs.getEnumerator();
                 while (pngEnum.moveNext())
                 {
@@ -960,6 +1093,56 @@ public final class AAXWHSLabelPreviewController
         }
 
         return recordToFields;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>seedRecordNamesForTable</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the translator record-names under which the selected seed record should be bound so
+    /// its data flows into record-qualified tokens. Always includes the literal table name (the
+    /// default-data-source form production uses: withRecord(record, tableStr(Table)), verified
+    /// case-sensitive), plus any "&lt;table&gt;_&lt;n&gt;" data-source alias the layout ZPL actually
+    /// references (e.g. $WHSContainerTable_1.Field$).
+    /// </summary>
+    /// <param name = "_zpl">The raw, pre-translation layout ZPL (token source).</param>
+    /// <param name = "_seedTableName">The seed table's name (tableId2Name of the resolved seed table).</param>
+    /// <returns>A <c>Set(Types::String)</c> of exact token record-names to bind the seed record under.</returns>
+    private static Set seedRecordNamesForTable(str _zpl, TableName _seedTableName)
+    {
+        Set names = new Set(Types::String);
+
+        if (!_seedTableName)
+        {
+            return names;
+        }
+
+        // Default-data-source form: $WHSContainerTable.ContainerId$ binds under the literal name.
+        names.add(_seedTableName);
+
+        str             aliasPrefixLower = strLwr(_seedTableName) + '_';
+        int             prefixLen        = strLen(aliasPrefixLower);
+        Map             recordToFields   = AAXWHSLabelPreviewController::scanRecordTokens(_zpl);
+        MapEnumerator   tokenEnum        = recordToFields.getEnumerator();
+
+        while (tokenEnum.moveNext())
+        {
+            str tokenName = tokenEnum.currentKey();
+
+            // Alias form <table>_<digits> (a data-source alias), bound case-exact to the token.
+            if (tokenName != '' && strLwr(subStr(tokenName, 1, prefixLen)) == aliasPrefixLower)
+            {
+                str suffix = subStr(tokenName, prefixLen + 1, strLen(tokenName) - prefixLen);
+                if (suffix != '' && strKeep(suffix, '0123456789') == suffix)
+                {
+                    names.add(tokenName);
+                }
+            }
+        }
+
+        return names;
     }
 
 ]]></Source>

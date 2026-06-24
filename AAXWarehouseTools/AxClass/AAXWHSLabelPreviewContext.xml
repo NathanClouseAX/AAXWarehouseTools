@@ -27,6 +27,14 @@ public final class AAXWHSLabelPreviewContext
     private TableId seedTableId;
     private RecId   seedRecId;
     private str     seedTableLabel;
+
+    // Size-override carrier (dialog "Label size" box). Persists the user's chosen size across
+    // re-renders/paging so the dialog can repopulate its controls from the context. When
+    // overrideSize is false the renderer uses the label's own ^PW/^LL (or the 4x6 fallback).
+    private boolean overrideSize;
+    private real    overrideWidthIn;
+    private real    overrideHeightIn;
+    private int     overrideDpi;
 }
 ]]></Declaration>
 		<Methods>
@@ -266,6 +274,95 @@ public final class AAXWHSLabelPreviewContext
         }
 
         return seedTableLabel;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmOverrideSize</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets whether the user enabled the dialog's "Label size" override box. False means
+    /// the renderer uses the label's own ^PW/^LL (or the 4x6 fallback when it declares none).
+    /// </summary>
+    /// <param name = "_overrideSize">The override-enabled flag to set.</param>
+    /// <returns>The current override-enabled flag.</returns>
+    /// <remarks>
+    /// Constant-default + prmIsDefault idiom (as elsewhere in this class). The controller stamps a
+    /// fresh value onto a brand-new context on every render, and the member initializes to false,
+    /// so the prmIsDefault(false) guard never strands a real assignment (no stale carry-over).
+    /// </remarks>
+    public boolean parmOverrideSize(boolean _overrideSize = false)
+    {
+        if (!prmIsDefault(_overrideSize))
+        {
+            overrideSize = _overrideSize;
+        }
+
+        return overrideSize;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmOverrideWidthIn</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the override width in inches (dialog "Label size" box). The controller converts
+    /// inches to mm (*25.4) when passing the override into the render pipeline.
+    /// </summary>
+    /// <param name = "_overrideWidthIn">The override width in inches to set.</param>
+    /// <returns>The current override width in inches.</returns>
+    public real parmOverrideWidthIn(real _overrideWidthIn = 0)
+    {
+        if (!prmIsDefault(_overrideWidthIn))
+        {
+            overrideWidthIn = _overrideWidthIn;
+        }
+
+        return overrideWidthIn;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmOverrideHeightIn</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the override height in inches (dialog "Label size" box). The controller converts
+    /// inches to mm (*25.4) when passing the override into the render pipeline.
+    /// </summary>
+    /// <param name = "_overrideHeightIn">The override height in inches to set.</param>
+    /// <returns>The current override height in inches.</returns>
+    public real parmOverrideHeightIn(real _overrideHeightIn = 0)
+    {
+        if (!prmIsDefault(_overrideHeightIn))
+        {
+            overrideHeightIn = _overrideHeightIn;
+        }
+
+        return overrideHeightIn;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmOverrideDpi</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the override DPI (dialog "Label size" box). The controller converts DPI to dpmm
+    /// (round(dpi/25.4)) when passing the override into the render pipeline.
+    /// </summary>
+    /// <param name = "_overrideDpi">The override DPI to set.</param>
+    /// <returns>The current override DPI.</returns>
+    public int parmOverrideDpi(int _overrideDpi = 0)
+    {
+        if (!prmIsDefault(_overrideDpi))
+        {
+            overrideDpi = _overrideDpi;
+        }
+
+        return overrideDpi;
     }
 
 ]]></Source>
