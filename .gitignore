@@ -16,5 +16,5 @@ TestResults/
 Resources/
 /*.xml
 
-# Local dev scratch (runtime error paste target)
-error.txt
+
+/CompileLabels.xml
