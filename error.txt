@@ -1,6 +1,0 @@
-AAXZplRenderProbe: ALL STEPS GREEN (WP-0.5).
-Loaded: AtomicAx.Zpl.Render, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
-Probe step 3 OK: PNG attached, DocuRef RecId 68719492672.
-Probe: created document type LBLPREV.
-Probe step 2 OK: barcode ZPL rendered 1 PNG(s).
-Probe step 1 OK: plain ZPL rendered 1 PNG(s).

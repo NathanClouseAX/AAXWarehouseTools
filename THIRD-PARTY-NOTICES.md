@@ -1,6 +1,6 @@
 # Third-party notices — AAXWarehouseTools
 
-This ISV solution redistributes the following third-party components inside the model `bin\` folder. All licenses permit commercial redistribution (plan risk R-6, closed).
+This ISV solution redistributes the following third-party components inside the model `bin\` folder. All licenses permit commercial redistribution.
 
 | Component | Version | License | Source |
 |---|---|---|---|

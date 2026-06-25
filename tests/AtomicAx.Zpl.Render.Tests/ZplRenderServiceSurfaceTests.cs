@@ -88,7 +88,7 @@ namespace AtomicAx.Zpl.Render.Tests
 
             // The VSTest .NET Framework host shadow-copies the test assembly, so Assembly.Location
             // points at the shadow-copy cache while Assembly.CodeBase still points at the real build
-            // output (exactly the U-1 IIS scenario the preloader handles). Accept either the real
+            // output (exactly the IIS shadow-copy scenario the preloader handles). Accept either the real
             // output dir (CodeBase), the Location dir, or the %TEMP% extraction dir.
             string locationDir = null;
             try { locationDir = Path.GetDirectoryName(self.Location); } catch { /* byte-loaded */ }

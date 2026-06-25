@@ -3,6 +3,7 @@ bin/
 obj/
 XppMetadata/
 BuildModelResult.*
+BuildProjectResult.*
 AppPackages/
 
 # IDE
@@ -14,3 +15,6 @@ AppPackages/
 TestResults/
 Resources/
 /*.xml
+
+# Local dev scratch (runtime error paste target)
+error.txt
