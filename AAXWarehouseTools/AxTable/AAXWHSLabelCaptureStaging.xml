@@ -48,7 +48,7 @@ public class AAXWHSLabelCaptureStaging extends common
     /// </summary>
     public static boolean existsForWorkAndHash(WHSWorkId _workId, AAXWHSZplHash _zplHash)
     {
-        // Expression-selects resolve the FROM target as a table name (donor pattern).
+        // Expression-selects resolve the FROM target as a table name.
         return _workId != ''
             && (select firstonly RecId from aaxWHSLabelCaptureStaging
                 where aaxWHSLabelCaptureStaging.WorkId == _workId

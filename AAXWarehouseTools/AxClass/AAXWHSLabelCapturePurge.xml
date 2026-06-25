@@ -76,7 +76,7 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
     /// <remarks>
     /// Removes only LBLPREV DocuRef rows (their DocuValue cascades via DocuRef.delete()) and
     /// Done/Poison staging rows older than <c>aaxPreviewRetentionDays</c>.
-    /// The standard purge donor uses the internal <c>WHSRecordDeletionCommitter</c>; that class is
+    /// The standard purge implementation uses the internal <c>WHSRecordDeletionCommitter</c>; that class is
     /// <c>internal</c> and therefore inaccessible cross-model, so its chunked-commit behaviour is
     /// replicated here with direct per-row <c>delete()</c> calls (each commits in its own implicit
     /// transaction). Per-company scope is honoured with a <c>changecompany</c> loop so that

@@ -13,7 +13,7 @@ Both features render ZPL to images entirely in-process. The renderer is a single
 
 ## Features
 
-### 1. On-demand label preview
+### Feature A — On-demand label preview
 
 A **Generate label preview** action button is added to the action pane of the **Label layout** and **Document routing layout** forms. Selecting it opens the **Label preview** dialog, which:
 
@@ -26,7 +26,7 @@ A **Generate label preview** action button is added to the action pane of the **
 
 This feature applies to label layouts whose definition type is **ZPL** (including layouts that use template blocks). Layouts whose definition type is **Variables** or **VariablesScript** are not previewable and the dialog reports this with a clear message.
 
-### 2. Mobile-flow label capture to Work attachment
+### Feature B — Mobile-flow label capture to Work attachment
 
 When **Print label preview to work attachment** is enabled, ZPL labels that are printed from warehouse mobile flows and that have a related Work record are captured at the document-routing print path, rendered to images, and attached to that Work record. Because the capture happens at the print path rather than at a printer, it works even when **no printer is configured** for the routing.
 
@@ -87,14 +87,14 @@ Two periodic tasks support the capture feature. Schedule them under **Warehouse 
 
 Assign the **Maintain warehouse label preview** duty to the roles that need this functionality. The duty bundles two privileges:
 
-- **Generate label preview** — grants access to the on-demand preview button (Feature 1).
-- **Administer label preview capture** — grants access to the capture toggle and the render/purge batch tasks (Feature 2).
+- **Generate label preview** — grants access to the on-demand preview button (Feature A).
+- **Administer label preview capture** — grants access to the capture toggle and the render/purge batch tasks (Feature B).
 
 Assign the duty (or the individual privileges) to your warehouse worker, supervisor, or administrator roles as appropriate.
 
 ## Usage
 
-### Feature 1 — Generate a label preview
+### Feature A — Generate a label preview
 
 1. Open a layout: **Label layout** or **Document routing layout** (under Warehouse management setup).
 2. Select a layout that has an active version (if it has no active version, the dialog will ask you to activate one first).
@@ -106,7 +106,7 @@ Assign the duty (or the individual privileges) to your warehouse worker, supervi
    - Use **Rotate 90°** to rotate the current page, and **Previous label** / **Next label** to page through a multi-label job.
    - Use **Copy ZPL** to copy the final ZPL, or **Download PNG** to save the rendered image.
 
-### Feature 2 — Capture mobile-flow labels to Work attachments
+### Feature B — Capture mobile-flow labels to Work attachments
 
 1. Enable capture: in **Warehouse management parameters > Work > Label preview to attachment**, turn on **Print label preview to work attachment**, and review the defaults (auto-off days, retention days, fallback DPI/width/height).
 2. Confirm **Document routing** maps the relevant work transaction type to a label layout (the printer name may be blank).

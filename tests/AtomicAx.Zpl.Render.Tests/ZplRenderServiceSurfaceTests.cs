@@ -13,7 +13,7 @@ namespace AtomicAx.Zpl.Render.Tests
     /// <summary>
     /// Coverage for the full current public surface added on top of the original 20 tests:
     /// GetRuntimeDiagnostics, NativeLibraryPreloader extraction semantics (net472 leg), token-scan
-    /// hardening verified against the actual regex, a non-empty ComputeHash known vector computed
+    /// hardening checked against the actual regex, a non-empty ComputeHash known vector computed
     /// independently in the test, render dimension edge cases, and the ILRepack merged-artifact
     /// invariant. Deterministic, no network, no writes outside temp/test dirs.
     /// </summary>
@@ -128,7 +128,7 @@ namespace AtomicAx.Zpl.Render.Tests
 #endif
 
         // ------------------------------------------------------------------
-        // 4. Token scan hardening — expectations verified against the actual regex:
+        // 4. Token scan hardening — expectations checked against the actual regex:
         //    \$(?:(?<record>\w+?)\.)?(?<field>\w+?)(?<methodIndicator>\(\))?
         //      (?:\[(?<lineIndex>[0-9]{1,3})\])?(?::(?<format>.*?))?\$
         // ------------------------------------------------------------------

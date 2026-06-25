@@ -195,7 +195,7 @@ Capture stages a label **only** when both conditions hold at print time:
 2. the label being printed has a **related Work record** (a non-empty WorkId).
 
 This deliberately limits capture to ZPL labels that have a Work record to attach to. The
-following are **explicitly NOT captured** (verified against the design scope):
+following are **explicitly NOT captured**:
 
 - **Production license-plate labels** (`ProdLicensePlateLabelBuild`) — built without a
   Work record, so there is no attachment target.

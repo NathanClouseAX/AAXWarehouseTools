@@ -176,7 +176,7 @@ namespace AtomicAx.Zpl.Render
         ///  - odd turns swap width/height; even turns preserve them.
         ///  - any decode/encode failure -&gt; ZplRenderException (native-load failures get the preloader
         ///    log appended, mirroring RenderToPngList for diagnosability).
-        /// SkiaSharp 3.119 surface used (verified against the package): SKBitmap.Decode(byte[]),
+        /// SkiaSharp 3.119 surface used: SKBitmap.Decode(byte[]),
         /// new SKBitmap(int,int), new SKCanvas(SKBitmap), SKCanvas.Translate(float,float),
         /// SKCanvas.RotateDegrees(float), SKCanvas.DrawBitmap(SKBitmap,float,float,SKPaint),
         /// SKImage.FromBitmap(SKBitmap), SKImage.Encode(SKEncodedImageFormat.Png,100), SKData.ToArray().
@@ -314,7 +314,7 @@ namespace AtomicAx.Zpl.Render
 
         /// <summary>
         /// Read-only token discovery (discovery only, not substitution). Returns the
-        /// distinct, non-empty 'record' capture groups from the verified token regex.
+        /// distinct, non-empty 'record' capture groups from the token regex.
         /// Record-less tokens such as $OrderNum$ contribute no entry.
         /// </summary>
         public static string[] GetTokenRecordNames(string zpl)

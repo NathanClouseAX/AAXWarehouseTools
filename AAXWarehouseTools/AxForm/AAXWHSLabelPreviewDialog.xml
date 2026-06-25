@@ -346,8 +346,8 @@ public class AAXWHSLabelPreviewDialog extends FormRun
             return layoutRecord;
         }
 
-        // new DictTable(tableId).makeRecord() + select by RecId is the verified donor idiom
-        // (AssetBookOriginalDocuments / AuditPolicyCaseBuilder), reused from refreshPreview().
+        // new DictTable(tableId).makeRecord() + select by RecId is the standard idiom
+        // (as in AssetBookOriginalDocuments / AuditPolicyCaseBuilder), reused from refreshPreview().
         layoutDictTable = new DictTable(layoutTableId);
         layoutRecord    = layoutDictTable.makeRecord();
 
@@ -605,7 +605,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     /// both &gt; 0 — which tells the renderer to use the label own ^PW/^LL (or the 4x6 fallback).
     /// </returns>
     /// <remarks>
-    /// Unit conversions (verified): inches -&gt; mm is *25.4; DPI -&gt; dpmm (int) is
+    /// Unit conversions: inches -&gt; mm is *25.4; DPI -&gt; dpmm (int) is
     /// real2int(round(dpi / 25.4, 1.0)) — nearest integer dpmm (203-&gt;8, 300-&gt;12, 600-&gt;24). dpmm
     /// 0 lets the controller/wrapper apply the configured density default (8 dpmm). X++ has no
     /// scalar by-ref, so the three values are returned in a container and unpacked by the caller.
