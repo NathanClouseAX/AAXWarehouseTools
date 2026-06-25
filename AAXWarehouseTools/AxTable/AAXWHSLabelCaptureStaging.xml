@@ -4,7 +4,7 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// Staging buffer for mobile-flow label capture (plan WP-2.2 / REQ-B-6). The print-path CoC
+/// Staging buffer for mobile-flow label capture. The print-path CoC
 /// (WhsDocumentRouting_AAXWarehouseTools_Extension) inserts one row per captured ZPL label;
 /// the render batch (AAXWHSLabelCaptureRenderService) renders rows to PNG and attaches them
 /// to the related work record.
@@ -44,7 +44,7 @@ public class AAXWHSLabelCaptureStaging extends common
 				<Name>existsForWorkAndHash</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Pre-attach dedup check on the (WorkId, ZplHash) index (REQ-B-7 step 2).
+    /// Pre-attach dedup check on the (WorkId, ZplHash) index.
     /// </summary>
     public static boolean existsForWorkAndHash(WHSWorkId _workId, AAXWHSZplHash _zplHash)
     {

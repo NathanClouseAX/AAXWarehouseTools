@@ -5,15 +5,15 @@
 		<Declaration><![CDATA[
 /// <summary>
 /// SysOperation service that renders captured ZPL staging rows to PNGs and attaches them to the
-/// originating Work record (plan WP-2.4 / REQ-B-7).
+/// originating Work record.
 /// </summary>
 /// <remarks>
 /// Cross-company pickup of <c>Pending</c> rows (ordered by RecId); per-company chunks run inside a
-/// <c>changecompany</c> block so the DocuType creation and attachment happen in the row's company
-/// (DR-9, F26). Each row is processed in its own try/catch with short, OCC-retryable state-transition
-/// transactions only (never a whole-chunk transaction) so a single failure isolates to that row (REQ-B-7).
+/// <c>changecompany</c> block so the DocuType creation and attachment happen in the row's company.
+/// Each row is processed in its own try/catch with short, OCC-retryable state-transition
+/// transactions only (never a whole-chunk transaction) so a single failure isolates to that row.
 /// A snapshotted WorkId that no longer resolves to a <c>WHSWorkTable</c> record yields a terminal
-/// <c>Done</c> with the "work no longer exists" note — never <c>Error</c>/<c>Poison</c> (DR-10, F8/F25).
+/// <c>Done</c> with the "work no longer exists" note — never <c>Error</c>/<c>Poison</c>.
 /// </remarks>
 public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
 {
@@ -26,7 +26,7 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
     /// <summary>
     /// Renders and attaches all currently <c>Pending</c> captured labels across every legal entity.
     /// </summary>
-    /// <param name = "_contract">Chunk size and maximum-retry settings (REQ-B-7).</param>
+    /// <param name = "_contract">Chunk size and maximum-retry settings.</param>
     public void process(AAXWHSLabelCaptureRenderContract _contract)
     {
         int chunkSize  = _contract.parmChunkSize() > 0 ? _contract.parmChunkSize() : 50;
@@ -34,7 +34,7 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
 
         // Group Pending rows by company WITHOUT holding a transaction or a cursor across companies.
         // We collect only RecIds (ordered by RecId) so the actual work runs per-row in its own
-        // transaction inside the row's company (DR-9).
+        // transaction inside the row's company.
         Map companyToRecIds = this.collectPendingRecIdsByCompany();
 
         MapEnumerator companyEnumerator = companyToRecIds.getEnumerator();
@@ -47,12 +47,38 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
 ]]></Source>
 			</Method>
 			<Method>
+				<Name>renderPendingInline</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Best-effort, near-real-time render+attach of currently <c>Pending</c> captured rows, invoked
+    /// right AFTER the label build/print transaction commits (the WhsLicensePlateLabelBuild CoC, at
+    /// ttsLevel 0) so the image lands in the same user action — WITHOUT rendering inside the print
+    /// transaction, where X++ forbids catching exceptions (so the dimension fallback and per-row
+    /// isolation could not work and a failure would break the receipt). Reuses the batch pipeline, so
+    /// any row it cannot complete simply stays for the scheduled batch. The caller guarantees
+    /// ttsLevel 0, so the surrounding catch is effective.
+    /// </summary>
+    public static void renderPendingInline()
+    {
+        try
+        {
+            new AAXWHSLabelCaptureRenderService().process(new AAXWHSLabelCaptureRenderContract());
+        }
+        catch
+        {
+            // Best-effort real-time pass; never disrupt the warehouse flow. Leftover rows remain
+            // Pending and are picked up by the scheduled render batch.
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
 				<Name>processCompany</Name>
 				<Source><![CDATA[
     /// <summary>
     /// Processes one legal entity's captured rows inside a <c>changecompany</c> block so the
-    /// per-company gate re-check, DocuType creation and attachment all run in the row's company
-    /// (DR-9, F26).
+    /// per-company gate re-check, DocuType creation and attachment all run in the row's company.
     /// </summary>
     /// <param name = "_dataAreaId">The legal entity to switch into.</param>
     /// <param name = "_recIds">The staging RecIds captured in that company, in pickup order.</param>
@@ -62,13 +88,13 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
     {
         changecompany (_dataAreaId)
         {
-            // Re-check the gate per company; this also flips an expired toggle Off (F18 batch side).
+            // Re-check the gate per company; this also flips an expired toggle Off.
             if (!WHSParameters::find().aaxIsPreviewToWorkAttachmentEnabled())
             {
                 return;
             }
 
-            // Idempotent per-company DocuType setup (F26 — attach throws without it).
+            // Idempotent per-company DocuType setup (attach throws without it).
             AAXWHSLabelAttachmentService::ensureDocuType();
 
             this.processCompanyRows(_recIds, _chunkSize, _maxRetries);
@@ -82,7 +108,7 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
 				<Source><![CDATA[
     /// <summary>
     /// Scans <c>Pending</c> staging rows cross-company (ordered by RecId) and groups their RecIds
-    /// by <c>DataAreaId</c>. No transaction is held — the heavy work runs per row afterwards (DR-9).
+    /// by <c>DataAreaId</c>. No transaction is held — the heavy work runs per row afterwards.
     /// </summary>
     /// <returns>A <c>Map</c> of <c>DataAreaId</c> to a <c>List</c> of staging RecIds.</returns>
     private Map collectPendingRecIdsByCompany()
@@ -119,7 +145,7 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
 				<Source><![CDATA[
     /// <summary>
     /// Processes the supplied staging RecIds (already in the current company) in chunk-sized passes.
-    /// Each row is processed independently; a failure isolates to that row (REQ-B-7).
+    /// Each row is processed independently; a failure isolates to that row.
     /// </summary>
     /// <param name = "_recIds">Staging RecIds to process, in pickup order.</param>
     /// <param name = "_chunkSize">Maximum rows to process per pass before yielding.</param>
@@ -133,7 +159,7 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
         {
             RecId stagingRecId = recIdEnumerator.current();
 
-            // Row isolation (REQ-B-7): each row runs in its own try/catch OUTSIDE any active
+            // Row isolation: each row runs in its own try/catch OUTSIDE any active
             // ttsbegin/ttscommit (render/attach are not in a transaction; the state-transition
             // helpers open and commit their own short transactions). A failure here only updates
             // THIS row's Status/RetryCount/ErrorMessage — never the rest of the chunk.
@@ -164,7 +190,7 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
     /// <summary>
     /// Renders and attaches a single captured label, advancing its status. Runs in the current
     /// company; state transitions use short OCC-retryable transactions, render/attach run outside
-    /// any transaction so the per-row try/catch in the caller can isolate failures (REQ-B-7).
+    /// any transaction so the per-row try/catch in the caller can isolate failures.
     /// </summary>
     /// <param name = "_stagingRecId">The staging row RecId.</param>
     /// <param name = "_maxRetries">Maximum render attempts before <c>Poison</c>.</param>
@@ -183,9 +209,9 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
             return;
         }
 
-        // Step 1 (DR-10): resolve the attachment target FIRST. An empty buffer (Work completed/
+        // Step 1: resolve the attachment target FIRST. An empty buffer (Work completed/
         // cancelled/purged between capture and render) is a legitimate transient condition — the row
-        // goes terminal Done with a note, never Error/Poison (F8: find returns empty, no throw).
+        // goes terminal Done with a note, never Error/Poison (find returns empty, no throw).
         WHSWorkTable workTable = WHSWorkTable::find(staging.WorkId);
         if (!workTable)
         {
@@ -193,29 +219,74 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
             return;
         }
 
-        // Step 2: dedup on (WorkId, ZplHash) against already-attached LBLPREV documents.
-        if (AAXWHSLabelAttachmentService::hasAttachmentWithHash(workTable, staging.ZplHash))
-        {
-            this.markRowDone(_stagingRecId, '');
-            return;
-        }
-
-        // Step 3: render one PNG per ^XA..^XZ block (0 dimensions -> parse/fallback, REQ-R-2).
-        List pngs = AAXZplRenderService::renderToPngList(
+        // Steps 2-4 (dedup + render + attach) are shared with the inline real-time capture path
+        // (AAXWHSLabelCaptureScope.stageLabel) so the two can never drift. Throws on an empty render
+        // so the per-row catch marks Error -> Poison rather than silently "succeeding".
+        AAXWHSLabelCaptureRenderService::renderAndAttach(
+            workTable,
             staging.FinalZpl,
+            staging.ZplHash,
+            staging.WorkId,
+            staging.LayoutId,
             staging.Dpmm,
             staging.WidthMm,
             staging.HeightMm);
 
-        // The renderer produced no image (e.g. captured ZPL had no ^XA..^XZ label block). Fail
-        // VISIBLY (Error -> Poison via the per-row catch) rather than silently marking Done with
-        // nothing attached, so a data-quality problem surfaces instead of looking like success.
+        // Step 5: Done.
+        this.markRowDone(_stagingRecId, '');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>renderAndAttach</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Dedups, renders, and attaches one captured ZPL to its Work — the shared core used by BOTH the
+    /// async render batch and the inline real-time capture path. Renders one PNG per ^XA..^XZ block
+    /// (0 dimensions => parse ^PW/^LL with parameter fallback). Throws
+    /// <c>RenderProducedNoImage</c> when the ZPL yields nothing so the caller can surface it (batch:
+    /// Error/Poison; inline: leave the row Pending). No row state is touched here.
+    /// </summary>
+    /// <param name = "_work">The resolved Work record to attach to (caller guarantees it exists).</param>
+    /// <param name = "_finalZpl">The captured, token-substituted ZPL.</param>
+    /// <param name = "_hash">SHA-256 of the ZPL, used for attachment dedup and notes.</param>
+    /// <param name = "_workId">Work id for the file name.</param>
+    /// <param name = "_layoutId">Layout id segment for the file name (may be empty).</param>
+    /// <param name = "_dpmm">Render density override, or 0 to parse/fallback.</param>
+    /// <param name = "_widthMm">Render width override in mm, or 0.</param>
+    /// <param name = "_heightMm">Render height override in mm, or 0.</param>
+    public static void renderAndAttach(
+        WHSWorkTable    _work,
+        str             _finalZpl,
+        AAXWHSZplHash   _hash,
+        WHSWorkId       _workId,
+        str             _layoutId = '',
+        int             _dpmm     = 0,
+        real            _widthMm  = 0,
+        real            _heightMm = 0)
+    {
+        if (!_work.RecId || !_finalZpl)
+        {
+            return;
+        }
+
+        // Dedup on (WorkId, ZplHash) against already-attached LBLPREV documents (idempotent rerun).
+        if (AAXWHSLabelAttachmentService::hasAttachmentWithHash(_work, _hash))
+        {
+            return;
+        }
+
+        List pngs = AAXZplRenderService::renderToPngList(_finalZpl, _dpmm, _widthMm, _heightMm);
+
         if (!pngs || pngs.elements() == 0)
         {
             throw error("@AAXWarehouseTools:RenderProducedNoImage");
         }
 
-        // Step 4: attach each PNG (DocumentManagement manages its own transaction, F25).
+        // Attach throws without the per-company LBLPREV DocuType — ensure it idempotently.
+        AAXWHSLabelAttachmentService::ensureDocuType();
+
         str             timestamp = AAXWHSLabelCaptureRenderService::timestampForFileName();
         int             seq;
         ListEnumerator  pngEnumerator = pngs.getEnumerator();
@@ -226,13 +297,10 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
             container png = pngEnumerator.current();
 
             str fileName = AAXWHSLabelCaptureRenderService::buildFileName(
-                staging.WorkId, staging.LayoutId, timestamp, seq);
+                _workId, _layoutId, timestamp, seq);
 
-            AAXWHSLabelAttachmentService::attachPng(workTable, png, fileName, staging.ZplHash);
+            AAXWHSLabelAttachmentService::attachPng(_work, png, fileName, _hash);
         }
-
-        // Step 5: Done.
-        this.markRowDone(_stagingRecId, '');
     }
 
 ]]></Source>
@@ -242,7 +310,7 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
 				<Source><![CDATA[
     /// <summary>
     /// Transitions a still-<c>Pending</c> row to <c>Processing</c> in a short OCC-retryable
-    /// transaction (plan F23 OCC pattern, applied to a per-row transition only).
+    /// transaction (OCC pattern applied to a per-row transition only).
     /// </summary>
     /// <param name = "_stagingRecId">The staging row RecId.</param>
     /// <returns><c>true</c> if this call moved the row to <c>Processing</c>; otherwise <c>false</c>.</returns>
@@ -356,8 +424,8 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
 				<Source><![CDATA[
     /// <summary>
     /// Records a render/attach failure on a single row: increments <c>RetryCount</c>, stores the
-    /// error text, and sets <c>Error</c> — or <c>Poison</c> when the retry ceiling is reached
-    /// (REQ-B-7). Runs in a short OCC-retryable transaction; never touches any other row.
+    /// error text, and sets <c>Error</c> — or <c>Poison</c> when the retry ceiling is reached.
+    /// Runs in a short OCC-retryable transaction; never touches any other row.
     /// </summary>
     /// <param name = "_stagingRecId">The staging row RecId.</param>
     /// <param name = "_maxRetries">Maximum render attempts before <c>Poison</c>.</param>
@@ -437,7 +505,7 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
 				<Source><![CDATA[
     /// <summary>
     /// Builds a deterministic, locale-independent UTC timestamp segment (yyyyMMdd_HHmmss) for the
-    /// attachment file name (REQ-B-8).
+    /// attachment file name.
     /// </summary>
     /// <returns>The formatted timestamp string.</returns>
     private static str timestampForFileName()
@@ -460,7 +528,7 @@ public class AAXWHSLabelCaptureRenderService extends SysOperationServiceBase
 				<Source><![CDATA[
     /// <summary>
     /// Builds the attachment file name {WorkId}_{LayoutId}_{yyyyMMdd_HHmmss}_{seq}.png, gracefully
-    /// omitting an empty LayoutId segment (REQ-B-8).
+    /// omitting an empty LayoutId segment.
     /// </summary>
     /// <param name = "_workId">The Work id.</param>
     /// <param name = "_layoutId">The layout id (may be empty).</param>

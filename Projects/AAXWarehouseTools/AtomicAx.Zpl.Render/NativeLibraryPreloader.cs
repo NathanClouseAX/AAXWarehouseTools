@@ -10,7 +10,7 @@ namespace AtomicAx.Zpl.Render
     /// Pre-loads the win-x64 native assets (libSkiaSharp.dll, libHarfBuzzSharp.dll) before any
     /// SkiaSharp P/Invoke runs.
     ///
-    /// Why (plan U-1, hit live in the AOS): IIS shadow-copies managed assemblies into a temp
+    /// Why (observed live in the AOS): IIS shadow-copies managed assemblies into a temp
     /// directory before loading them, so when SkiaSharp probes for its native library "next to
     /// itself" (Assembly.Location) it looks in the shadow-copy folder — where the native DLL is
     /// not. Assembly.CodeBase still points at the ORIGINAL deployment folder (the model bin),
@@ -117,7 +117,7 @@ namespace AtomicAx.Zpl.Render
         }
 
         /// <summary>
-        /// Probe/load record for error messages and the WP-0.5 probe.
+        /// Probe/load record for error messages and support diagnostics.
         /// </summary>
         public static string Diagnostics
         {
@@ -158,7 +158,7 @@ namespace AtomicAx.Zpl.Render
             string codeBaseDir = SafeCodeBaseDirectory();
             string locationDir = SafeLocationDirectory();
 
-            // ARCH-AWARE (U-1 round 3): pick the runtimes RID folder matching the PROCESS
+            // ARCH-AWARE: pick the runtimes RID folder matching the PROCESS
             // bitness — loading an x86 native into the 64-bit AOS fails with Win32 error 193.
             string rid = Environment.Is64BitProcess ? "win-x64" : "win-x86";
             string nativeSubPath = Path.Combine("runtimes", Path.Combine(rid, Path.Combine("native", module)));

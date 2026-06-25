@@ -4,9 +4,9 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// Label-preview capture parameters and auto-off logic (plan WP-2.1 / REQ-B-1..B-3).
+/// Label-preview capture parameters and auto-off logic.
 /// The auto-off mechanics are a byte-for-byte mirror of the Work creation history log
-/// pattern (plan facts F17/F18/F19/F20).
+/// pattern.
 /// </summary>
 [ExtensionOf(tableStr(WHSParameters))]
 public final class WHSParameters_AAXWarehouseTools_Extension
@@ -23,7 +23,7 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxPreviewAutoOffDays</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Auto-off window in days; unset (0) falls back to the locked default of 14 (REQ-B-1).
+    /// Auto-off window in days; unset (0) falls back to the locked default of 14.
     /// </summary>
     public int aaxPreviewAutoOffDays()
     {
@@ -81,7 +81,7 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxPreviewRetentionDays</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Attachment retention window in days for the purge batch; unset falls back to 14 (REQ-S-5).
+    /// Attachment retention window in days for the purge batch; unset falls back to 14.
     /// </summary>
     public int aaxPreviewRetentionDays()
     {
@@ -141,7 +141,7 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxInitPreviewAttachmentTurnsOff</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Sets the auto-off timestamp to now + the configured window (mirror of F17).
+    /// Sets the auto-off timestamp to now + the configured window.
     /// </summary>
     public void aaxInitPreviewAttachmentTurnsOff()
     {
@@ -156,7 +156,7 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxCanUpdateWHSParameters</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Test seam replica of the internal <c>canUpdateWHSParameters</c> (F19 — internal upstream,
+    /// Test seam replica of the internal <c>canUpdateWHSParameters</c> (internal upstream,
     /// so it cannot be called from this model).
     /// </summary>
     private boolean aaxCanUpdateWHSParameters()
@@ -170,10 +170,10 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxIsPreviewToWorkAttachmentEnabled</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Lazy auto-off guard — EXACT mirror of <c>isWorkCreateHistoryLogEnabled</c> (F18):
+    /// Lazy auto-off guard — EXACT mirror of <c>isWorkCreateHistoryLogEnabled</c>:
     /// true while now is before the turns-off timestamp; an expired toggle is flipped off
     /// under a pessimistic lock; a null timestamp bootstraps the window (first enable).
-    /// Called on both the capture hot path (REQ-B-5) and the render batch (REQ-B-7).
+    /// Called on both the capture hot path and the render batch.
     /// </summary>
     public boolean aaxIsPreviewToWorkAttachmentEnabled()
     {
@@ -224,7 +224,7 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>modifiedField</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Toggle flipped On initializes the auto-off timestamp (mirror of F20).
+    /// Toggle flipped On initializes the auto-off timestamp.
     /// </summary>
     public void modifiedField(FieldId _fieldId)
     {

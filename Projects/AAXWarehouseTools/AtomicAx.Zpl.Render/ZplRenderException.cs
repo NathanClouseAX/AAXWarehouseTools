@@ -22,7 +22,7 @@ namespace AtomicAx.Zpl.Render
     /// <summary>
     /// Thrown when the render call cannot determine the label dimensions:
     /// either the print density (dpmm) was not supplied, or width/height were not
-    /// supplied and could not be parsed from the ZPL (^PW / ^LL). REQ-R-1: the X++
+    /// supplied and could not be parsed from the ZPL (^PW / ^LL). The X++
     /// caller owns the fallback to the WHS parameter defaults.
     /// </summary>
     public sealed class ZplDimensionsMissingException : ZplRenderException

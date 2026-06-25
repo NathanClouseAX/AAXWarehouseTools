@@ -4,11 +4,11 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// Mobile-flow label capture seams (plan WP-2.3 / REQ-B-5, verified facts F1-F5).
+/// Mobile-flow label capture seams.
 /// The instance CoC on <c>printDocument</c> opens a disposable capture scope; the static CoC on
 /// <c>printLabelToPrinter</c> — the universal ZPL chokepoint, which fires BEFORE the
-/// batch-print diversion (F2/F5) and is reached by both the legacy routing path (F3) and the
-/// new label-layout path (F4 L391) — stages each label while a scope is active.
+/// batch-print diversion and is reached by both the legacy routing path and the
+/// new label-layout path — stages each label while a scope is active.
 /// </summary>
 [ExtensionOf(classStr(WhsDocumentRouting))]
 public final class WhsDocumentRouting_AAXWarehouseTools_Extension
@@ -21,8 +21,8 @@ public final class WhsDocumentRouting_AAXWarehouseTools_Extension
 				<Source><![CDATA[
     public void printDocument(WHSWorkTransType _workTransType, WHSLicensePlateLabel _label)
     {
-        // REQ-B-5 gate: WorkId must be non-empty (no attachment target otherwise, F8/F1a) AND
-        // the auto-off-guarded toggle must be on (F18/F21 lazy guard). Production LP labels
+        // Capture gate: WorkId must be non-empty (no attachment target otherwise) AND
+        // the auto-off-guarded toggle must be on. Production LP labels
         // (ProdLicensePlateLabelBuild) and WorkId-less reprints are excluded by design.
         // CoC rule: 'next' must be called exactly once and UNCONDITIONALLY, so the scope is
         // always created and carries an active flag instead of branching around next.
@@ -42,8 +42,8 @@ public final class WhsDocumentRouting_AAXWarehouseTools_Extension
 				<Source><![CDATA[
     public static void printLabelToPrinter(Name _printerName, str _label)
     {
-        // F2/F5: universal ZPL chokepoint - fires BEFORE the batch diversion, so batching
-        // cannot detach capture. No active scope (wave/TMS/production flows, F4a/F1a) => no-op.
+        // Universal ZPL chokepoint - fires BEFORE the batch diversion, so batching
+        // cannot detach capture. No active scope (wave/TMS/production flows) => no-op.
         AAXWHSLabelCaptureScope scope = AAXWHSLabelCaptureScope::current();
 
         if (scope && _label)

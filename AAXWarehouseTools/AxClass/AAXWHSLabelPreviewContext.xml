@@ -6,9 +6,9 @@
 /// <summary>
 /// Carrier object passed from <c>AAXWHSLabelPreviewController</c> to the preview
 /// dialog form (<c>AAXWHSLabelPreviewDialog</c>) via <c>Args.parmObject()</c>.
-/// AGREED CONTRACT with the dialog agent: the dialog reads the rendered PNG list,
-/// the final token-substituted ZPL, the source badge text, and the layout
-/// description from this object. Standard parm-pattern class.
+/// The dialog reads the rendered PNG list, the final token-substituted ZPL, the
+/// source badge text, and the layout description from this object. Standard
+/// parm-pattern class.
 /// </summary>
 public final class AAXWHSLabelPreviewContext
 {
@@ -19,7 +19,7 @@ public final class AAXWHSLabelPreviewContext
     private str     badgeText;
     private str     layoutDescription;
 
-    // REQ-A-3 step 1 (seed-record selection): the dialog re-renders by re-reading the
+    // Seed-record selection: the dialog re-renders by re-reading the
     // layout row (identity below) and calling AAXWHSLabelPreviewController::buildContext()
     // with a chosen seed record on the resolved seed table.
     private TableId layoutTableId;
@@ -62,7 +62,7 @@ public final class AAXWHSLabelPreviewContext
 				<Name>parmFinalZpl</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Gets or sets the final, token-substituted ZPL displayed beside the image (REQ-A-7).
+    /// Gets or sets the final, token-substituted ZPL displayed beside the image.
     /// </summary>
     /// <param name = "_finalZpl">The final ZPL string to set.</param>
     /// <returns>The current final ZPL string.</returns>
@@ -127,7 +127,7 @@ public final class AAXWHSLabelPreviewContext
 				<Name>parmBadgeText</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Gets or sets the source badge text ("Live record: %1" or "Sample data", REQ-A-7).
+    /// Gets or sets the source badge text ("Live record: %1" or "Sample data").
     /// </summary>
     /// <param name = "_badgeText">The badge text to set.</param>
     /// <returns>The current badge text.</returns>
@@ -168,7 +168,7 @@ public final class AAXWHSLabelPreviewContext
 				<Source><![CDATA[
     /// <summary>
     /// Gets or sets the table id of the source layout row (WHSLabelLayout or
-    /// WHSDocumentRoutingLayout), so the dialog can re-read it to re-render (REQ-A-3 step 1).
+    /// WHSDocumentRoutingLayout), so the dialog can re-read it to re-render.
     /// </summary>
     /// <param name = "_layoutTableId">The layout table id to set.</param>
     /// <returns>The current layout table id.</returns>
@@ -194,7 +194,7 @@ public final class AAXWHSLabelPreviewContext
 				<Source><![CDATA[
     /// <summary>
     /// Gets or sets the RecId of the source layout row, so the dialog can re-read it to
-    /// re-render (REQ-A-3 step 1).
+    /// re-render.
     /// </summary>
     /// <param name = "_layoutRecId">The layout RecId to set.</param>
     /// <returns>The current layout RecId.</returns>
@@ -215,7 +215,7 @@ public final class AAXWHSLabelPreviewContext
 				<Source><![CDATA[
     /// <summary>
     /// Gets or sets the resolved seed table id (the table the dialog's record selector
-    /// looks up, REQ-A-3 step 1).
+    /// looks up).
     /// </summary>
     /// <param name = "_seedTableId">The seed table id to set.</param>
     /// <returns>The current seed table id.</returns>
@@ -236,7 +236,7 @@ public final class AAXWHSLabelPreviewContext
 				<Source><![CDATA[
     /// <summary>
     /// Gets or sets the RecId of the seed record used for token substitution. 0 means
-    /// "auto-resolve most-recent" (the v1 default behavior, REQ-A-3).
+    /// "auto-resolve most-recent" (the default behavior).
     /// </summary>
     /// <param name = "_seedRecId">The seed RecId to set.</param>
     /// <returns>The current seed RecId.</returns>
@@ -262,7 +262,7 @@ public final class AAXWHSLabelPreviewContext
 				<Source><![CDATA[
     /// <summary>
     /// Gets or sets the display label of the seed table (DictTable.label()), shown in the
-    /// dialog's "Data source" group (REQ-A-3 step 1).
+    /// dialog's "Data source" group.
     /// </summary>
     /// <param name = "_seedTableLabel">The seed table label to set.</param>
     /// <returns>The current seed table label.</returns>

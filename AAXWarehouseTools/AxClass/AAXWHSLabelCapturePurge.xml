@@ -5,13 +5,13 @@
 		<Declaration><![CDATA[
 /// <summary>
 /// The <c>AAXWHSLabelCapturePurge</c> class is a batch job that deletes aged label-preview attachments
-/// (DocuType <c>LBLPREV</c> on Work records) and the staging rows that produced them (REQ-S-5).
+/// (DocuType <c>LBLPREV</c> on Work records) and the staging rows that produced them.
 /// </summary>
 /// <remarks>
-/// Structure mirrors <c>WHSWorkCreateHistoryPurge</c> (F23 / methodology III.6): RunBaseBatch with the
+/// Structure mirrors <c>WHSWorkCreateHistoryPurge</c>: RunBaseBatch with the
 /// #OCCRetryCount transient-retry envelope around cleanup(). The retention window is read from
 /// <c>WHSParameters.aaxPreviewRetentionDays()</c> (not a dialog), so the job carries no packed state.
-/// REQ-S-5: it deletes ONLY aged LBLPREV DocuRef rows and Done/Poison staging rows.
+/// It deletes ONLY aged LBLPREV DocuRef rows and Done/Poison staging rows.
 /// </remarks>
 public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetryable, SysErrorMessageHelpScopeIBatchProvider
 {
@@ -74,12 +74,12 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
     /// Deletes aged label-preview attachments and their staging rows across every non-virtual company.
     /// </summary>
     /// <remarks>
-    /// REQ-S-5: removes only LBLPREV DocuRef rows (their DocuValue cascades via DocuRef.delete()) and
+    /// Removes only LBLPREV DocuRef rows (their DocuValue cascades via DocuRef.delete()) and
     /// Done/Poison staging rows older than <c>aaxPreviewRetentionDays</c>.
-    /// The standard purge donor (F23) uses the internal <c>WHSRecordDeletionCommitter</c>; that class is
-    /// <c>internal</c> and therefore inaccessible cross-model (C-2), so its chunked-commit behaviour is
+    /// The standard purge donor uses the internal <c>WHSRecordDeletionCommitter</c>; that class is
+    /// <c>internal</c> and therefore inaccessible cross-model, so its chunked-commit behaviour is
     /// replicated here with direct per-row <c>delete()</c> calls (each commits in its own implicit
-    /// transaction). Per-company scope is honoured with a <c>changecompany</c> loop (DR-9) so that
+    /// transaction). Per-company scope is honoured with a <c>changecompany</c> loop so that
     /// DocuRef removal runs in the owning company and the per-company staging table is reached.
     /// </remarks>
     private void cleanup()
@@ -153,7 +153,7 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
             }
             catch (Exception::TransientSqlConnectionError)
             {
-                // ReqTransientSqlConnectionErrorHandlingHelper is internal (C-2) — gate the
+                // ReqTransientSqlConnectionErrorHandlingHelper is internal — gate the
                 // retry on the session retry counter instead.
                 if (xSession::currentRetryCount() >= #RetryNum)
                 {

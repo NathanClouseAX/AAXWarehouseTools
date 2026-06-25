@@ -5,7 +5,7 @@
 		<Declaration><![CDATA[
 /// <summary>
 /// Attaches rendered label-preview PNGs to the related Work record using the standard
-/// document-management attachment APIs (REQ-B-8). Owns the per-company <c>LBLPREV</c>
+/// document-management attachment APIs. Owns the per-company <c>LBLPREV</c>
 /// DocuType bootstrap and the hash-based dedup lookup over existing attachments.
 /// </summary>
 internal final class AAXWHSLabelAttachmentService
@@ -22,12 +22,12 @@ internal final class AAXWHSLabelAttachmentService
     /// Idempotently creates the <c>LBLPREV</c> document type in the current company if it does not
     /// already exist. The DocuType MUST carry an ActionClassId that derives from
     /// <c>DocuActionFile</c> or <c>DocumentManagement::attachFileForRecord</c> throws when it
-    /// validates the type (F25/F26). DocuType is per-company, so this is safe to call from each
+    /// validates the type. DocuType is per-company, so this is safe to call from each
     /// company-scoped batch chunk.
     /// </summary>
     public static void ensureDocuType()
     {
-        // F26: DocuType::find returns an empty buffer when the type does not exist (per-company).
+        // DocuType::find returns an empty buffer when the type does not exist (per-company).
         if (!DocuType::find(#LabelPreviewDocuTypeId))
         {
             DocuType docuType;
@@ -39,7 +39,7 @@ internal final class AAXWHSLabelAttachmentService
             docuType.FilePlace     = DocuFilePlace::Archive;
             // DocuActionFile itself is ABSTRACT (DocuType.insert() instantiates the action class
             // and would throw); DocuActionArchive is the concrete final subclass and still
-            // satisfies attachFile()'s isEqualOrSuperclass(_, DocuActionFile) check (F25/F26).
+            // satisfies attachFile()'s isEqualOrSuperclass(_, DocuActionFile) check.
             docuType.ActionClassId = classNum(DocuActionArchive);
             docuType.insert();
             ttscommit;
@@ -61,7 +61,7 @@ internal final class AAXWHSLabelAttachmentService
     /// <returns>The created <c>DocuRef</c>, or an empty buffer when no Work target was supplied.</returns>
     /// <remarks>
     /// Defensive against an empty Work buffer (returns empty), but deciding the terminal row state for a
-    /// missing Work is the render batch's responsibility (REQ-B-7 step 1, DR-10) — the helper never sets row status.
+    /// missing Work is the render batch's responsibility — the helper never sets row status.
     /// </remarks>
     public static DocuRef attachPng(
         WHSWorkTable    _work,
@@ -72,7 +72,7 @@ internal final class AAXWHSLabelAttachmentService
         DocuRef docuRef;
 
         // Defensive: a missing Work target has no attachment anchor; passing an empty buffer to
-        // attachFileForRecord throws missingParameter (F25). The batch handles the terminal state (DR-10).
+        // attachFileForRecord throws missingParameter. The batch handles the terminal state.
         if (!_work.RecId)
         {
             return docuRef;
@@ -80,7 +80,7 @@ internal final class AAXWHSLabelAttachmentService
 
         System.IO.Stream stream = AAXZplRenderService::pngContainerToStream(_png);
 
-        // F25: attachFileForRecord(Common, DocuTypeId, System.IO.Stream, fileName, attachmentName, notes).
+        // attachFileForRecord(Common, DocuTypeId, System.IO.Stream, fileName, attachmentName, notes).
         // The hash marker in the notes powers hasAttachmentWithHash dedup.
         docuRef = DocumentManagement::attachFileForRecord(
             _work,
@@ -100,7 +100,7 @@ internal final class AAXWHSLabelAttachmentService
 				<Source><![CDATA[
     /// <summary>
     /// Determines whether the supplied Work record already carries an <c>LBLPREV</c> attachment whose
-    /// notes embed the given ZPL hash (idempotent-render dedup, REQ-B-7 step 2).
+    /// notes embed the given ZPL hash (idempotent-render dedup).
     /// </summary>
     /// <param name = "_work">The Work record to inspect.</param>
     /// <param name = "_zplHash">The ZPL hash to look for.</param>

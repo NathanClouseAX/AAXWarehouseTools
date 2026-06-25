@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>WhsLicensePlateLabelPrintCommandGenerator_AAXWarehouseTools_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// NEW-path capture seam. The label-layout print path
+/// (WhsDocumentRouting.printDocumentWithDocumentRoutingLabelLayoutLine) routes each matched line
+/// through WhsLicensePlateLabelPrintCommandGenerator::printLabelsForLicensePlate, which produces the
+/// final ZPL and then hands it to the [Hookable(false)] internal printLabelPrintCommandsToPrinter —
+/// where a blank printer makes it RETURN and drop every label. That leaves no downstream hook when no
+/// printer is configured, so we reproduce the final ZPL here (from the same layout + translator) and
+/// stage it for render+attach. Capture is best-effort and never disrupts the print/work flow.
+/// </summary>
+[ExtensionOf(classStr(WhsLicensePlateLabelPrintCommandGenerator))]
+final class WhsLicensePlateLabelPrintCommandGenerator_AAXWarehouseTools_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>printLabelsForLicensePlate</Name>
+				<Source><![CDATA[
+    public static int printLabelsForLicensePlate(
+        WHSDocumentRoutingLabelLayoutLine  _licensePlateRoutingLine,
+        WHSLicensePlateLabel               _licensePlateLabel,
+        WHSLabelPrinterSelector            _labelPrinterSelector)
+    {
+        int ret = next printLabelsForLicensePlate(_licensePlateRoutingLine, _licensePlateLabel, _labelPrinterSelector);
+
+        // The scope is opened by the printDocument CoC and is current for the whole print call.
+        // It carries the capture gate (WorkId + toggle) in its active flag.
+        AAXWHSLabelCaptureScope scope = AAXWHSLabelCaptureScope::current();
+        if (scope && scope.isActive())
+        {
+            try
+            {
+                scope.stageLabelLayoutLine(_licensePlateRoutingLine, _licensePlateLabel);
+            }
+            catch
+            {
+                // best-effort: a capture failure must never disrupt the actual print / work step.
+            }
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

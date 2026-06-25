@@ -4,11 +4,11 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// Disposable capture context bridging the two print-path CoC seams (plan WP-2.3 / REQ-B-5).
+/// Disposable capture context bridging the two print-path CoC seams.
 /// Opened by the <c>printDocument</c> CoC (which gates on the parameter toggle AND a non-empty
 /// WorkId), consumed by the static <c>printLabelToPrinter</c> CoC, which stages every ZPL label
-/// that passes the universal chokepoint while a scope is active (plan facts F1/F2/F5).
-/// Modeled on the <c>WhsBatchedDocumentRoutingContext</c> static-current singleton (F5);
+/// that passes the universal chokepoint while a scope is active.
+/// Modeled on the <c>WhsBatchedDocumentRoutingContext</c> static-current singleton;
 /// nesting-safe via previous-scope restore.
 /// </summary>
 public final class AAXWHSLabelCaptureScope implements System.IDisposable
@@ -40,7 +40,7 @@ public final class AAXWHSLabelCaptureScope implements System.IDisposable
     /// <summary>
     /// Opens a capture scope snapshotting the label's work context, and makes it current.
     /// Caller MUST dispose (use a using-statement). The scope is ALWAYS created so the
-    /// printDocument CoC can call 'next' unconditionally (CoC rule); the REQ-B-5 gate result
+    /// printDocument CoC can call 'next' unconditionally (CoC rule); the gate result
     /// is carried in <paramref name="_active"/> — an inactive scope stages nothing.
     /// </summary>
     public static AAXWHSLabelCaptureScope newFromLabel(WHSLicensePlateLabel _label, boolean _active)
@@ -77,10 +77,10 @@ public final class AAXWHSLabelCaptureScope implements System.IDisposable
 				<Name>stageLabel</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Stages one final ZPL label for asynchronous rendering (REQ-B-6). Per-scope hash set
+    /// Stages one final ZPL label for asynchronous rendering. Per-scope hash set
     /// prevents double-staging within one print operation; render dimensions are left 0 so the
-    /// batch parses ^PW/^LL from the ZPL with parameter fallbacks (REQ-R-2).
-    /// Insert runs in the caller's transaction by design (DR-6: a rolled-back print discards
+    /// batch parses ^PW/^LL from the ZPL with parameter fallbacks.
+    /// Insert runs in the caller's transaction by design (a rolled-back print discards
     /// its staging row).
     /// </summary>
     public void stageLabel(WHSPrinterName _printerName, str _zpl)
@@ -90,7 +90,7 @@ public final class AAXWHSLabelCaptureScope implements System.IDisposable
             return;
         }
 
-        // III.9: hash implementation shared with the renderer/tests via the C# library.
+        // Hash implementation shared with the renderer/tests via the C# library.
         str zplHash = AtomicAx.Zpl.Render.ZplRenderService::ComputeHash(_zpl);
 
         if (stagedHashes.in(zplHash))
@@ -107,7 +107,82 @@ public final class AAXWHSLabelCaptureScope implements System.IDisposable
         staging.LicensePlateId = licensePlateId;
         staging.PrinterName    = _printerName;
         staging.Status         = AAXWHSLabelCaptureStatus::Pending;
+
+        // Capture ONLY stages here: this runs inside printLabel's ttsbegin, where X++ forbids catching
+        // exceptions (so rendering inline can't apply the dimension fallback nor stay best-effort —
+        // a failure would break the warehouse transaction). The render+attach is triggered right
+        // after the build transaction commits, at ttsLevel 0
+        // (WHSLicensePlateLabelBuild_AAXWarehouseTools_Extension.buildLicensePlateLabels).
         staging.insert();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isActive</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// True when this scope is capturing (the printDocument CoC gate passed: WorkId + toggle).
+    /// </summary>
+    public boolean isActive()
+    {
+        return active;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>stageLabelLayoutLine</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Reproduces and stages the final ZPL for a NEW-path (label-layout) routing line. The new print
+    /// path drops produced labels at the [Hookable(false)] empty-printer guard in
+    /// printLabelPrintCommandsToPrinter, so there is NO downstream seam when no printer is configured.
+    /// We rebuild the final ZPL from the same layout + translator Microsoft uses
+    /// (WhsDocumentRouting.translate / instantiateTranslatorWithRoutingLine) so capture works with no
+    /// printer required. Only plain (non-template) ZPL layouts are handled here; Variables and
+    /// template-translator layouts use MS's internal source/template generators and are a follow-up.
+    /// </summary>
+    /// <param name = "_routingLine">The matched label-layout routing line MS resolved for this label.</param>
+    /// <param name = "_label">The license plate label being printed.</param>
+    public void stageLabelLayoutLine(WHSDocumentRoutingLabelLayoutLine _routingLine, WHSLicensePlateLabel _label)
+    {
+        if (!active)
+        {
+            return;
+        }
+
+        WHSLabelLayout labelLayout = WHSLabelLayout::findRecId(_routingLine.LabelLayout);
+
+        if (!labelLayout.RecId
+            || labelLayout.DefinitionType != WHSLabelLayoutDefinitionType::ZPL
+            || labelLayout.EnableTemplateTranslator)
+        {
+            return;
+        }
+
+        WHSLabelLayoutVersion layoutVersion;
+        select firstonly ZPL from layoutVersion
+            where layoutVersion.RecId == labelLayout.ActiveVersion;
+
+        if (!layoutVersion.ZPL)
+        {
+            return;
+        }
+
+        WhsDocumentRoutingTranslator translator = WhsDocumentRoutingTranslator::construct();
+
+        if (labelLayout.LabelLocale)
+        {
+            translator.withLanguage(labelLayout.LabelLocale);
+        }
+
+        translator.withRecord(_routingLine, 'routingLine');
+        translator.withRecord(_label);
+
+        str finalZpl = translator.translate(layoutVersion.ZPL);
+
+        this.stageLabel(_routingLine.PrinterName, finalZpl);
     }
 
 ]]></Source>

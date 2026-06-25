@@ -11,12 +11,12 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 {
     // Contract with AAXWHSLabelPreviewController: args().parmObject() is an
     // AAXWHSLabelPreviewContext (parmPngList()->List of container, parmFinalZpl()->str,
-    // parmBadgeText()->str). REQ-A-6/A-7/A-8, F27, U-5.
+    // parmBadgeText()->str).
     AAXWHSLabelPreviewContext   context;
     List                        pngs;           // List of container, one PNG per ^XA..^XZ block (ORIGINAL, unrotated source)
     int                         currentIndex;   // 1-based page index
     str                         currentUrl;     // temp-store URL of the page on display (rotated if turns>0)
-    Map                         pageUrls;       // REQ-A-7: lazy temp-store URL cache, keyed by "page|turns" (String -> String)
+    Map                         pageUrls;       // lazy temp-store URL cache, keyed by "page|turns" (String -> String)
 
     // Feature 1 (rotate clockwise 90, unlimited clicks): per-PAGE cumulative rotation state.
     // ALWAYS rotate FROM THE ORIGINAL container by the cumulative turn count â€” never re-rotate
@@ -24,7 +24,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     Map                         pageTurns;      // Integer -> Integer
 
     // Feature 2 (seed-record selection): identity needed for the dialog to re-render via
-    // AAXWHSLabelPreviewController::buildContext (REQ-A-3 step 1).
+    // AAXWHSLabelPreviewController::buildContext.
     TableId                     layoutTableId;
     RecId                       layoutRecId;
     TableId                     seedTableId;
@@ -62,7 +62,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
     /// <summary>
     /// (Re)initializes all form state from a preview context: PNGs, badge, final ZPL, the
     /// data-source group, and â€” crucially â€” CLEARS all rotation state and URL caches before
-    /// rendering page 1. Called from init() and from the Refresh button (REQ-A-3 step 1).
+    /// rendering page 1. Called from init() and from the Refresh button.
     /// </summary>
     /// <param name = "_context">The preview context to bind.</param>
     public void initFromContext(AAXWHSLabelPreviewContext _context)
@@ -72,17 +72,17 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 
         // CLEAR caches + rotation state: the new render has fresh containers, so any cached
         // temp-store URL or accumulated rotation from the previous seed record must be dropped
-        // (F27 temp-store URLs are short-lived and generated lazily on navigation, REQ-A-7).
+        // (temp-store URLs are short-lived and generated lazily on navigation).
         pageUrls  = new Map(Types::String, Types::String);   // key "page|turns" -> URL
         pageTurns = new Map(Types::Integer, Types::Integer);  // page -> cumulative turns (0..3)
 
-        // Re-render identity + seed selection state (REQ-A-3 step 1).
+        // Re-render identity + seed selection state.
         layoutTableId     = context.parmLayoutTableId();
         layoutRecId       = context.parmLayoutRecId();
         seedTableId       = context.parmSeedTableId();
         selectedSeedRecId = context.parmSeedRecId();
 
-        // Badge near the image: "Live record: %1" or "Sample data" (REQ-A-7).
+        // Badge near the image: "Live record: %1" or "Sample data".
         BadgeText.text(context.parmBadgeText());
 
         // EDITABLE raw SOURCE panel: the layout's stored text WITH $tokens$ (and, for template
@@ -91,7 +91,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
         SourceZplText.text(context.parmSourceZpl());
 
         // Read-only multiline TRANSLATED result (tokens substituted) — shows what the source
-        // RENDERS to, and is the copy surface (CopyZpl affordance, REQ-A-7).
+        // RENDERS to, and is the copy surface (CopyZpl affordance).
         ZplText.text(context.parmFinalZpl());
 
         // Save is a WRITE; only offer it for savable layout types (ZPL-type / document routing).
@@ -125,7 +125,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 				<Name>showPage</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Displays the requested label page, uploading its PNG to temp store lazily (REQ-A-7).
+    /// Displays the requested label page, uploading its PNG to temp store lazily.
     /// </summary>
     /// <param name = "_page">The 1-based page (label block) to display.</param>
     public void showPage(int _page)
@@ -169,7 +169,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 				<Name>urlForPage</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Returns the temp-store URL for a label page, uploading the PNG on first request (REQ-A-7).
+    /// Returns the temp-store URL for a label page, uploading the PNG on first request.
     /// </summary>
     /// <param name = "_page">The 1-based page (label block).</param>
     /// <returns>The temp-store URL for the page, or an empty string on failure.</returns>
@@ -181,7 +181,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
         // a rotated page must never reuse the upright page's URL (Feature 1).
         str cacheKey = strFmt('%1|%2', _page, turns);
 
-        // F27 temp-store URLs are short-lived: cache per (page,turns) and (re)generate on
+        // Temp-store URLs are short-lived: cache per (page,turns) and (re)generate on
         // navigation so a page opened after a delay still renders (no expired-URL 404).
         if (pageUrls.exists(cacheKey))
         {
@@ -216,7 +216,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
                 ? pngContainer
                 : AAXZplRenderService::rotatePng(pngContainer, turns);
 
-            // container -> Stream (already-authored helper) -> temp store (F27, stream-only).
+            // container -> Stream (already-authored helper) -> temp store (stream-only).
             // Unique file name per (page,turns) avoids any client-side image cache collision.
             System.IO.MemoryStream stream = AAXZplRenderService::pngContainerToStream(displayContainer);
             if (stream)
@@ -275,7 +275,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 				<Name>downloadCurrentPage</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Opens the current page's PNG in the browser so the user can download it (REQ-A-7).
+    /// Opens the current page's PNG in the browser so the user can download it.
     /// </summary>
     public void downloadCurrentPage()
     {
@@ -294,9 +294,9 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 				<Name>refreshPreview</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Re-renders the preview using the record currently chosen in the data-source selector
-    /// (REQ-A-3 step 1). Re-reads the layout row generically, rebuilds the context via the
-    /// controller, and re-initializes all form state (which clears rotation + URL caches).
+    /// Re-renders the preview using the record currently chosen in the data-source selector.
+    /// Re-reads the layout row generically, rebuilds the context via the controller, and
+    /// re-initializes all form state (which clears rotation + URL caches).
     /// </summary>
     public void refreshPreview()
     {
@@ -311,7 +311,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
         }
 
         // Pin the resolved seed table so buildContext re-renders against the SAME table the
-        // selector looked up; selectedSeedRecId == 0 falls back to most-recent (REQ-A-3). The
+        // selector looked up; selectedSeedRecId == 0 falls back to most-recent. The
         // "Label size" override (all 0 when off) drives the render size — label's own ^PW/^LL wins
         // by default; an explicit size overrides it (sizeArgs = [widthMm, heightMm, dpmm]).
         newContext = AAXWHSLabelPreviewController::buildContext(
@@ -319,7 +319,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
             conPeek(sizeArgs, 1), conPeek(sizeArgs, 2), conPeek(sizeArgs, 3));
         if (!newContext)
         {
-            // A REQ-A-2 gate fired (already info()'d); leave the current preview untouched.
+            // A validation gate fired (already info()'d); leave the current preview untouched.
             return;
         }
 
@@ -564,8 +564,8 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 				<Name>setSelectedSeedRecId</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Stores the seed record chosen in the data-source selector (REQ-A-3 step 1). The selector
-    /// text is the record's natural identifier (e.g. ContainerId), resolved back to a RecId here.
+    /// Stores the seed record chosen in the data-source selector. The selector text is the
+    /// record's natural identifier (e.g. ContainerId), resolved back to a RecId here.
     /// Empty / no match means "auto-resolve most-recent" on the next Refresh (selectedSeedRecId 0).
     /// </summary>
     /// <param name = "_identifierText">The selector control text (an identifier, or empty).</param>
@@ -640,9 +640,9 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 				<Name>lookupSeedRecord</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Runs a generic record lookup over the runtime seed table for the data-source selector
-    /// (REQ-A-3 step 1). The lookup RETURNS the table's natural identifier (e.g. ContainerId) as
-    /// the displayed/captured value — NOT the RecId — and shows TitleField2 as an extra column.
+    /// Runs a generic record lookup over the runtime seed table for the data-source selector.
+    /// The lookup RETURNS the table's natural identifier (e.g. ContainerId) as the
+    /// displayed/captured value — NOT the RecId — and shows TitleField2 as an extra column.
     /// </summary>
     /// <param name = "_control">The selector control the lookup is attached to.</param>
     /// <remarks>
@@ -665,7 +665,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
         FieldId                 idFieldId = element.seedIdentifierFieldId();
         FieldId                 titleField2Id = dictTable ? dictTable.titleField2() : 0;
 
-        // Most-recent first, matching the auto-resolve default (REQ-A-3).
+        // Most-recent first, matching the auto-resolve default.
         qbds.addSortField(RecIdFieldId, SortOrder::Descending);
 
         // The natural identifier (e.g. ContainerId) is the RETURNED/displayed value, not RecId.
@@ -801,7 +801,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 					<Method>
 						<Name>lookup</Name>
 						<Source><![CDATA[
-    /// <summary>Generic RecId lookup over the runtime seed table (REQ-A-3 step 1).</summary>
+    /// <summary>Generic RecId lookup over the runtime seed table.</summary>
     public void lookup()
     {
         // Do NOT call super(): SysTableLookup::performFormLookup drives the lookup form itself.
@@ -813,7 +813,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 					<Method>
 						<Name>modified</Name>
 						<Source><![CDATA[
-    /// <summary>Captures the chosen record's RecId from the control text (REQ-A-3 step 1).</summary>
+    /// <summary>Captures the chosen record's RecId from the control text.</summary>
     public boolean modified()
     {
         boolean ret = super();
@@ -836,7 +836,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 					<Method>
 						<Name>clicked</Name>
 						<Source><![CDATA[
-    /// <summary>Re-renders the preview using the selected seed record (REQ-A-3 step 1).</summary>
+    /// <summary>Re-renders the preview using the selected seed record.</summary>
     public void clicked()
     {
         super();

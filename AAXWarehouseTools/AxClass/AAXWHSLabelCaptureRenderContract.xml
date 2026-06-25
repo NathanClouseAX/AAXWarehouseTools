@@ -4,7 +4,7 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// SysOperation data contract for the label-capture render batch (plan WP-2.4 / REQ-B-7).
+/// SysOperation data contract for the label-capture render batch.
 /// Carries the processing chunk size and the per-row maximum retry count.
 /// </summary>
 [DataContractAttribute]
@@ -19,7 +19,7 @@ public class AAXWHSLabelCaptureRenderContract
 				<Name>parmChunkSize</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Number of <c>Pending</c> staging rows processed per batch pass (REQ-B-7). Default 50.
+    /// Number of <c>Pending</c> staging rows processed per batch pass. Default 50.
     /// </summary>
     /// <param name = "_chunkSize">The chunk size.</param>
     /// <returns>The chunk size.</returns>
@@ -38,7 +38,7 @@ public class AAXWHSLabelCaptureRenderContract
 				<Name>parmMaxRetries</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Maximum render attempts before a failing row is marked <c>Poison</c> (REQ-B-7). Default 3.
+    /// Maximum render attempts before a failing row is marked <c>Poison</c>. Default 3.
     /// </summary>
     /// <param name = "_maxRetries">The maximum retry count.</param>
     /// <returns>The maximum retry count.</returns>

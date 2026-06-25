@@ -14,14 +14,14 @@ namespace AtomicAx.Zpl.Render
 {
     /// <summary>
     /// In-process ZPL -> PNG rendering service wrapping BinaryKits.Zpl.Viewer 1.3.1
-    /// (SkiaSharp-based, zero data egress — REQ-R-1/-3, C-9). The shared implementation of
-    /// the SHA-256 ZPL hash (III.9) and the read-only token-record discovery scan (III.8/F7)
+    /// (SkiaSharp-based, zero data egress). The shared implementation of
+    /// the SHA-256 ZPL hash and the read-only token-record discovery scan
     /// also live here so X++ and the xunit tests use one implementation.
     /// </summary>
     public static class ZplRenderService
     {
         /// <summary>
-        /// U-1 / IIS shadow copy: pre-load the win-x64 natives from the real deployment folder
+        /// IIS shadow copy: pre-load the win-x64 natives from the real deployment folder
         /// before any SkiaSharp P/Invoke. The type initializer runs before any member call,
         /// so every public entry point is covered.
         /// </summary>
@@ -30,7 +30,7 @@ namespace AtomicAx.Zpl.Render
             NativeLibraryPreloader.EnsureLoaded();
         }
 
-        // Verified token grammar from plan F7 / WhsDocumentRoutingTranslator L16.
+        // Verified token grammar matching WhsDocumentRoutingTranslator.
         // $Record.Field()[lineIndex]:format$  — Record is optional.
         private static readonly Regex TokenRegex = new Regex(
             @"\$(?:(?<record>[a-zA-Z0-9_]+?)\.)?(?<field>[a-zA-Z0-9_]+?)(?<methodIndicator>\(\))?(?:\[(?<lineIndex>[0-9]{1,3})\])?(?::(?<format>.*?))?\$",
@@ -45,7 +45,7 @@ namespace AtomicAx.Zpl.Render
 
         /// <summary>
         /// Renders one PNG per ^XA…^XZ label block in the supplied ZPL.
-        /// REQ-R-1:
+        /// Dimension resolution:
         ///  - dpmm &lt;= 0  -&gt; ZplDimensionsMissingException (density must come from the caller).
         ///  - widthMm/heightMm &lt;= 0 -&gt; parse ^PW (width dots) / ^LL (length dots) and convert
         ///    via mm = dots / dpmm; if either command is absent -&gt; ZplDimensionsMissingException.
@@ -142,7 +142,7 @@ namespace AtomicAx.Zpl.Render
                 string message = "ZPL rendering failed: " + ex.Message;
 
                 // Native-load failures get the preloader's probe log appended so the X++ error
-                // dialog shows exactly where the natives were (not) found (U-1 diagnosability).
+                // dialog shows exactly where the natives were (not) found, for diagnosability.
                 if (ex is DllNotFoundException || ex is TypeInitializationException
                     || ex.Message.IndexOf("libSkiaSharp", StringComparison.OrdinalIgnoreCase) >= 0
                     || ex.Message.IndexOf("libHarfBuzzSharp", StringComparison.OrdinalIgnoreCase) >= 0)
@@ -175,7 +175,7 @@ namespace AtomicAx.Zpl.Render
         ///  - null/empty <paramref name="png"/> -&gt; ZplRenderException.
         ///  - odd turns swap width/height; even turns preserve them.
         ///  - any decode/encode failure -&gt; ZplRenderException (native-load failures get the preloader
-        ///    log appended, mirroring RenderToPngList for U-1 diagnosability).
+        ///    log appended, mirroring RenderToPngList for diagnosability).
         /// SkiaSharp 3.119 surface used (verified against the package): SKBitmap.Decode(byte[]),
         /// new SKBitmap(int,int), new SKCanvas(SKBitmap), SKCanvas.Translate(float,float),
         /// SKCanvas.RotateDegrees(float), SKCanvas.DrawBitmap(SKBitmap,float,float,SKPaint),
@@ -271,7 +271,7 @@ namespace AtomicAx.Zpl.Render
         }
 
         /// <summary>
-        /// Runtime environment report for the WP-0.5 probe / support diagnostics (U-1/U-2):
+        /// Runtime environment report for support diagnostics:
         /// native preloader probe log + loaded renderer assembly identities.
         /// </summary>
         public static string GetRuntimeDiagnostics()
@@ -290,7 +290,7 @@ namespace AtomicAx.Zpl.Render
         }
 
         /// <summary>
-        /// SHA-256 of the UTF-8 bytes of the ZPL, returned as lowercase hex (64 chars). III.9.
+        /// SHA-256 of the UTF-8 bytes of the ZPL, returned as lowercase hex (64 chars).
         /// </summary>
         public static string ComputeHash(string zpl)
         {
@@ -313,8 +313,8 @@ namespace AtomicAx.Zpl.Render
         }
 
         /// <summary>
-        /// Read-only token discovery (C-5 allows discovery, not substitution). Returns the
-        /// distinct, non-empty 'record' capture groups from the verified token regex (III.8/F7).
+        /// Read-only token discovery (discovery only, not substitution). Returns the
+        /// distinct, non-empty 'record' capture groups from the verified token regex.
         /// Record-less tokens such as $OrderNum$ contribute no entry.
         /// </summary>
         public static string[] GetTokenRecordNames(string zpl)

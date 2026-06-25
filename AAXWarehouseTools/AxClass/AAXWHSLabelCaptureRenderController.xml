@@ -4,7 +4,7 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// SysOperation controller for the label-capture render batch (plan WP-2.4 / REQ-B-7).
+/// SysOperation controller for the label-capture render batch.
 /// Runs <c>AAXWHSLabelCaptureRenderService.process</c>; batch-retryable for transient errors.
 /// </summary>
 public final class AAXWHSLabelCaptureRenderController extends SysOperationServiceController implements BatchRetryable

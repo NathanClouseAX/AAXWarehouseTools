@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>WhsLicensePlateLabelBuild_AAXWarehouseTools_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Triggers near-real-time render+attach of captured labels right after the label build/print
+/// transaction commits. The capture seams stage rows INSIDE printLabel's ttsbegin (called from
+/// WhsLicensePlateLabelBuild.buildLicensePlateLabels), where X++ forbids catching exceptions — so
+/// rendering there is unsafe. This CoC renders AFTER next returns; gated on ttsLevel 0 so it only
+/// fires once the build transaction (and the Work) is committed and exceptions are catchable. When
+/// this build is itself nested in an outer transaction, it safely defers to the scheduled batch.
+/// </summary>
+[ExtensionOf(classStr(WhsLicensePlateLabelBuild))]
+final class WhsLicensePlateLabelBuild_AAXWarehouseTools_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>buildLicensePlateLabels</Name>
+				<Source><![CDATA[
+    public WHSLabelId buildLicensePlateLabels()
+    {
+        WHSLabelId ret = next buildLicensePlateLabels();
+
+        if (appl.ttsLevel() == 0
+            && WHSParameters::find().aaxIsPreviewToWorkAttachmentEnabled())
+        {
+            AAXWHSLabelCaptureRenderService::renderPendingInline();
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

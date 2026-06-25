@@ -4,8 +4,8 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// X++ wrapper over the <c>AtomicAx.Zpl.Render</c> C# library (plan WP-1.1 / REQ-R-2).
-/// Renders ZPL to one PNG per ^XA..^XZ label block, entirely in-process (no data egress, C-9).
+/// X++ wrapper over the <c>AtomicAx.Zpl.Render</c> C# library.
+/// Renders ZPL to one PNG per ^XA..^XZ label block, entirely in-process (no data egress).
 /// </summary>
 public final class AAXZplRenderService
 {
@@ -25,7 +25,7 @@ public final class AAXZplRenderService
     /// <param name = "_heightMm">Label height in mm; 0 = parse ^LL from the ZPL, else fallback.</param>
     /// <returns>A <c>List</c> of <c>Types::Container</c>, one PNG per label block.</returns>
     /// <remarks>
-    /// REQ-R-2: dpmm is resolved to a non-zero value UP FRONT and passed on the FIRST render call,
+    /// dpmm is resolved to a non-zero value UP FRONT and passed on the FIRST render call,
     /// so the C# renderer can parse the label's own ^PW/^LL when width/height are 0 (the label's
     /// declared size WINS by default). When the caller supplies explicit width/height (the dialog's
     /// size-override box), those override ^PW/^LL. Only when the label declares NO ^PW/^LL AND the
@@ -91,7 +91,7 @@ public final class AAXZplRenderService
         int  pngCount;
         int  i;
 
-        // ZplRenderResult is the X++-friendly wrapper (Count / GetPng) — see DECISIONS.md (III.7):
+        // ZplRenderResult is the X++-friendly wrapper (Count / GetPng) — see DECISIONS.md:
         // X++ cannot declare closed generic CLR types such as IList<byte[]>.
         AtomicAx.Zpl.Render.ZplRenderResult renderResult =
             AtomicAx.Zpl.Render.ZplRenderService::RenderToPngs(_zpl, _dpmm, _widthMm, _heightMm);
@@ -112,7 +112,7 @@ public final class AAXZplRenderService
 				<Name>bytesToContainer</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Converts a CLR byte array to an X++ container (III.7).
+    /// Converts a CLR byte array to an X++ container.
     /// </summary>
     private static container bytesToContainer(System.Byte[] _bytes)
     {
@@ -137,7 +137,7 @@ public final class AAXZplRenderService
     /// <remarks>
     /// Thin wrapper over <c>AtomicAx.Zpl.Render.ZplRenderService::RotatePng(byte[], int)</c>
     /// (integration contract). Mirrors the existing container&lt;-&gt;byte[] interop used by
-    /// <c>bytesToContainer</c> / <c>pngContainerToStream</c> (III.7): the container is
+    /// <c>bytesToContainer</c> / <c>pngContainerToStream</c>: the container is
     /// converted to a CLR byte[] via the same Binary/MemoryStream bridge, rotated in the
     /// C# library, and the result is wrapped back into a container. CLR errors surface as a
     /// readable RenderFailed error, consistent with <c>renderToPngList</c>.
@@ -170,7 +170,7 @@ public final class AAXZplRenderService
 				<Name>pngContainerToStream</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Converts a PNG container back to a stream for the stream-only file APIs (F25/F27).
+    /// Converts a PNG container back to a stream for the stream-only file APIs.
     /// </summary>
     public static System.IO.MemoryStream pngContainerToStream(container _png)
     {
@@ -211,7 +211,7 @@ public final class AAXZplRenderService
     /// <summary>
     /// Returns the FULL CLR exception chain (outer to inner) for readable error reporting.
     /// The outer ZplRenderException carries diagnostics (e.g. the native preloader probe log)
-    /// that an innermost-only message would hide (III.7 / U-1).
+    /// that an innermost-only message would hide.
     /// </summary>
     private static str innermostMessage(System.Exception _exception)
     {

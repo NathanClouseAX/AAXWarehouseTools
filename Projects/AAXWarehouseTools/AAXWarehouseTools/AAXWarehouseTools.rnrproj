@@ -107,6 +107,16 @@
       <Name>WhsDocumentRouting_AAXWarehouseTools_Extension</Name>
       <Link>Classes\WhsDocumentRouting_AAXWarehouseTools_Extension</Link>
     </Content>
+    <Content Include="AxClass\WhsLicensePlateLabelPrintCommandGenerator_AAXWarehouseTools_Extension">
+      <SubType>Content</SubType>
+      <Name>WhsLicensePlateLabelPrintCommandGenerator_AAXWarehouseTools_Extension</Name>
+      <Link>Classes\WhsLicensePlateLabelPrintCommandGenerator_AAXWarehouseTools_Extension</Link>
+    </Content>
+    <Content Include="AxClass\WhsLicensePlateLabelBuild_AAXWarehouseTools_Extension">
+      <SubType>Content</SubType>
+      <Name>WhsLicensePlateLabelBuild_AAXWarehouseTools_Extension</Name>
+      <Link>Classes\WhsLicensePlateLabelBuild_AAXWarehouseTools_Extension</Link>
+    </Content>
     <Content Include="AxEdt\AAXWHSZplCaptured">
       <SubType>Content</SubType>
       <Name>AAXWHSZplCaptured</Name>
