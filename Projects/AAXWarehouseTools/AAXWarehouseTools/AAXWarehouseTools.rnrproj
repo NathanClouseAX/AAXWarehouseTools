@@ -40,6 +40,7 @@
     <Folder Include="Form Extensions\" />
     <Folder Include="Forms\" />
     <Folder Include="Label Files\" />
+    <Folder Include="Macros\" />
     <Folder Include="Menu Extensions\" />
     <Folder Include="Security Duties\" />
     <Folder Include="Security Privileges\" />
@@ -47,6 +48,21 @@
     <Folder Include="Tables\" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="AxClass\AAXWarehouseToolsFeatureEnsure">
+      <SubType>Content</SubType>
+      <Name>AAXWarehouseToolsFeatureEnsure</Name>
+      <Link>Classes\AAXWarehouseToolsFeatureEnsure</Link>
+    </Content>
+    <Content Include="AxClass\AAXWarehouseToolsFeatureEnsureHandler">
+      <SubType>Content</SubType>
+      <Name>AAXWarehouseToolsFeatureEnsureHandler</Name>
+      <Link>Classes\AAXWarehouseToolsFeatureEnsureHandler</Link>
+    </Content>
+    <Content Include="AxMacroDictionary\AAXWarehouseToolsFeature">
+      <SubType>Content</SubType>
+      <Name>AAXWarehouseToolsFeature</Name>
+      <Link>Macros\AAXWarehouseToolsFeature</Link>
+    </Content>
     <Content Include="AxClass\AAXWHSLabelAttachmentService">
       <SubType>Content</SubType>
       <Name>AAXWHSLabelAttachmentService</Name>
@@ -215,6 +231,12 @@
       <Private>False</Private>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="AAXWarehouseTools.Feature.FnO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <Name>AAXWarehouseTools.Feature.FnO</Name>
+      <HintPath>C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin\AAXWarehouseTools.Feature.FnO.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
   <Import Project="$(BuildTasksDirectory)\Microsoft.Dynamics.Framework.Tools.BuildTasks.17.0.targets" />

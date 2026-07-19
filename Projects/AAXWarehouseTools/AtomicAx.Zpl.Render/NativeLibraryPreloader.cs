@@ -10,16 +10,16 @@ namespace AtomicAx.Zpl.Render
     /// Pre-loads the win-x64 native assets (libSkiaSharp.dll, libHarfBuzzSharp.dll) before any
     /// SkiaSharp P/Invoke runs.
     ///
-    /// Why (observed live in the AOS): IIS shadow-copies managed assemblies into a temp
+    /// Why: IIS shadow-copies managed assemblies into a temp
     /// directory before loading them, so when SkiaSharp probes for its native library "next to
     /// itself" (Assembly.Location) it looks in the shadow-copy folder — where the native DLL is
     /// not. Assembly.CodeBase still points at the ORIGINAL deployment folder (the model bin),
     /// so we resolve the natives from there and load them explicitly with LoadLibrary. Once a
     /// module is in the process, subsequent DllImport("libSkiaSharp") binds to it by base name.
     ///
-    /// If another model (e.g. ElectronicReporting's same-line SkiaSharp 3.119.0) already loaded
-    /// a module with the same base name, we leave it alone (GetModuleHandle short-circuit) —
-    /// loading a second copy under the same name would not win the DllImport bind anyway.
+    /// If another model has already loaded a module with the same base name, we leave it alone
+    /// (GetModuleHandle short-circuit) — loading a second copy under the same name would not win the
+    /// DllImport bind anyway.
     /// </summary>
     internal static class NativeLibraryPreloader
     {

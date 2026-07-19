@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWarehouseToolsFeatureEnsureHandler</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Subscribes to AOS startup and enqueues the AAXWarehouseTools feature check-in on the batch server so
+/// startup is never blocked. Every error is swallowed so a check-in problem can never fault AOS startup.
+/// The class uses the full product name so its startup subscription never collides with the equivalent
+/// component of another installed product.
+/// </summary>
+public final class AAXWarehouseToolsFeatureEnsureHandler
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>onSystemStartup</Name>
+				<Source><![CDATA[
+    [SubscribesTo(classStr(ApplicationStartupEventManager), staticDelegateStr(ApplicationStartupEventManager, onSystemStartup))]
+    public static void onSystemStartup()
+    {
+        try
+        {
+            AAXWarehouseToolsFeatureEnsure::runOnceInBackground();
+        }
+        catch (Exception::CLRError)
+        {
+            // Swallow - the check-in must never fault AOS startup.
+        }
+        catch (Exception::Error)
+        {
+            // Swallow - the check-in must never fault AOS startup.
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

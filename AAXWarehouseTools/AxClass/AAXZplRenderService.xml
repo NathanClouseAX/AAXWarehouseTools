@@ -37,10 +37,10 @@ public final class AAXZplRenderService
     {
         WHSParameters p = WHSParameters::find();
 
-        // Resolve density UP FRONT so the FIRST call never trips the C# "dpmm <= 0" guard, which
-        // would otherwise throw before ^PW/^LL is ever parsed (the original ordering bug). With
-        // _widthMm/_heightMm == 0 the renderer parses the label's declared ^PW/^LL (label size wins);
-        // with explicit dims it uses them (the form size-override case).
+        // Resolve density up front so the call never trips the renderer's "dpmm <= 0" guard, which
+        // would otherwise throw before the label's ^PW/^LL is parsed. With _widthMm/_heightMm == 0 the
+        // renderer parses the label's declared ^PW/^LL (label size wins); with explicit dimensions it
+        // uses them (the size-override case).
         int dpmm = _dpmm > 0 ? _dpmm : p.aaxPreviewDefaultDpmm();
 
         try
