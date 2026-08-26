@@ -48,16 +48,6 @@
     <Folder Include="Tables\" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="AxClass\AAXWarehouseToolsFeatureEnsure">
-      <SubType>Content</SubType>
-      <Name>AAXWarehouseToolsFeatureEnsure</Name>
-      <Link>Classes\AAXWarehouseToolsFeatureEnsure</Link>
-    </Content>
-    <Content Include="AxClass\AAXWarehouseToolsFeatureEnsureHandler">
-      <SubType>Content</SubType>
-      <Name>AAXWarehouseToolsFeatureEnsureHandler</Name>
-      <Link>Classes\AAXWarehouseToolsFeatureEnsureHandler</Link>
-    </Content>
     <Content Include="AxMacroDictionary\AAXWarehouseToolsFeature">
       <SubType>Content</SubType>
       <Name>AAXWarehouseToolsFeature</Name>
