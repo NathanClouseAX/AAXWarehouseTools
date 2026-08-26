@@ -3,7 +3,8 @@
 This guide is written for functional consultants, WMS administrators and warehouse
 users who configure and use the **ZPL Label Preview** solution delivered in the
 `AAXWarehouseTools` model. It covers the two end-user features, the security objects
-an administrator must assign, and the messages a user may encounter.
+an administrator must assign, the messages a user may encounter, and the feature ensure
+check-in an administrator will see in batch history (section 5).
 
 The solution has two independent capabilities:
 
@@ -325,3 +326,27 @@ the label actually had a WorkId (production LP labels and WorkId-less reprints a
 captured); the **Render captured label previews** batch is scheduled and running; and the
 staging rows are not in **Error** or **Poison** status (which would carry an error
 message explaining the render failure).
+---
+
+## 5. Feature ensure (administrators)
+
+Independently of Features A and B, the solution performs a short **feature ensure**
+check-in that registers the installation with AtomicAx. Administrators may notice it in
+two places:
+
+- **Batch job history** — a job described **AAXWarehouseTools feature ensure** is
+  enqueued automatically once at every AOS startup. It needs no scheduling, has no
+  parameters, and is not attached to any menu item.
+- **Infolog / batch log** — the job writes one of the messages below. In each message
+  `%1` is the product, `AAXWarehouseTools`.
+
+| Message | Meaning | What to do |
+|---------|---------|------------|
+| **"AAXWarehouseTools: feature '%1' ensured - state %2, allowed %3."** | The check-in succeeded; `%2` and `%3` report the state returned by the service. | Nothing. |
+| **"AAXWarehouseTools: feature ensure for '%1' could not reach the service (offline or not yet deployed)."** | The AOS could not reach `api.licensing.atomicax.com`. | Allow outbound HTTPS (port 443) from the AOS to that host. The label features are unaffected; the check-in runs again at the next AOS startup. |
+| **"AAXWarehouseTools: feature ensure for '%1' failed - continuing."** / **"… failed (CLR error) - continuing."** | An unexpected error occurred during the check-in. | Informational; the label features are unaffected. Report it to AtomicAx if it persists across restarts. |
+
+The check-in sends environment identity only — tenant id, host URL, Lifecycle Services
+environment id, hosting model, environment type and product/platform versions. It never
+sends label content, ZPL, rendered images or any warehouse data, and it cannot block or
+fail AOS startup.

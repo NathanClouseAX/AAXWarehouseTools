@@ -9,7 +9,7 @@ AAX Warehouse Tools adds two label capabilities to Warehouse management:
 - **Generate a label preview on demand** — see exactly what a ZPL layout will produce, as a PNG image, without sending anything to a printer or to any external service.
 - **Capture labels printed from mobile/RF flows and attach them to Work** — when enabled, ZPL labels that are printed from warehouse mobile flows and that belong to a Work record are rendered to images and attached to that Work, even when no physical printer is configured.
 
-Both features render ZPL to images entirely in-process. The renderer is a single self-contained assembly (`AtomicAx.Zpl.Render.dll`) that ships in the model `bin` folder; there is nothing else to install and no external service to call.
+Both features render ZPL to images entirely in-process. The renderer is a single self-contained assembly (`AtomicAx.Zpl.Render.dll`) that ships in the model `bin` folder; there is nothing else to install, and the label features call no external service. Separately from the label features, the solution performs a short **feature ensure** check-in at AOS startup that reports the installation to AtomicAx. It sends environment identity only, never label data. See [Feature ensure](#feature-ensure).
 
 ## Features
 
@@ -39,12 +39,13 @@ Capture is designed not to stay on indefinitely: it automatically turns itself o
 - Microsoft Dynamics 365 Finance & Operations with the **Warehouse management** module enabled.
 - Access to deploy a model into the environment and to run a database synchronization (a standard developer or admin task in a non-production environment, or a deployable package in production).
 - System administrator (or equivalent) rights to configure Warehouse management parameters, Document routing, batch tasks, and security roles.
+- Outbound HTTPS (port 443) from the AOS to `api.licensing.atomicax.com` for the feature ensure check-in. If the host is unreachable, the check-in logs a warning and the solution continues; nothing in the label features depends on it.
 
 No printer is required for either feature.
 
 ## Installation and database synchronization
 
-1. **Deploy the `AAXWarehouseTools` model.** The ZPL renderer ships as a single self-contained assembly, `AtomicAx.Zpl.Render.dll`, which is already present in the model `bin` folder. No separate native-library deployment is required.
+1. **Deploy the `AAXWarehouseTools` model** from its deployable package (`AXDeployableRuntime_<platform>_<version>.zip`). Two first-party assemblies ship in the model `bin` folder and need no separate deployment: `AtomicAx.Zpl.Render.dll`, the self-contained ZPL renderer (no separate native-library deployment is required), and `AAXWarehouseTools.Feature.FnO.dll`, the feature ensure client.
 2. **Synchronize the database.** This adds the Warehouse parameters fields used by the label-capture feature and the label-capture staging table that buffers labels between capture and rendering.
 
 After the model is deployed and the database is synchronized, both features are available; the capture feature still needs to be enabled and configured (below).
@@ -83,6 +84,8 @@ Two periodic tasks support the capture feature. Schedule them under **Warehouse 
 - **Render captured label previews** — the batch fallback that renders any captured labels not already rendered in-line and attaches them to their Work records. Scheduling this is recommended so no capture is missed.
 - **Purge label preview attachments** — the retention clean-up task that removes captured label-preview attachments older than the configured **Label preview retention days**.
 
+A third task, **AAXWarehouseTools feature ensure**, needs no scheduling: it is enqueued automatically once at each AOS startup (see [Feature ensure](#feature-ensure)) and appears in batch job history under that description.
+
 ### Security
 
 Assign the **Maintain warehouse label preview** duty to the roles that need this functionality. The duty bundles two privileges:
@@ -119,6 +122,32 @@ Assign the duty (or the individual privileges) to your warehouse worker, supervi
 - **100% in-process rendering.** ZPL is resolved, token-substituted, and rendered to PNG entirely within the AOS process. No label content, ZPL, or image is sent to any external service, and the features make no outbound network calls for rendering.
 - **Single bundled assembly.** The renderer is delivered as one self-contained assembly, `AtomicAx.Zpl.Render.dll`, in the model `bin` folder. All of its managed dependencies are merged into that one file and the required native libraries are embedded in it, so there is no separate native-library deployment and no version conflict with other components in the AOS.
 - **Capture stays in your environment.** Captured labels are buffered in a staging table inside your database and attached to the related Work record through standard Document handling. Capture is bounded by the auto-off and retention settings so data does not accumulate indefinitely.
+- **The feature ensure check-in is the only outbound call.** It sends environment identity (tenant, host URL, environment id, hosting model, versions) to AtomicAx and nothing else: no label content, ZPL, images, or business data. Details in [Feature ensure](#feature-ensure).
+
+## Feature ensure
+
+The solution registers each installation with AtomicAx through a short **feature ensure** check-in. It is the solution's only outbound communication.
+
+**When it runs.** Once at every AOS startup. The startup hook only enqueues the check-in as a batch task (description **AAXWarehouseTools feature ensure**), so startup is never delayed or blocked. No scheduling or configuration is required.
+
+**Where it connects.** `https://api.licensing.atomicax.com` over HTTPS (port 443). Allow outbound access to this host from the AOS.
+
+**What it sends.** Environment identity only:
+
+| Field | Value |
+|---|---|
+| Product | `AAXWarehouseTools` |
+| Tenant | The Microsoft Entra tenant id of the environment |
+| Host URL | The environment's base URL |
+| Environment id | The Lifecycle Services environment id |
+| Environment name | The host URL, or the environment id when no host URL is available |
+| Environment type | `Prod` for a cloud environment registered in Lifecycle Services; blank for a development environment |
+| Hosting | `Cloud` or `OnPremise` |
+| Versions | The Finance & Operations application version and platform build version |
+
+It never sends label content, ZPL, rendered images, warehouse data, or any other business data.
+
+**What happens.** The service returns a signed token that the solution verifies locally, and the outcome is written to the Infolog and batch log as *AAXWarehouseTools: feature 'AAXWarehouseTools' ensured - state …, allowed …*. If the service cannot be reached, the task logs *AAXWarehouseTools: feature ensure for 'AAXWarehouseTools' could not reach the service (offline or not yet deployed).* and finishes. Every error in the check-in is caught and logged; it can never fault AOS startup or affect the label features.
 
 ## Troubleshooting
 
@@ -132,6 +161,8 @@ Assign the duty (or the individual privileges) to your warehouse worker, supervi
 **A label renders smaller or larger than expected, or a layout that declares no size renders at 4×6.** When a label does not declare its own dimensions (`^PW` / `^LL`), the render falls back to the parameter defaults — **Default print density (DPI)**, **Default label width (in)**, and **Default label height (in)** for capture, or 4×6 inches in the preview dialog if no size is otherwise specified. Set the parameter defaults to match your stock, or use **Override label size** in the preview dialog.
 
 **A layout cannot be previewed.** The preview supports the **ZPL** definition type (including template blocks). Layouts whose definition type is **Variables** or **VariablesScript** are not previewable; the dialog reports this. If a layout has no active version, activate one first. If a template layout has no data source, add one to the layout so its template can be expanded.
+
+**The batch history shows *feature ensure … could not reach the service*.** The AOS could not reach `api.licensing.atomicax.com`. Confirm outbound HTTPS (port 443) to that host is allowed from the AOS. The message is a warning only: the label features keep working, and the check-in runs again at the next AOS startup.
 
 ## Licensing
 
