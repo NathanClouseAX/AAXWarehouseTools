@@ -3,12 +3,6 @@
 	<Name>AAXWarehouseToolsFeatureEnsureHandler</Name>
 	<SourceCode>
 		<Declaration><![CDATA[
-/// <summary>
-/// Subscribes to AOS startup and enqueues the AAXWarehouseTools feature check-in on the batch server so
-/// startup is never blocked. Every error is swallowed so a check-in problem can never fault AOS startup.
-/// The class uses the full product name so its startup subscription never collides with the equivalent
-/// component of another installed product.
-/// </summary>
 public final class AAXWarehouseToolsFeatureEnsureHandler
 {
 }
@@ -26,11 +20,15 @@ public final class AAXWarehouseToolsFeatureEnsureHandler
         }
         catch (Exception::CLRError)
         {
-            // Swallow - the check-in must never fault AOS startup.
+
         }
         catch (Exception::Error)
         {
-            // Swallow - the check-in must never fault AOS startup.
+
+        }
+        catch
+        {
+            
         }
     }
 

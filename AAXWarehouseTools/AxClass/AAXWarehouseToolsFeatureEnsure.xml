@@ -6,39 +6,17 @@
 using AAXWarehouseTools.Feature.FnO;
 using Microsoft.Dynamics.ApplicationPlatform.Environment;
 
-/// <summary>
-/// Startup feature check-in for AAXWarehouseTools. Reports the running install to the AtomicAx service,
-/// validates the returned signed token offline, and writes the outcome to the Infolog. Enqueued on the
-/// batch server at AOS startup by AAXWarehouseToolsFeatureEnsureHandler, and also runnable as a batch
-/// task. Persists nothing, and is guarded end to end so it never throws to its caller and never blocks
-/// or delays AOS startup.
-///
-/// The class, its startup subscription, and its supporting assembly (AAXWarehouseTools.Feature.FnO) all
-/// use the full product name so they never collide with the equivalent components of other products
-/// installed in the same environment. The ProductId macro scopes the check-in to AAXWarehouseTools.
-/// </summary>
 public class AAXWarehouseToolsFeatureEnsure extends RunBaseBatch
 {
     #define.CurrentVersion(1)
-
-    // Product configuration - ProductId, service base URL, subscription key, timeout, request routes, and
-    // the hosting/environment vocabulary - lives in the shared macro library AAXWarehouseToolsFeature.
     #macrolib.AAXWarehouseToolsFeature
 
-    // Hosting ('Cloud' | 'OnPremise') and environment type ('Prod' | '') are determined at runtime from
-    // the platform environment; see resolveHosting() and resolveEnvironmentType(). Token signing trust
-    // uses the supporting assembly's built-in defaults.
 }
 ]]></Declaration>
 		<Methods>
 			<Method>
 				<Name>ensureFeature</Name>
 				<Source><![CDATA[
-    /// <summary>
-    /// Collects the in-process environment identity, builds the request payload in the supporting
-    /// assembly, calls the service, validates the returned token, and writes the outcome to the Infolog.
-    /// Persists nothing. Guarded end to end - any CLR or X++ error is logged and swallowed.
-    /// </summary>
     public static void ensureFeature()
     {
         str tenantId;
@@ -55,7 +33,6 @@ public class AAXWarehouseToolsFeatureEnsure extends RunBaseBatch
 
         try
         {
-            // In-process environment identity (no network).
             IApplicationEnvironment env = EnvironmentFactory::GetApplicationEnvironment();
             if (env)
             {
@@ -65,7 +42,6 @@ public class AAXWarehouseToolsFeatureEnsure extends RunBaseBatch
                 lcsEnvId    = env.get_LCS().get_LCSEnvironmentId();
             }
 
-            // FO application (product) version - descriptive only; best-effort.
             try
             {
                 productVer = Microsoft.Dynamics.BusinessPlatform.ProductInformation.Provider.ProductInfoProvider::get_Provider().get_ApplicationVersion();
@@ -77,11 +53,11 @@ public class AAXWarehouseToolsFeatureEnsure extends RunBaseBatch
 
             envName = hostUrl ? hostUrl : lcsEnvId;
 
-            // Hosting and environment type resolved from the running platform environment.
+
             hosting         = AAXWarehouseToolsFeatureEnsure::resolveHosting(env);
             environmentType = AAXWarehouseToolsFeatureEnsure::resolveEnvironmentType(env);
 
-            // Build the request payload in the supporting assembly rather than hand-building JSON in X++.
+
             body = FeatureClient::BuildEnvironmentRequest(
                 #ProductId, '',
                 tenantId, '', hostUrl,
@@ -89,7 +65,6 @@ public class AAXWarehouseToolsFeatureEnsure extends RunBaseBatch
                 environmentType, hosting,
                 productVer, platformVer);
 
-            // Validate the install; if it is not yet known to the service, register it.
             token = FeatureClient::PhoneHome(#ApiBaseUrl, #RouteValidate, body, #SubscriptionKey, #TimeoutMs);
             if (!token)
             {
@@ -102,7 +77,6 @@ public class AAXWarehouseToolsFeatureEnsure extends RunBaseBatch
                 return;
             }
 
-            // Verify the token signature and evaluate the result offline.
             lr = FeatureClient::Validate(token, '');
             info(strFmt("AAXWarehouseTools: feature '%1' ensured - state %2, allowed %3.",
                 #ProductId, lr.get_State(), lr.get_Allowed()));
@@ -122,11 +96,6 @@ public class AAXWarehouseToolsFeatureEnsure extends RunBaseBatch
 			<Method>
 				<Name>resolveHosting</Name>
 				<Source><![CDATA[
-    /// <summary>
-    /// Resolves the 'hosting' value ('Cloud' | 'OnPremise' | '') from the running environment.
-    /// Leads with the precise HostingEnvironment, falls back to the coarse DeploymentType, and returns ''
-    /// when genuinely unknown so the service applies its own default.
-    /// </summary>
     private static str resolveHosting(IApplicationEnvironment _env)
     {
         Microsoft.Dynamics.ApplicationPlatform.Environment.Settings.ICommonConfig common;
@@ -153,7 +122,6 @@ public class AAXWarehouseToolsFeatureEnsure extends RunBaseBatch
             return #HostingOnPrem;
         }
 
-        // Unknown / ComputeEmulator / SyncEngine: fall back to the coarse Cloud-vs-OnPrem deployment type.
         if (common.get_DeploymentType() == Microsoft.Dynamics.ApplicationPlatform.Environment.Settings.DeploymentType::Cloud)
         {
             return #HostingCloud;
@@ -171,19 +139,6 @@ public class AAXWarehouseToolsFeatureEnsure extends RunBaseBatch
 			<Method>
 				<Name>resolveEnvironmentType</Name>
 				<Source><![CDATA[
-    /// <summary>
-    /// Resolves the 'environmentType' value sent to the service ('Prod' | '') from the running
-    /// environment. Development environments report ''; production and sandbox environments report 'Prod'.
-    ///
-    /// A local development box (onebox / build / demo), the compute emulator, and internal-test
-    /// environments always report ''. Every other environment reports 'Prod' when it carries a Lifecycle
-    /// Services environment id, which real cloud environments have and local development environments do
-    /// not.
-    ///
-    /// Sandbox and production are not distinguished - both carry an LCS id and both report 'Prod'. A
-    /// cloud-hosted single-box development environment reports 'Prod' unless it also sets the onebox flag,
-    /// because the platform does not expose a production-versus-sandbox indicator to in-process code.
-    /// </summary>
     private static str resolveEnvironmentType(IApplicationEnvironment _env)
     {
         Microsoft.Dynamics.ApplicationPlatform.Environment.Settings.ICommonConfig common;
@@ -197,22 +152,20 @@ public class AAXWarehouseToolsFeatureEnsure extends RunBaseBatch
         common = _env.get_Common();
         if (common)
         {
-            // Local dev flags (onebox / build / demo and the compute emulator) are never production.
+
             if (common.get_IsOneboxEnvironment()
                 || common.get_HostingEnvironment() == HostingEnvironment::ComputeEmulator)
             {
                 return '';
             }
 
-            // Internal-test environments are not customer production.
+
             if (common.get_DeploymentEnvironmentType() == Microsoft.Dynamics.ApplicationPlatform.Environment.Settings.EnvironmentType::InternalTest)
             {
                 return '';
             }
         }
 
-        // A Lifecycle Services environment id is present on real cloud environments (production or
-        // sandbox) and absent on local development environments.
         lcs = _env.get_LCS();
         if (lcs && lcs.get_LCSEnvironmentId() != '')
         {
@@ -227,7 +180,6 @@ public class AAXWarehouseToolsFeatureEnsure extends RunBaseBatch
 			<Method>
 				<Name>runOnceInBackground</Name>
 				<Source><![CDATA[
-    /// <summary>Enqueues a one-time feature ensure on the batch server (fire-and-forget; never blocks startup).</summary>
     public static void runOnceInBackground()
     {
         BatchHeader header;
@@ -236,6 +188,7 @@ public class AAXWarehouseToolsFeatureEnsure extends RunBaseBatch
         task = AAXWarehouseToolsFeatureEnsure::construct();
 
         header = BatchHeader::construct();
+        header.parmExecutingBy('admin');
         header.addTask(task);
         header.save();
     }
