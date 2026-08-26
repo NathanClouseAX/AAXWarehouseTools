@@ -3,6 +3,10 @@
 	<Name>AAXWarehouseToolsFeatureEnsureHandler</Name>
 	<SourceCode>
 		<Declaration><![CDATA[
+/// <summary>
+/// Enqueues the <c>AAXWarehouseToolsFeatureEnsure</c> batch task when the AOS starts. Every error is
+/// swallowed so the feature ensure can never affect AOS startup.
+/// </summary>
 public final class AAXWarehouseToolsFeatureEnsureHandler
 {
 }
@@ -11,9 +15,13 @@ public final class AAXWarehouseToolsFeatureEnsureHandler
 			<Method>
 				<Name>onSystemStartup</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Handles the system startup event by enqueuing the feature ensure on the batch server.
+    /// </summary>
     [SubscribesTo(classStr(ApplicationStartupEventManager), staticDelegateStr(ApplicationStartupEventManager, onSystemStartup))]
     public static void onSystemStartup()
     {
+        // Errors are swallowed so the feature ensure can never fault AOS startup
         try
         {
             AAXWarehouseToolsFeatureEnsure::runOnceInBackground();

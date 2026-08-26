@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AxMacroDictionary xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
 	<Name>AAXWarehouseToolsFeature</Name>
-	<Source>// Product configuration for AAXWarehouseToolsFeatureEnsure. Included by the class via
-// #macrolib.AAXWarehouseToolsFeature.
+	<Source>// Product configuration for AAXWarehouseToolsFeatureEnsure
 #define.ProductId('AAXWarehouseTools')
 #define.ApiBaseUrl('https://api.licensing.atomicax.com/api')
 #define.SubscriptionKey('')
 #define.TimeoutMs(8000)
 
-// Service protocol: routes + the exact response vocabulary the service expects.
+// Service routes and the values expected by the feature service
 #define.RouteValidate('licenses/validate')
 #define.RouteRegister('registrations')
 #define.HostingCloud('Cloud')

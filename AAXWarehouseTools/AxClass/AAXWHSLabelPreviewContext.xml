@@ -4,11 +4,10 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// Carrier object passed from <c>AAXWHSLabelPreviewController</c> to the preview
-/// dialog form (<c>AAXWHSLabelPreviewDialog</c>) via <c>Args.parmObject()</c>.
-/// The dialog reads the rendered PNG list, the final token-substituted ZPL, the
-/// source badge text, and the layout description from this object. Standard
-/// parm-pattern class.
+/// Carries the preview result from <c>AAXWHSLabelPreviewController</c> to the
+/// <c>AAXWHSLabelPreviewDialog</c> form through <c>Args.parmObject()</c>. Holds the rendered
+/// PNG list, the source and final ZPL, the badge text, the layout and seed record identity, and
+/// the label size override chosen in the dialog.
 /// </summary>
 public final class AAXWHSLabelPreviewContext
 {
@@ -19,18 +18,14 @@ public final class AAXWHSLabelPreviewContext
     private str     badgeText;
     private str     layoutDescription;
 
-    // Seed-record selection: the dialog re-renders by re-reading the
-    // layout row (identity below) and calling AAXWHSLabelPreviewController::buildContext()
-    // with a chosen seed record on the resolved seed table.
+    // Layout and seed record identity used by the dialog to re-render
     private TableId layoutTableId;
     private RecId   layoutRecId;
     private TableId seedTableId;
     private RecId   seedRecId;
     private str     seedTableLabel;
 
-    // Size-override carrier (dialog "Label size" box). Persists the user's chosen size across
-    // re-renders/paging so the dialog can repopulate its controls from the context. When
-    // overrideSize is false the renderer uses the label's own ^PW/^LL (or the 4x6 fallback).
+    // Label size override chosen in the dialog; when off the label's own ^PW/^LL is used
     private boolean overrideSize;
     private real    overrideWidthIn;
     private real    overrideHeightIn;
@@ -82,10 +77,8 @@ public final class AAXWHSLabelPreviewContext
 				<Name>parmSourceZpl</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Gets or sets the RAW SOURCE ZPL of the layout — the text WITH unresolved <c>$tokens$</c>
-    /// (and, for template layouts, the <c>{{Header}}/{{Row}}/{{Footer}}</c> blocks). This is the
-    /// text the dialog makes EDITABLE and saves back to the layout; it must never be the
-    /// token-substituted result (saving substituted text would destroy the layout's tokens).
+    /// Gets or sets the raw source ZPL of the layout with its unresolved tokens and template
+    /// blocks. This is the text the dialog edits and saves back to the layout.
     /// </summary>
     /// <param name = "_sourceZpl">The raw source ZPL to set.</param>
     /// <returns>The current raw source ZPL.</returns>
@@ -105,9 +98,7 @@ public final class AAXWHSLabelPreviewContext
 				<Name>parmCanSave</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Gets or sets whether the previewed layout's raw source may be saved back from the dialog.
-    /// True for ZPL-type WHSLabelLayout and WHSDocumentRoutingLayout rows; the dialog hides/disables
-    /// the Save button when false (e.g. Variables/VariablesScript layouts are not previewable here).
+    /// Gets or sets whether the dialog may save the source ZPL back to the previewed layout.
     /// </summary>
     /// <param name = "_canSave">The save-allowed flag to set.</param>
     /// <returns>The current save-allowed flag.</returns>
@@ -167,16 +158,11 @@ public final class AAXWHSLabelPreviewContext
 				<Name>parmLayoutTableId</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Gets or sets the table id of the source layout row (WHSLabelLayout or
-    /// WHSDocumentRoutingLayout), so the dialog can re-read it to re-render.
+    /// Gets or sets the table id of the source layout record so the dialog can re-read it to
+    /// re-render.
     /// </summary>
     /// <param name = "_layoutTableId">The layout table id to set.</param>
     /// <returns>The current layout table id.</returns>
-    /// <remarks>
-    /// Standard parm idiom: the controller always sets a non-zero layout table id, so the
-    /// prmIsDefault(0) guard never blocks a real assignment (X++ disallows non-constant
-    /// default parameter values, hence the constant 0 default rather than the member).
-    /// </remarks>
     public TableId parmLayoutTableId(TableId _layoutTableId = 0)
     {
         if (!prmIsDefault(_layoutTableId))
@@ -193,7 +179,7 @@ public final class AAXWHSLabelPreviewContext
 				<Name>parmLayoutRecId</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Gets or sets the RecId of the source layout row, so the dialog can re-read it to
+    /// Gets or sets the RecId of the source layout record so the dialog can re-read it to
     /// re-render.
     /// </summary>
     /// <param name = "_layoutRecId">The layout RecId to set.</param>
@@ -214,8 +200,7 @@ public final class AAXWHSLabelPreviewContext
 				<Name>parmSeedTableId</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Gets or sets the resolved seed table id (the table the dialog's record selector
-    /// looks up).
+    /// Gets or sets the table id of the seed table used by the dialog's record selector.
     /// </summary>
     /// <param name = "_seedTableId">The seed table id to set.</param>
     /// <returns>The current seed table id.</returns>
@@ -235,16 +220,11 @@ public final class AAXWHSLabelPreviewContext
 				<Name>parmSeedRecId</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Gets or sets the RecId of the seed record used for token substitution. 0 means
-    /// "auto-resolve most-recent" (the default behavior).
+    /// Gets or sets the RecId of the seed record used for token substitution. Zero resolves the
+    /// most recent record.
     /// </summary>
     /// <param name = "_seedRecId">The seed RecId to set.</param>
     /// <returns>The current seed RecId.</returns>
-    /// <remarks>
-    /// The member initializes to 0 (auto-resolve), so the prmIsDefault(0) guard is correct:
-    /// a non-zero pick is stored; a 0/auto-resolve pick simply leaves the member at its
-    /// initialized 0. Each Refresh builds a brand-new context, so there is no stale carry-over.
-    /// </remarks>
     public RecId parmSeedRecId(RecId _seedRecId = 0)
     {
         if (!prmIsDefault(_seedRecId))
@@ -261,8 +241,7 @@ public final class AAXWHSLabelPreviewContext
 				<Name>parmSeedTableLabel</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Gets or sets the display label of the seed table (DictTable.label()), shown in the
-    /// dialog's "Data source" group.
+    /// Gets or sets the display label of the seed table shown in the dialog's Data source group.
     /// </summary>
     /// <param name = "_seedTableLabel">The seed table label to set.</param>
     /// <returns>The current seed table label.</returns>
@@ -282,16 +261,11 @@ public final class AAXWHSLabelPreviewContext
 				<Name>parmOverrideSize</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Gets or sets whether the user enabled the dialog's "Label size" override box. False means
-    /// the renderer uses the label's own ^PW/^LL (or the 4x6 fallback when it declares none).
+    /// Gets or sets whether the dialog's label size override is enabled. When false the renderer
+    /// uses the label's own ^PW/^LL.
     /// </summary>
     /// <param name = "_overrideSize">The override-enabled flag to set.</param>
     /// <returns>The current override-enabled flag.</returns>
-    /// <remarks>
-    /// Constant-default + prmIsDefault idiom (as elsewhere in this class). The controller stamps a
-    /// fresh value onto a brand-new context on every render, and the member initializes to false,
-    /// so the prmIsDefault(false) guard never strands a real assignment (no stale carry-over).
-    /// </remarks>
     public boolean parmOverrideSize(boolean _overrideSize = false)
     {
         if (!prmIsDefault(_overrideSize))
@@ -308,8 +282,8 @@ public final class AAXWHSLabelPreviewContext
 				<Name>parmOverrideWidthIn</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Gets or sets the override width in inches (dialog "Label size" box). The controller converts
-    /// inches to mm (*25.4) when passing the override into the render pipeline.
+    /// Gets or sets the override width in inches. The controller converts inches to millimeters
+    /// before rendering.
     /// </summary>
     /// <param name = "_overrideWidthIn">The override width in inches to set.</param>
     /// <returns>The current override width in inches.</returns>
@@ -329,8 +303,8 @@ public final class AAXWHSLabelPreviewContext
 				<Name>parmOverrideHeightIn</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Gets or sets the override height in inches (dialog "Label size" box). The controller converts
-    /// inches to mm (*25.4) when passing the override into the render pipeline.
+    /// Gets or sets the override height in inches. The controller converts inches to millimeters
+    /// before rendering.
     /// </summary>
     /// <param name = "_overrideHeightIn">The override height in inches to set.</param>
     /// <returns>The current override height in inches.</returns>
@@ -350,8 +324,8 @@ public final class AAXWHSLabelPreviewContext
 				<Name>parmOverrideDpi</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Gets or sets the override DPI (dialog "Label size" box). The controller converts DPI to dpmm
-    /// (round(dpi/25.4)) when passing the override into the render pipeline.
+    /// Gets or sets the override DPI. The controller converts DPI to dots per millimeter before
+    /// rendering.
     /// </summary>
     /// <param name = "_overrideDpi">The override DPI to set.</param>
     /// <returns>The current override DPI.</returns>

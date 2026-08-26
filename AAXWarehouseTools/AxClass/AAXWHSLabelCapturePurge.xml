@@ -4,15 +4,10 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// The <c>AAXWHSLabelCapturePurge</c> class is a batch job that deletes aged label-preview attachments
-/// (DocuType <c>LBLPREV</c> on Work records) and the staging rows that produced them.
+/// Batch job that deletes aged label preview attachments (document type <c>LBLPREV</c> on Work
+/// records) and the staging rows that produced them. The retention window is read from
+/// <c>WHSParameters</c>, so the job carries no packed state.
 /// </summary>
-/// <remarks>
-/// Structure mirrors <c>WHSWorkCreateHistoryPurge</c>: RunBaseBatch with the
-/// #OCCRetryCount transient-retry envelope around cleanup(). The retention window is read from
-/// <c>WHSParameters.aaxPreviewRetentionDays()</c> (not a dialog), so the job carries no packed state.
-/// It deletes ONLY aged LBLPREV DocuRef rows and Done/Poison staging rows.
-/// </remarks>
 public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetryable, SysErrorMessageHelpScopeIBatchProvider
 {
     #DEFINE.CurrentVersion(1)
@@ -24,6 +19,10 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
 			<Method>
 				<Name>canGoBatchJournal</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Indicates whether the batch job can be added to the batch journal.
+    /// </summary>
+    /// <returns>True, indicating the job can be scheduled in batch.</returns>
     public boolean canGoBatchJournal()
     {
         return true;
@@ -34,9 +33,13 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
 			<Method>
 				<Name>pack</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Serializes the class state into a container.
+    /// </summary>
+    /// <returns>A container holding the serialized state.</returns>
     public container pack()
     {
-        // Stateless job: retention comes from WHSParameters, not packed dialog state.
+        // The job carries no state beyond the version
         return [#CurrentVersion];
     }
 
@@ -45,6 +48,11 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
 			<Method>
 				<Name>unpack</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Deserializes the class state from a container.
+    /// </summary>
+    /// <param name = "_packedClass">A container holding the serialized state.</param>
+    /// <returns>True if the container version is supported.</returns>
     public boolean unpack(container _packedClass)
     {
         boolean     ret;
@@ -71,20 +79,13 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
 				<Name>cleanup</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Deletes aged label-preview attachments and their staging rows across every non-virtual company.
+    /// Deletes aged label preview attachments and their staging rows in every non-virtual company.
+    /// Removes only <c>LBLPREV</c> attachments and Done or Poison staging rows older than the
+    /// retention window, deleting each row in its own transaction.
     /// </summary>
-    /// <remarks>
-    /// Removes only LBLPREV DocuRef rows (their DocuValue cascades via DocuRef.delete()) and
-    /// Done/Poison staging rows older than <c>aaxPreviewRetentionDays</c>.
-    /// The standard purge implementation uses the internal <c>WHSRecordDeletionCommitter</c>; that class is
-    /// <c>internal</c> and therefore inaccessible cross-model, so its chunked-commit behaviour is
-    /// replicated here with direct per-row <c>delete()</c> calls (each commits in its own implicit
-    /// transaction). Per-company scope is honoured with a <c>changecompany</c> loop so that
-    /// DocuRef removal runs in the owning company and the per-company staging table is reached.
-    /// </remarks>
     private void cleanup()
     {
-        // Retention window is parameter-driven; the cutoff is computed once in the batch's company.
+        // The cutoff is computed once from the retention parameter
         utcDateTime cutoff = DateTimeUtil::addDays(DateTimeUtil::utcNow(), -WHSParameters::find().aaxPreviewRetentionDays());
 
         DataArea dataArea;
@@ -105,15 +106,15 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
 				<Name>purgeCompany</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Deletes aged LBLPREV attachments and Done/Poison staging rows in the current company context.
+    /// Deletes aged <c>LBLPREV</c> attachments and Done or Poison staging rows in the current company.
     /// </summary>
-    /// <param name = "_cutoff">Records created strictly before this UTC timestamp are removed.</param>
+    /// <param name = "_cutoff">Records created before this UTC timestamp are removed.</param>
     private void purgeCompany(utcDateTime _cutoff)
     {
         DocuRef                     docuRef;
         AAXWHSLabelCaptureStaging   staging;
 
-        // (a) Aged LBLPREV attachments on Work records — DocuRef.delete() cascades the DocuValue/file.
+        // Deleting the DocuRef also removes its DocuValue and file
         while select forupdate docuRef
             where docuRef.TypeId          == #LabelPreviewDocuTypeId
                && docuRef.RefTableId      == tableNum(WHSWorkTable)
@@ -122,7 +123,7 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
             docuRef.delete();
         }
 
-        // (b) Aged terminal staging rows (Done/Poison only) — never touch Pending/Processing/Error.
+        // Only terminal staging rows are purged
         while select forupdate staging
             where (staging.Status == AAXWHSLabelCaptureStatus::Done
                 || staging.Status == AAXWHSLabelCaptureStatus::Poison)
@@ -137,6 +138,9 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
 			<Method>
 				<Name>run</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Runs the purge inside the batch error context and retries transient errors.
+    /// </summary>
     public void run()
     {
         using (SysErrorMessageHelpScope scope = SysErrorMessageHelpScope::newErrorContextBatchServer(this))
@@ -153,8 +157,7 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
             }
             catch (Exception::TransientSqlConnectionError)
             {
-                // ReqTransientSqlConnectionErrorHandlingHelper is internal — gate the
-                // retry on the session retry counter instead.
+                // Retry transient connection errors up to the session retry limit
                 if (xSession::currentRetryCount() >= #RetryNum)
                 {
                     throw;
@@ -187,6 +190,10 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
 			<Method>
 				<Name>runsImpersonated</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Indicates whether the batch job runs impersonated as the user who scheduled it.
+    /// </summary>
+    /// <returns>True, indicating the job runs impersonated.</returns>
     public boolean runsImpersonated()
     {
         return true;
@@ -197,6 +204,10 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
 			<Method>
 				<Name>canRunInNewSession</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Determines if the job can run in a new session.
+    /// </summary>
+    /// <returns>True if the job can run in a new session.</returns>
     protected boolean canRunInNewSession()
     {
         return true;
@@ -207,6 +218,10 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
 			<Method>
 				<Name>construct</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Constructs a new instance of the <c>AAXWHSLabelCapturePurge</c> class.
+    /// </summary>
+    /// <returns>A new <c>AAXWHSLabelCapturePurge</c> instance.</returns>
     static AAXWHSLabelCapturePurge construct()
     {
         return new AAXWHSLabelCapturePurge();
@@ -217,6 +232,10 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
 			<Method>
 				<Name>description</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Provides a description for the batch task.
+    /// </summary>
+    /// <returns>A string description of the batch task.</returns>
     static ClassDescription description()
     {
         return "@AAXWarehouseTools:CapturePurgeBatch";
@@ -227,6 +246,10 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
 			<Method>
 				<Name>main</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Entry point invoked by the AAXWHSLabelCapturePurge menu item.
+    /// </summary>
+    /// <param name = "args">Framework arguments from the caller.</param>
     static void main(Args args)
     {
         AAXWHSLabelCapturePurge labelCapturePurge = AAXWHSLabelCapturePurge::construct();
@@ -246,11 +269,9 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
 				<Name>isRetryable</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Specifies if the batch task is retryable for transient exceptions or not.
+    /// Indicates whether the batch job is retryable.
     /// </summary>
-    /// <returns>
-    /// If true is returned, the batch task is retryable, otherwise it is not.
-    /// </returns>
+    /// <returns>True, indicating the batch job can be retried.</returns>
     [Hookable(false)]
     final boolean isRetryable()
     {

@@ -4,13 +4,9 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// NEW-path capture seam. The label-layout print path
-/// (WhsDocumentRouting.printDocumentWithDocumentRoutingLabelLayoutLine) routes each matched line
-/// through WhsLicensePlateLabelPrintCommandGenerator::printLabelsForLicensePlate, which produces the
-/// final ZPL and then hands it to the [Hookable(false)] internal printLabelPrintCommandsToPrinter —
-/// where a blank printer makes it RETURN and drop every label. That leaves no downstream hook when no
-/// printer is configured, so we reproduce the final ZPL here (from the same layout + translator) and
-/// stage it for render+attach. Capture is best-effort and never disrupts the print/work flow.
+/// Extension of the <c>WhsLicensePlateLabelPrintCommandGenerator</c> class for the
+/// AAXWarehouseTools model. Stages labels printed through the label layout path, which produces
+/// no printable ZPL downstream when no printer is configured.
 /// </summary>
 [ExtensionOf(classStr(WhsLicensePlateLabelPrintCommandGenerator))]
 final class WhsLicensePlateLabelPrintCommandGenerator_AAXWarehouseTools_Extension
@@ -21,6 +17,15 @@ final class WhsLicensePlateLabelPrintCommandGenerator_AAXWarehouseTools_Extensio
 			<Method>
 				<Name>printLabelsForLicensePlate</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Extends <c>printLabelsForLicensePlate</c> to stage the label layout line in the active
+    /// capture scope after the base implementation is called with <c>next</c>. Capture is best
+    /// effort and never disrupts the print.
+    /// </summary>
+    /// <param name = "_licensePlateRoutingLine">The document routing label layout line.</param>
+    /// <param name = "_licensePlateLabel">The license plate label being printed.</param>
+    /// <param name = "_labelPrinterSelector">The label printer selector.</param>
+    /// <returns>The number of labels printed by the base implementation.</returns>
     public static int printLabelsForLicensePlate(
         WHSDocumentRoutingLabelLayoutLine  _licensePlateRoutingLine,
         WHSLicensePlateLabel               _licensePlateLabel,
@@ -28,8 +33,7 @@ final class WhsLicensePlateLabelPrintCommandGenerator_AAXWarehouseTools_Extensio
     {
         int ret = next printLabelsForLicensePlate(_licensePlateRoutingLine, _licensePlateLabel, _labelPrinterSelector);
 
-        // The scope is opened by the printDocument CoC and is current for the whole print call.
-        // It carries the capture gate (WorkId + toggle) in its active flag.
+        // The capture scope is opened by printDocument and carries the capture gate
         AAXWHSLabelCaptureScope scope = AAXWHSLabelCaptureScope::current();
         if (scope && scope.isActive())
         {
@@ -39,7 +43,7 @@ final class WhsLicensePlateLabelPrintCommandGenerator_AAXWarehouseTools_Extensio
             }
             catch
             {
-                // best-effort: a capture failure must never disrupt the actual print / work step.
+                // A capture failure must never disrupt the print
             }
         }
 

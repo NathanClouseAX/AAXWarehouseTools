@@ -4,18 +4,13 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// Label-preview capture parameters and auto-off logic.
-/// The auto-off mechanics are a byte-for-byte mirror of the Work creation history log
-/// pattern.
+/// Extension of the <c>WHSParameters</c> table for the AAXWarehouseTools model. Provides the
+/// label preview capture parameters, their defaults, and the capture auto-off logic.
 /// </summary>
 [ExtensionOf(tableStr(WHSParameters))]
 public final class WHSParameters_AAXWarehouseTools_Extension
 {
-    // NOTE: table-extension classes cannot declare fields/consts (compiler restriction) —
-    // defaults are inlined. USER-FACING UNITS: the size/density fields store INCHES and DPI
-    // (defaults: auto-off 14 days, retention 14 days, 203 DPI, 4 in wide, 6 in tall). The field
-    // names keep their *Mm/*Dpmm suffix to avoid a schema change / DB sync; the accessors below
-    // convert to the renderer's native mm / dots-per-mm (inch x 25.4; dpmm = round(DPI / 25.4)).
+    // The size and density fields store inches and DPI; the accessors convert to millimeters and dots per millimeter
 }
 ]]></Declaration>
 		<Methods>
@@ -23,8 +18,9 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxPreviewAutoOffDays</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Auto-off window in days; unset (0) falls back to the locked default of 14.
+    /// Gets the capture auto-off window in days, defaulting to 14 when unset.
     /// </summary>
+    /// <returns>The auto-off window in days.</returns>
     public int aaxPreviewAutoOffDays()
     {
         return this.AAXPreviewAutoOffDays > 0 ? this.AAXPreviewAutoOffDays : 14;
@@ -36,9 +32,10 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxPreviewDefaultDpmm</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Render density in dots/mm for the renderer. The field stores DPI (default 203); this
-    /// converts DPI -> dpmm (203 DPI -> 8 dpmm).
+    /// Gets the default render density in dots per millimeter, converted from the stored DPI
+    /// (default 203).
     /// </summary>
+    /// <returns>The default render density in dots per millimeter.</returns>
     public int aaxPreviewDefaultDpmm()
     {
         int dpi = this.AAXPreviewDefaultDpi > 0 ? this.AAXPreviewDefaultDpi : 203;
@@ -51,9 +48,9 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxPreviewDefaultWidthMm</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Render width in mm for the renderer. The field stores inches (default 4); this converts
-    /// inches -> mm (4 in -> 101.6 mm).
+    /// Gets the default label width in millimeters, converted from the stored inches (default 4).
     /// </summary>
+    /// <returns>The default label width in millimeters.</returns>
     public real aaxPreviewDefaultWidthMm()
     {
         real widthIn = this.AAXPreviewDefaultWidthIn > 0 ? this.AAXPreviewDefaultWidthIn : 4;
@@ -66,9 +63,9 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxPreviewDefaultHeightMm</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Render height in mm for the renderer. The field stores inches (default 6); this converts
-    /// inches -> mm (6 in -> 152.4 mm).
+    /// Gets the default label height in millimeters, converted from the stored inches (default 6).
     /// </summary>
+    /// <returns>The default label height in millimeters.</returns>
     public real aaxPreviewDefaultHeightMm()
     {
         real heightIn = this.AAXPreviewDefaultHeightIn > 0 ? this.AAXPreviewDefaultHeightIn : 6;
@@ -81,8 +78,10 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxPreviewRetentionDays</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Attachment retention window in days for the purge batch; unset falls back to 14.
+    /// Gets the attachment retention window in days used by the purge batch, defaulting to 14
+    /// when unset.
     /// </summary>
+    /// <returns>The retention window in days.</returns>
     public int aaxPreviewRetentionDays()
     {
         return this.AAXPreviewRetentionDays > 0 ? this.AAXPreviewRetentionDays : 14;
@@ -94,8 +93,7 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxApplyPreviewDefaultsIfUnset</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Sets each unset (zero) label-preview parameter field to its default, so the parameters form
-    /// shows sensible starting values. Units: days / days / DPI / inches / inches.
+    /// Sets each unset label preview parameter to its default value.
     /// </summary>
     public void aaxApplyPreviewDefaultsIfUnset()
     {
@@ -127,7 +125,8 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>initValue</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Applies the label-preview parameter defaults to a newly initialized parameters record.
+    /// Extends <c>initValue</c> to apply the label preview parameter defaults after the base
+    /// implementation is called with <c>next</c>.
     /// </summary>
     public void initValue()
     {
@@ -141,7 +140,7 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxInitPreviewAttachmentTurnsOff</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Sets the auto-off timestamp to now + the configured window.
+    /// Sets the capture auto-off timestamp to the current time plus the configured window.
     /// </summary>
     public void aaxInitPreviewAttachmentTurnsOff()
     {
@@ -156,9 +155,9 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxCanUpdateWHSParameters</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Test seam replica of the internal <c>canUpdateWHSParameters</c> (internal upstream,
-    /// so it cannot be called from this model).
+    /// Indicates whether the parameters record may be updated by the auto-off logic.
     /// </summary>
+    /// <returns>True if the record may be updated.</returns>
     private boolean aaxCanUpdateWHSParameters()
     {
         return true;
@@ -170,11 +169,11 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>aaxIsPreviewToWorkAttachmentEnabled</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Lazy auto-off guard — EXACT mirror of <c>isWorkCreateHistoryLogEnabled</c>:
-    /// true while now is before the turns-off timestamp; an expired toggle is flipped off
-    /// under a pessimistic lock; a null timestamp bootstraps the window (first enable).
-    /// Called on both the capture hot path and the render batch.
+    /// Indicates whether label capture is enabled, honoring the auto-off window. An expired
+    /// toggle is switched off under a pessimistic lock, and a missing timestamp initializes the
+    /// window.
     /// </summary>
+    /// <returns>True if label capture is currently enabled.</returns>
     public boolean aaxIsPreviewToWorkAttachmentEnabled()
     {
         if (this.AAXPreviewToWorkAttachment)
@@ -224,8 +223,10 @@ public final class WHSParameters_AAXWarehouseTools_Extension
 				<Name>modifiedField</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Toggle flipped On initializes the auto-off timestamp.
+    /// Extends <c>modifiedField</c> to initialize the auto-off timestamp when the capture toggle
+    /// is switched on. The base implementation is called with <c>next</c>.
     /// </summary>
+    /// <param name = "_fieldId">The id of the modified field.</param>
     public void modifiedField(FieldId _fieldId)
     {
         next modifiedField(_fieldId);

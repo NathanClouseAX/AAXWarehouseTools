@@ -4,12 +4,10 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// Disposable capture context bridging the two print-path CoC seams.
-/// Opened by the <c>printDocument</c> CoC (which gates on the parameter toggle AND a non-empty
-/// WorkId), consumed by the static <c>printLabelToPrinter</c> CoC, which stages every ZPL label
-/// that passes the universal chokepoint while a scope is active.
-/// Modeled on the <c>WhsBatchedDocumentRoutingContext</c> static-current singleton;
-/// nesting-safe via previous-scope restore.
+/// Capture context that bridges the two print path extension points. Opened by the
+/// <c>printDocument</c> extension when a label is printed for a Work record, and used by the
+/// <c>printLabelToPrinter</c> extension to stage every ZPL label printed while the scope is active.
+/// Scopes can nest; disposing a scope restores the previous one.
 /// </summary>
 public final class AAXWHSLabelCaptureScope implements System.IDisposable
 {
@@ -27,6 +25,9 @@ public final class AAXWHSLabelCaptureScope implements System.IDisposable
 			<Method>
 				<Name>new</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Initializes a new instance of the <c>AAXWHSLabelCaptureScope</c> class.
+    /// </summary>
     protected void new()
     {
         stagedHashes = new Set(Types::String);
@@ -38,11 +39,13 @@ public final class AAXWHSLabelCaptureScope implements System.IDisposable
 				<Name>newFromLabel</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Opens a capture scope snapshotting the label's work context, and makes it current.
-    /// Caller MUST dispose (use a using-statement). The scope is ALWAYS created so the
-    /// printDocument CoC can call 'next' unconditionally (CoC rule); the gate result
-    /// is carried in <paramref name="_active"/> — an inactive scope stages nothing.
+    /// Opens a capture scope for the label's Work context and makes it current. The scope is always
+    /// created so the caller can call next unconditionally; an inactive scope stages nothing.
+    /// The caller must dispose the scope.
     /// </summary>
+    /// <param name = "_label">The license plate label being printed.</param>
+    /// <param name = "_active">True when capture is enabled for this label.</param>
+    /// <returns>The new current scope.</returns>
     public static AAXWHSLabelCaptureScope newFromLabel(WHSLicensePlateLabel _label, boolean _active)
     {
         AAXWHSLabelCaptureScope scope = new AAXWHSLabelCaptureScope();
@@ -64,8 +67,9 @@ public final class AAXWHSLabelCaptureScope implements System.IDisposable
 				<Name>current</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// The active capture scope for this session, or null when no capture is in progress.
+    /// Gets the active capture scope for this session.
     /// </summary>
+    /// <returns>The current scope, or null when no capture is in progress.</returns>
     public static AAXWHSLabelCaptureScope current()
     {
         return currentScope;
@@ -77,12 +81,13 @@ public final class AAXWHSLabelCaptureScope implements System.IDisposable
 				<Name>stageLabel</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Stages one final ZPL label for asynchronous rendering. Per-scope hash set
-    /// prevents double-staging within one print operation; render dimensions are left 0 so the
-    /// batch parses ^PW/^LL from the ZPL with parameter fallbacks.
-    /// Insert runs in the caller's transaction by design (a rolled-back print discards
-    /// its staging row).
+    /// Stages one final ZPL label for rendering. A per-scope hash set prevents staging the same label
+    /// twice within one print operation, and the render dimensions are left at 0 so the renderer reads
+    /// them from the ZPL with the parameter fallbacks. The insert runs in the caller's transaction so
+    /// a rolled-back print discards its staging row.
     /// </summary>
+    /// <param name = "_printerName">The printer the label was routed to.</param>
+    /// <param name = "_zpl">The final, token-substituted ZPL.</param>
     public void stageLabel(WHSPrinterName _printerName, str _zpl)
     {
         if (!active || !_zpl)
@@ -90,7 +95,7 @@ public final class AAXWHSLabelCaptureScope implements System.IDisposable
             return;
         }
 
-        // Hash implementation shared with the renderer/tests via the C# library.
+        // The hash implementation is shared with the renderer
         str zplHash = AtomicAx.Zpl.Render.ZplRenderService::ComputeHash(_zpl);
 
         if (stagedHashes.in(zplHash))
@@ -108,11 +113,7 @@ public final class AAXWHSLabelCaptureScope implements System.IDisposable
         staging.PrinterName    = _printerName;
         staging.Status         = AAXWHSLabelCaptureStatus::Pending;
 
-        // Capture ONLY stages here: this runs inside printLabel's ttsbegin, where X++ forbids catching
-        // exceptions (so rendering inline can't apply the dimension fallback nor stay best-effort —
-        // a failure would break the warehouse transaction). The render+attach is triggered right
-        // after the build transaction commits, at ttsLevel 0
-        // (WHSLicensePlateLabelBuild_AAXWarehouseTools_Extension.buildLicensePlateLabels).
+        // Only stage here; rendering runs after the print transaction commits
         staging.insert();
     }
 
@@ -122,8 +123,9 @@ public final class AAXWHSLabelCaptureScope implements System.IDisposable
 				<Name>isActive</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// True when this scope is capturing (the printDocument CoC gate passed: WorkId + toggle).
+    /// Indicates whether this scope is capturing labels.
     /// </summary>
+    /// <returns>True if capture is enabled for this scope.</returns>
     public boolean isActive()
     {
         return active;
@@ -135,15 +137,11 @@ public final class AAXWHSLabelCaptureScope implements System.IDisposable
 				<Name>stageLabelLayoutLine</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Reproduces and stages the final ZPL for a NEW-path (label-layout) routing line. The new print
-    /// path drops produced labels at the [Hookable(false)] empty-printer guard in
-    /// printLabelPrintCommandsToPrinter, so there is NO downstream seam when no printer is configured.
-    /// We rebuild the final ZPL from the same layout + translator Microsoft uses
-    /// (WhsDocumentRouting.translate / instantiateTranslatorWithRoutingLine) so capture works with no
-    /// printer required. Only plain (non-template) ZPL layouts are handled here; Variables and
-    /// template-translator layouts use MS's internal source/template generators and are a follow-up.
+    /// Rebuilds and stages the final ZPL for a label layout routing line using the same layout and
+    /// translator the print path uses, so capture works when no printer is configured. Only plain
+    /// ZPL layouts are handled; Variables and template translator layouts are skipped.
     /// </summary>
-    /// <param name = "_routingLine">The matched label-layout routing line MS resolved for this label.</param>
+    /// <param name = "_routingLine">The label layout routing line resolved for this label.</param>
     /// <param name = "_label">The license plate label being printed.</param>
     public void stageLabelLayoutLine(WHSDocumentRoutingLabelLayoutLine _routingLine, WHSLicensePlateLabel _label)
     {
@@ -191,7 +189,7 @@ public final class AAXWHSLabelCaptureScope implements System.IDisposable
 				<Name>Dispose</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Closes the scope and restores the previous one (nesting-safe).
+    /// Closes the scope and restores the previous scope.
     /// </summary>
     public void Dispose()
     {

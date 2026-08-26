@@ -4,8 +4,8 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// SysOperation controller for the label-capture render batch.
-/// Runs <c>AAXWHSLabelCaptureRenderService.process</c>; batch-retryable for transient errors.
+/// Controller for the label capture render batch.
+/// Extends the SysOperation framework to run <c>AAXWHSLabelCaptureRenderService.process</c> and supports retryable batch operations.
 /// </summary>
 public final class AAXWHSLabelCaptureRenderController extends SysOperationServiceController implements BatchRetryable
 {
@@ -15,6 +15,12 @@ public final class AAXWHSLabelCaptureRenderController extends SysOperationServic
 			<Method>
 				<Name>new</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Initializes a new instance of the <c>AAXWHSLabelCaptureRenderController</c> class.
+    /// </summary>
+    /// <param name = "_className">The name of the service class.</param>
+    /// <param name = "_methodName">The name of the service method.</param>
+    /// <param name = "_executionMode">The SysOperation execution mode.</param>
     private void new(IdentifierName _className, IdentifierName _methodName, SysOperationExecutionMode _executionMode)
     {
         super(_className, _methodName, _executionMode);
@@ -26,7 +32,8 @@ public final class AAXWHSLabelCaptureRenderController extends SysOperationServic
 				<Name>construct</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Creates a controller wired to <c>AAXWHSLabelCaptureRenderService.process</c>.
+    /// Constructs a new instance of the <c>AAXWHSLabelCaptureRenderController</c> class.
+    /// Initializes the controller with the service class and method for batch processing.
     /// </summary>
     /// <param name = "_executionMode">The SysOperation execution mode.</param>
     /// <returns>A new <c>AAXWHSLabelCaptureRenderController</c> instance.</returns>
@@ -46,6 +53,10 @@ public final class AAXWHSLabelCaptureRenderController extends SysOperationServic
 			<Method>
 				<Name>caption</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Provides a description or caption for the batch task.
+    /// </summary>
+    /// <returns>A string description of the batch task.</returns>
     [Hookable(false)]
     public ClassDescription caption()
     {
@@ -57,10 +68,15 @@ public final class AAXWHSLabelCaptureRenderController extends SysOperationServic
 			<Method>
 				<Name>parmDialogCaption</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the caption of the dialog.
+    /// </summary>
+    /// <param name = "_dialogCaption">The dialog caption.</param>
+    /// <returns>The caption of the batch task, which is used as the dialog title.</returns>
     [Hookable(false)]
     public LabelType parmDialogCaption(LabelType _dialogCaption = dialogCaption)
     {
-        // The dialog title is based on the caption.
+        // The dialog title is based on the caption
         return this.caption();
     }
 
@@ -70,9 +86,9 @@ public final class AAXWHSLabelCaptureRenderController extends SysOperationServic
 				<Name>isRetryable</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Marks the batch task retryable for transient exceptions.
+    /// Indicates whether the batch job is retryable.
     /// </summary>
-    /// <returns><c>true</c>.</returns>
+    /// <returns>True, indicating the batch job can be retried.</returns>
     [Hookable(false)]
     public boolean isRetryable()
     {
@@ -84,6 +100,10 @@ public final class AAXWHSLabelCaptureRenderController extends SysOperationServic
 			<Method>
 				<Name>canRunInNewSession</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Determines if the job can run in a new session.
+    /// </summary>
+    /// <returns>True if the job can run in a new session.</returns>
     [Hookable(false)]
     protected boolean canRunInNewSession()
     {
@@ -95,6 +115,10 @@ public final class AAXWHSLabelCaptureRenderController extends SysOperationServic
 			<Method>
 				<Name>main</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Entry point invoked by the AAXWHSLabelCaptureRender menu item.
+    /// </summary>
+    /// <param name = "_args">Framework arguments from the caller.</param>
     public static void main(Args _args)
     {
         AAXWHSLabelCaptureRenderController controller = AAXWHSLabelCaptureRenderController::construct();

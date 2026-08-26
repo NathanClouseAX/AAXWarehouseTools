@@ -13,30 +13,26 @@ using SkiaSharp;
 namespace AtomicAx.Zpl.Render
 {
     /// <summary>
-    /// In-process ZPL -> PNG rendering service wrapping BinaryKits.Zpl.Viewer 1.3.1
-    /// (SkiaSharp-based, zero data egress). The shared implementation of
-    /// the SHA-256 ZPL hash and the read-only token-record discovery scan
-    /// also live here so X++ and the xunit tests use one implementation.
+    /// Renders ZPL to PNG images in-process using BinaryKits.Zpl.Viewer and SkiaSharp. Also provides
+    /// the shared SHA-256 ZPL hash and the read-only token-record scan so X++ and the tests use one
+    /// implementation.
     /// </summary>
     public static class ZplRenderService
     {
         /// <summary>
-        /// IIS shadow copy: pre-load the win-x64 natives from the real deployment folder
-        /// before any SkiaSharp P/Invoke. The type initializer runs before any member call,
-        /// so every public entry point is covered.
+        /// Pre-loads the native libraries before any SkiaSharp call so every public entry point is covered.
         /// </summary>
         static ZplRenderService()
         {
             NativeLibraryPreloader.EnsureLoaded();
         }
 
-        // Verified token grammar matching WhsDocumentRoutingTranslator.
-        // $Record.Field()[lineIndex]:format$  — Record is optional.
+        // Token grammar used by the document routing translator: $Record.Field()[lineIndex]:format$
         private static readonly Regex TokenRegex = new Regex(
             @"\$(?:(?<record>[a-zA-Z0-9_]+?)\.)?(?<field>[a-zA-Z0-9_]+?)(?<methodIndicator>\(\))?(?:\[(?<lineIndex>[0-9]{1,3})\])?(?::(?<format>.*?))?\$",
             RegexOptions.Compiled);
 
-        // First-occurrence-wins parsers for ^PW<dots> (print width) and ^LL<dots> (label length).
+        // Parsers for the ^PW (print width) and ^LL (label length) commands
         private static readonly Regex PrintWidthRegex = new Regex(
             @"\^PW(?<dots>\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
@@ -44,14 +40,16 @@ namespace AtomicAx.Zpl.Render
             @"\^LL(?<dots>\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         /// <summary>
-        /// Renders one PNG per ^XA…^XZ label block in the supplied ZPL.
-        /// Dimension resolution:
-        ///  - dpmm &lt;= 0  -&gt; ZplDimensionsMissingException (density must come from the caller).
-        ///  - widthMm/heightMm &lt;= 0 -&gt; parse ^PW (width dots) / ^LL (length dots) and convert
-        ///    via mm = dots / dpmm; if either command is absent -&gt; ZplDimensionsMissingException.
-        ///  - empty/whitespace zpl -&gt; ZplRenderException.
-        ///  - any analyzer/drawer failure -&gt; ZplRenderException (original message preserved).
+        /// Renders one PNG per ^XA…^XZ label block in the supplied ZPL. When no explicit size is
+        /// supplied, the label width and height are parsed from the ^PW and ^LL commands.
         /// </summary>
+        /// <param name="zpl">The ZPL to render.</param>
+        /// <param name="dpmm">The print density in dots per millimeter; must be positive.</param>
+        /// <param name="widthMm">The label width in millimeters, or 0 to parse ^PW from the ZPL.</param>
+        /// <param name="heightMm">The label height in millimeters, or 0 to parse ^LL from the ZPL.</param>
+        /// <returns>The rendered PNG images, one per label block.</returns>
+        /// <exception cref="ZplDimensionsMissingException">The density is not positive, or a dimension is neither supplied nor declared in the ZPL.</exception>
+        /// <exception cref="ZplRenderException">The ZPL is empty or the renderer fails.</exception>
         public static IList<byte[]> RenderToPngList(string zpl, int dpmm = 0, double widthMm = 0, double heightMm = 0)
         {
             if (string.IsNullOrWhiteSpace(zpl))
@@ -65,7 +63,7 @@ namespace AtomicAx.Zpl.Render
                     "Print density (dpmm) was not supplied; the caller must provide a positive value.");
             }
 
-            // Resolve dimensions: explicit override wins, otherwise parse ^PW / ^LL.
+            // Explicit dimensions win, otherwise parse ^PW and ^LL
             if (widthMm <= 0 || heightMm <= 0)
             {
                 int widthDots;
@@ -111,16 +109,12 @@ namespace AtomicAx.Zpl.Render
                 {
                     foreach (LabelInfo labelInfo in analyzeInfo.LabelInfos)
                     {
-                        // One PNG per ^XA…^XZ block.
+                        // One PNG per ^XA…^XZ block
                         rendered.Add(drawer.Draw(labelInfo.ZplElements, widthMm, heightMm, dpmm));
                     }
                 }
 
-                // A ^XA…^XZ block that is purely printer CONFIGURATION (e.g.
-                // ^XA~SD15^PR8,8^MNW^MTT…^XZ — darkness/print-rate/media setup) draws nothing
-                // and renders BLANK (a single uniform color). Drop those so the preview shows
-                // only real labels, not spurious blank images. Fallback: if every block is blank
-                // (degenerate, all-config ZPL) keep them all rather than returning nothing.
+                // Drop blank configuration-only blocks unless every block is blank
                 List<byte[]> printable = new List<byte[]>();
                 foreach (byte[] png in rendered)
                 {
@@ -134,15 +128,14 @@ namespace AtomicAx.Zpl.Render
             }
             catch (ZplRenderException)
             {
-                // Already shaped; let it propagate untouched.
+                // Already shaped, so propagate untouched
                 throw;
             }
             catch (Exception ex)
             {
                 string message = "ZPL rendering failed: " + ex.Message;
 
-                // Native-load failures get the preloader's probe log appended so the X++ error
-                // dialog shows exactly where the natives were (not) found, for diagnosability.
+                // Append the preloader log to native-load failures for diagnostics
                 if (ex is DllNotFoundException || ex is TypeInitializationException
                     || ex.Message.IndexOf("libSkiaSharp", StringComparison.OrdinalIgnoreCase) >= 0
                     || ex.Message.IndexOf("libHarfBuzzSharp", StringComparison.OrdinalIgnoreCase) >= 0)
@@ -157,10 +150,14 @@ namespace AtomicAx.Zpl.Render
         }
 
         /// <summary>
-        /// X++-friendly entry point (X++ cannot declare IList&lt;byte[]&gt;). Same semantics as
-        /// <see cref="RenderToPngList(string,int,double,double)"/>, returning a ZplRenderResult.
-        /// THIS is the API X++ calls.
+        /// Renders the supplied ZPL with the same semantics as <see cref="RenderToPngList(string,int,double,double)"/>
+        /// and returns the images as a <see cref="ZplRenderResult"/>. This is the entry point X++ calls.
         /// </summary>
+        /// <param name="zpl">The ZPL to render.</param>
+        /// <param name="dpmm">The print density in dots per millimeter; must be positive.</param>
+        /// <param name="widthMm">The label width in millimeters, or 0 to parse ^PW from the ZPL.</param>
+        /// <param name="heightMm">The label height in millimeters, or 0 to parse ^LL from the ZPL.</param>
+        /// <returns>The rendered images wrapped for X++ consumption.</returns>
         public static ZplRenderResult RenderToPngs(string zpl, int dpmm = 0, double widthMm = 0, double heightMm = 0)
         {
             IList<byte[]> pngs = RenderToPngList(zpl, dpmm, widthMm, heightMm);
@@ -168,19 +165,14 @@ namespace AtomicAx.Zpl.Render
         }
 
         /// <summary>
-        /// Rotates a PNG image CLOCKWISE by 90°×<paramref name="quarterTurnsClockwise"/>, returning a
-        /// re-encoded PNG. The integration contract with X++ AAXZplRenderService.rotatePng:
-        ///  - turns = (((quarterTurnsClockwise % 4) + 4) % 4) — negative inputs normalize (e.g. -1 == 3).
-        ///  - turns == 0 -&gt; the SAME byte[] reference is returned unchanged (no decode/encode round-trip).
-        ///  - null/empty <paramref name="png"/> -&gt; ZplRenderException.
-        ///  - odd turns swap width/height; even turns preserve them.
-        ///  - any decode/encode failure -&gt; ZplRenderException (native-load failures get the preloader
-        ///    log appended, mirroring RenderToPngList for diagnosability).
-        /// SkiaSharp 3.119 surface used: SKBitmap.Decode(byte[]),
-        /// new SKBitmap(int,int), new SKCanvas(SKBitmap), SKCanvas.Translate(float,float),
-        /// SKCanvas.RotateDegrees(float), SKCanvas.DrawBitmap(SKBitmap,float,float,SKPaint),
-        /// SKImage.FromBitmap(SKBitmap), SKImage.Encode(SKEncodedImageFormat.Png,100), SKData.ToArray().
+        /// Rotates a PNG image clockwise by the given number of quarter turns and returns a re-encoded
+        /// PNG. Negative values are normalized, zero turns returns the same array unchanged, and odd
+        /// turns swap the width and height.
         /// </summary>
+        /// <param name="png">The PNG image to rotate.</param>
+        /// <param name="quarterTurnsClockwise">The number of 90-degree clockwise turns; negative values rotate counter-clockwise.</param>
+        /// <returns>The rotated PNG, or the original array when no rotation is required.</returns>
+        /// <exception cref="ZplRenderException">The image is null or empty, or it cannot be decoded or encoded.</exception>
         public static byte[] RotatePng(byte[] png, int quarterTurnsClockwise)
         {
             if (png == null || png.Length == 0)
@@ -191,11 +183,11 @@ namespace AtomicAx.Zpl.Render
             int turns = ((quarterTurnsClockwise % 4) + 4) % 4;
             if (turns == 0)
             {
-                // Contract: turns==0 returns the SAME byte array reference, untouched.
+                // Zero turns returns the same array reference
                 return png;
             }
 
-            // The type initializer already ran the native preloader, but be explicit (cheap, idempotent).
+            // Ensure the native libraries are loaded
             NativeLibraryPreloader.EnsureLoaded();
 
             try
@@ -207,7 +199,7 @@ namespace AtomicAx.Zpl.Render
                         throw new ZplRenderException("PNG could not be decoded for rotation (SKBitmap.Decode returned null).");
                     }
 
-                    // Odd quarter-turns swap the dimensions.
+                    // Odd quarter turns swap the dimensions
                     bool swap = (turns % 2) != 0;
                     int destWidth = swap ? source.Height : source.Width;
                     int destHeight = swap ? source.Width : source.Height;
@@ -217,8 +209,7 @@ namespace AtomicAx.Zpl.Render
                     {
                         canvas.Clear(SKColors.Transparent);
 
-                        // Place the rotation origin so the source lands inside the destination after a
-                        // CLOCKWISE rotation (Skia: positive degrees rotate clockwise, +y is down).
+                        // Translate so the source lands inside the destination after a clockwise rotation
                         switch (turns)
                         {
                             case 1: // 90° CW
@@ -271,9 +262,10 @@ namespace AtomicAx.Zpl.Render
         }
 
         /// <summary>
-        /// Runtime environment report for support diagnostics:
-        /// native preloader probe log + loaded renderer assembly identities.
+        /// Builds a runtime report for support diagnostics containing the native preloader log and the
+        /// identities of the loaded renderer assemblies.
         /// </summary>
+        /// <returns>The diagnostics report.</returns>
         public static string GetRuntimeDiagnostics()
         {
             NativeLibraryPreloader.EnsureLoaded();
@@ -290,8 +282,10 @@ namespace AtomicAx.Zpl.Render
         }
 
         /// <summary>
-        /// SHA-256 of the UTF-8 bytes of the ZPL, returned as lowercase hex (64 chars).
+        /// Computes the SHA-256 hash of the UTF-8 bytes of the ZPL.
         /// </summary>
+        /// <param name="zpl">The ZPL to hash; null is treated as an empty string.</param>
+        /// <returns>The hash as 64 lowercase hexadecimal characters.</returns>
         public static string ComputeHash(string zpl)
         {
             if (zpl == null)
@@ -313,10 +307,11 @@ namespace AtomicAx.Zpl.Render
         }
 
         /// <summary>
-        /// Read-only token discovery (discovery only, not substitution). Returns the
-        /// distinct, non-empty 'record' capture groups from the token regex.
-        /// Record-less tokens such as $OrderNum$ contribute no entry.
+        /// Scans the ZPL for tokens and returns the distinct record names they reference. Tokens without
+        /// a record qualifier, such as $OrderNum$, contribute no entry.
         /// </summary>
+        /// <param name="zpl">The ZPL to scan.</param>
+        /// <returns>The distinct record names in order of first appearance.</returns>
         public static string[] GetTokenRecordNames(string zpl)
         {
             if (string.IsNullOrEmpty(zpl))
@@ -344,11 +339,11 @@ namespace AtomicAx.Zpl.Render
         }
 
         /// <summary>
-        /// Ground-truth report for native-load failures: WHICH SkiaSharp instance was executing
-        /// (load contexts can duplicate identity-equal assemblies), every loaded SkiaSharp, and
-        /// on-disk existence for the loader's exact candidate paths (Location dir and
-        /// BaseDirectory, flat + x64 subdir — per SkiaSharp 3.119 LibraryLoader source).
+        /// Builds a report for native-load failures listing the assembly that threw, every loaded
+        /// SkiaSharp assembly, and whether the native library exists at the loader's candidate paths.
         /// </summary>
+        /// <param name="ex">The exception raised by the failed render or rotation.</param>
+        /// <returns>The report text.</returns>
         private static string BuildSkiaLoadFailureReport(Exception ex)
         {
             StringBuilder sb = new StringBuilder();
@@ -411,6 +406,11 @@ namespace AtomicAx.Zpl.Render
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Describes an assembly by its full name, location, and code base for diagnostics.
+        /// </summary>
+        /// <param name="assembly">The assembly to describe, or null.</param>
+        /// <returns>The description, or a placeholder when the assembly is null.</returns>
         private static string Describe(System.Reflection.Assembly assembly)
         {
             if (assembly == null)
@@ -432,11 +432,11 @@ namespace AtomicAx.Zpl.Render
         }
 
         /// <summary>
-        /// True if a rendered PNG is visually blank — every pixel is the same color (nothing was
-        /// drawn). Used to drop configuration-only ^XA…^XZ blocks from the preview. Scans the raw
-        /// decoded pixel buffer and early-exits on the first differing pixel, so real labels
-        /// (which have a barcode/text near the top) return false almost immediately.
+        /// Determines whether a rendered PNG is blank, meaning every pixel has the same color. Used to
+        /// drop configuration-only ^XA…^XZ blocks from the preview.
         /// </summary>
+        /// <param name="png">The PNG image to inspect.</param>
+        /// <returns>True if the image is empty or uniform; otherwise false.</returns>
         private static bool IsBlankPng(byte[] png)
         {
             if (png == null || png.Length == 0)
@@ -448,7 +448,7 @@ namespace AtomicAx.Zpl.Render
             {
                 if (bitmap == null)
                 {
-                    // Undecodable — don't silently drop it; treat as non-blank (keep).
+                    // Keep undecodable images rather than dropping them silently
                     return false;
                 }
 
@@ -474,6 +474,13 @@ namespace AtomicAx.Zpl.Render
             }
         }
 
+        /// <summary>
+        /// Parses the dot count from the first match of a dimension command in the ZPL.
+        /// </summary>
+        /// <param name="regex">The ^PW or ^LL parser.</param>
+        /// <param name="zpl">The ZPL to search.</param>
+        /// <param name="dots">The parsed dot count, or 0 when not found.</param>
+        /// <returns>True if the command was found and parsed; otherwise false.</returns>
         private static bool TryParseFirst(Regex regex, string zpl, out int dots)
         {
             Match match = regex.Match(zpl);

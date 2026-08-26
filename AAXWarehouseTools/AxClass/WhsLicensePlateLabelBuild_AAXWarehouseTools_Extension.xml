@@ -4,12 +4,8 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// Triggers near-real-time render+attach of captured labels right after the label build/print
-/// transaction commits. The capture seams stage rows INSIDE printLabel's ttsbegin (called from
-/// WhsLicensePlateLabelBuild.buildLicensePlateLabels), where X++ forbids catching exceptions — so
-/// rendering there is unsafe. This CoC renders AFTER next returns; gated on ttsLevel 0 so it only
-/// fires once the build transaction (and the Work) is committed and exceptions are catchable. When
-/// this build is itself nested in an outer transaction, it safely defers to the scheduled batch.
+/// Extension of the <c>WhsLicensePlateLabelBuild</c> class for the AAXWarehouseTools model.
+/// Renders and attaches captured labels as soon as the label build transaction has committed.
 /// </summary>
 [ExtensionOf(classStr(WhsLicensePlateLabelBuild))]
 final class WhsLicensePlateLabelBuild_AAXWarehouseTools_Extension
@@ -20,6 +16,12 @@ final class WhsLicensePlateLabelBuild_AAXWarehouseTools_Extension
 			<Method>
 				<Name>buildLicensePlateLabels</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Extends <c>buildLicensePlateLabels</c> to render pending captured labels once the base
+    /// implementation, called with <c>next</c>, has completed outside any transaction. Inside an
+    /// outer transaction the rendering is left to the scheduled batch.
+    /// </summary>
+    /// <returns>The label id returned by the base implementation.</returns>
     public WHSLabelId buildLicensePlateLabels()
     {
         WHSLabelId ret = next buildLicensePlateLabels();

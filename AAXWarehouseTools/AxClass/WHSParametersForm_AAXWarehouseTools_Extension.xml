@@ -4,10 +4,8 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// Stamps the label-preview default values onto the WHSParameters record when the parameters form
-/// opens, so they are visible on the form even for records created before these fields existed
-/// (the table's initValue covers only newly created records). One-time and idempotent: it writes
-/// only when a field is unset and the user has Edit access.
+/// Extension of the <c>WHSParameters</c> form for the AAXWarehouseTools model. Applies the label
+/// preview parameter defaults to an existing parameters record when the form opens.
 /// </summary>
 [ExtensionOf(formStr(WHSParameters))]
 final class WHSParametersForm_AAXWarehouseTools_Extension
@@ -18,15 +16,18 @@ final class WHSParametersForm_AAXWarehouseTools_Extension
 			<Method>
 				<Name>init</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Extends <c>init</c> to apply the label preview parameter defaults to an existing parameters
+    /// record after the base implementation is called with <c>next</c>. Skipped when the user has
+    /// no edit access.
+    /// </summary>
     public void init()
     {
         WHSParameters parameters;
 
         next init();
 
-        // Runs before the form data source executes its query, so the stamped values are the ones
-        // displayed. Skip silently without Edit access (read-only users still get the runtime
-        // defaults via the accessors).
+        // Skip without edit access
         if (!hasTableAccess(tableNum(WHSParameters), AccessType::Edit))
         {
             return;

@@ -11,20 +11,22 @@ using Xunit;
 namespace AtomicAx.Zpl.Render.Tests
 {
     /// <summary>
-    /// Coverage for the full current public surface added on top of the original 20 tests:
-    /// GetRuntimeDiagnostics, NativeLibraryPreloader extraction semantics (net472 leg), token-scan
-    /// hardening checked against the actual regex, a non-empty ComputeHash known vector computed
-    /// independently in the test, render dimension edge cases, and the ILRepack merged-artifact
-    /// invariant. Deterministic, no network, no writes outside temp/test dirs.
+    /// Tests the diagnostics, native preloader, token-scan, hashing, dimension edge cases, and
+    /// merged-artifact behavior of <see cref="ZplRenderService"/>. The tests are deterministic and
+    /// write only to temporary and test directories.
     /// </summary>
     public class ZplRenderServiceSurfaceTests
     {
-        // 4x2 inch label at 8 dpmm => ^PW812 (101.6mm) ^LL406 (50.8mm).
+        // 4x2 inch label at 8 dpmm: ^PW812 (101.6 mm) ^LL406 (50.8 mm)
         private const string Valid4x2 =
             "^XA^PW812^LL406^FO50,50^A0N,40,40^FDHello^FS^XZ";
 
         private static readonly byte[] PngMagic = { 0x89, 0x50, 0x4E, 0x47 };
 
+        /// <summary>
+        /// Asserts that the bytes are a PNG image by checking the magic header.
+        /// </summary>
+        /// <param name="bytes">The bytes to check.</param>
         private static void AssertPng(byte[] bytes)
         {
             Assert.NotNull(bytes);
@@ -35,9 +37,7 @@ namespace AtomicAx.Zpl.Render.Tests
             }
         }
 
-        // ------------------------------------------------------------------
-        // 2. GetRuntimeDiagnostics
-        // ------------------------------------------------------------------
+        // GetRuntimeDiagnostics
 
         [Fact]
         public void GetRuntimeDiagnostics_NonEmpty_ContainsPreloaderHeaderAndRendererIdentity()
@@ -45,9 +45,9 @@ namespace AtomicAx.Zpl.Render.Tests
             string diag = ZplRenderService.GetRuntimeDiagnostics();
 
             Assert.False(string.IsNullOrWhiteSpace(diag), "Diagnostics must be non-empty.");
-            // Preloader section header emitted by GetRuntimeDiagnostics.
+            // Preloader section header
             Assert.Contains("== Native preloader ==", diag);
-            // The renderer assembly identity line.
+            // Renderer assembly identity
             Assert.Contains("AtomicAx.Zpl.Render:", diag);
             Assert.Contains("AtomicAx.Zpl.Render,", diag); // full name token (assembly identity)
         }
@@ -55,7 +55,7 @@ namespace AtomicAx.Zpl.Render.Tests
         [Fact]
         public void GetRuntimeDiagnostics_AfterRender_OnNet472_ShowsNativesLoaded()
         {
-            // Force the native-load path by actually rendering first.
+            // Render first to force the native-load path
             IList<byte[]> pngs = ZplRenderService.RenderToPngList(Valid4x2, 8);
             Assert.Single(pngs);
 
@@ -63,33 +63,24 @@ namespace AtomicAx.Zpl.Render.Tests
             Assert.False(string.IsNullOrWhiteSpace(diag));
 
 #if NET472
-            // On .NET Framework (the AOS runtime) the preloader is the load mechanism, so its log
-            // must mention libSkiaSharp. Assert loosely (substring), not a brittle full string.
+            // On .NET Framework the preloader is the load mechanism, so its log must mention libSkiaSharp
             Assert.Contains("libSkiaSharp", diag, StringComparison.OrdinalIgnoreCase);
 #endif
         }
 
-        // ------------------------------------------------------------------
-        // 3. NativeLibraryPreloader extraction semantics (net472 leg only).
-        //    On net8.0 the runtime resolves natives itself; the embedded extraction
-        //    path is dormant, so these assertions only apply under NET472.
-        // ------------------------------------------------------------------
+        // NativeLibraryPreloader extraction, which only applies under NET472
 
 #if NET472
         [Fact]
         public void Preloader_AfterRender_NativeExistsBesideAssemblyOrUnderTemp()
         {
-            // First render triggers EnsureLoaded -> native must be resolvable on disk somewhere
-            // the preloader staged/extracted it.
+            // The first render must leave the native resolvable on disk
             IList<byte[]> first = ZplRenderService.RenderToPngList(Valid4x2, 8);
             Assert.Single(first);
 
             Assembly self = typeof(ZplRenderService).Assembly;
 
-            // The VSTest .NET Framework host shadow-copies the test assembly, so Assembly.Location
-            // points at the shadow-copy cache while Assembly.CodeBase still points at the real build
-            // output (exactly the IIS shadow-copy scenario the preloader handles). Accept either the real
-            // output dir (CodeBase), the Location dir, or the %TEMP% extraction dir.
+            // The test host shadow-copies the test assembly, so accept the Location, CodeBase, or temp folder
             string locationDir = null;
             try { locationDir = Path.GetDirectoryName(self.Location); } catch { /* byte-loaded */ }
 
@@ -116,7 +107,7 @@ namespace AtomicAx.Zpl.Render.Tests
         [Fact]
         public void Preloader_SecondRender_IsIdempotentAndSucceeds()
         {
-            // EnsureLoaded is guarded; a second render call must succeed exactly like the first.
+            // A second render must succeed like the first
             IList<byte[]> first = ZplRenderService.RenderToPngList(Valid4x2, 8);
             IList<byte[]> second = ZplRenderService.RenderToPngList(Valid4x2, 8);
 
@@ -127,16 +118,12 @@ namespace AtomicAx.Zpl.Render.Tests
         }
 #endif
 
-        // ------------------------------------------------------------------
-        // 4. Token scan hardening — expectations checked against the actual regex:
-        //    \$(?:(?<record>\w+?)\.)?(?<field>\w+?)(?<methodIndicator>\(\))?
-        //      (?:\[(?<lineIndex>[0-9]{1,3})\])?(?::(?<format>.*?))?\$
-        // ------------------------------------------------------------------
+        // Token scan variants
 
         [Fact]
         public void GetTokenRecordNames_MethodIndicatorToken_StillYieldsRecord()
         {
-            // $Rec.method()$ -> record 'Rec', field 'method', methodIndicator '()'.
+            // A method-indicator token still yields its record
             string[] records = ZplRenderService.GetTokenRecordNames("$Order.Total()$");
             Assert.Equal(new[] { "Order" }, records);
         }
@@ -144,7 +131,7 @@ namespace AtomicAx.Zpl.Render.Tests
         [Fact]
         public void GetTokenRecordNames_LineIndexVariant_YieldsRecord()
         {
-            // $Rec.field[2]$ -> record 'Rec' (lineIndex captured separately, not part of record).
+            // The line index is captured separately from the record
             string[] records = ZplRenderService.GetTokenRecordNames("$PurchLine.ItemId[2]$");
             Assert.Equal(new[] { "PurchLine" }, records);
         }
@@ -152,7 +139,7 @@ namespace AtomicAx.Zpl.Render.Tests
         [Fact]
         public void GetTokenRecordNames_FormatVariant_YieldsRecord()
         {
-            // $Rec.field:format$ -> record 'Rec' (':..10' is the format capture).
+            // The format suffix is captured separately from the record
             string[] records = ZplRenderService.GetTokenRecordNames("$PurchLine.ItemId:..10$");
             Assert.Equal(new[] { "PurchLine" }, records);
         }
@@ -160,7 +147,7 @@ namespace AtomicAx.Zpl.Render.Tests
         [Fact]
         public void GetTokenRecordNames_AllVariantsCombined_YieldsRecord()
         {
-            // $Rec.field()[2]:fmt$ -> record 'Rec'.
+            // All variants combined still yield the record
             string[] records = ZplRenderService.GetTokenRecordNames("$Line.Item()[2]:fmt$");
             Assert.Equal(new[] { "Line" }, records);
         }
@@ -168,8 +155,7 @@ namespace AtomicAx.Zpl.Render.Tests
         [Fact]
         public void GetTokenRecordNames_DoubleDollarLiteral_ProducesNoRecord()
         {
-            // '$$' is a literal passthrough: the field group needs >=1 char, so $$ matches no token.
-            // Mixed with a real token, only the real record is returned and the '$$5' yields nothing.
+            // A double dollar is a literal passthrough and never a token
             string[] none = ZplRenderService.GetTokenRecordNames("literal $$ passthrough");
             Assert.Empty(none);
 
@@ -180,7 +166,7 @@ namespace AtomicAx.Zpl.Render.Tests
         [Fact]
         public void GetTokenRecordNames_PreservesCase_AndTreatsDifferentCaseAsDistinct()
         {
-            // HashSet is StringComparer.Ordinal -> case is preserved AND case-sensitive distinct.
+            // Record names are case-sensitive and distinct
             string[] records = ZplRenderService.GetTokenRecordNames("$REC.Field$ $rec.field$");
 
             Assert.Equal(2, records.Length);
@@ -188,9 +174,7 @@ namespace AtomicAx.Zpl.Render.Tests
             Assert.Contains("rec", records);
         }
 
-        // ------------------------------------------------------------------
-        // 5. ComputeHash known vector (non-empty), computed independently in the test.
-        // ------------------------------------------------------------------
+        // ComputeHash known vector
 
         [Fact]
         public void ComputeHash_NonEmptyKnownVector_MatchesIndependentSha256()
@@ -212,9 +196,7 @@ namespace AtomicAx.Zpl.Render.Tests
             Assert.Equal(expected, ZplRenderService.ComputeHash(input));
         }
 
-        // ------------------------------------------------------------------
-        // 6. Render dimension edge cases.
-        // ------------------------------------------------------------------
+        // Render dimension edge cases
 
         [Fact]
         public void Render_PwPresentButLlAbsent_ThrowsDimensionsMissing()
@@ -235,8 +217,7 @@ namespace AtomicAx.Zpl.Render.Tests
         [Fact]
         public void Render_ExplicitDims_WinOverGarbagePwInZpl()
         {
-            // ^PW value is garbage/zero but explicit dims are supplied -> explicit wins, renders.
-            // (widthMm>0 && heightMm>0 short-circuits the ^PW/^LL parse entirely.)
+            // Explicit dimensions bypass the ^PW and ^LL parse entirely
             const string garbagePw = "^XA^PW0^FO50,50^A0N,40,40^FDHi^FS^XZ";
             IList<byte[]> pngs = ZplRenderService.RenderToPngList(garbagePw, 8, 101.6, 50.8);
 
@@ -244,11 +225,7 @@ namespace AtomicAx.Zpl.Render.Tests
             AssertPng(pngs[0]);
         }
 
-        // ------------------------------------------------------------------
-        // 7. Merged-artifact invariant (conditional on the deployed merged DLL existing).
-        //    Reads bytes (does NOT lock the file) and asserts the ILRepack /internalize guarantee:
-        //    no references to SkiaSharp / BinaryKits / zxing / SixLabors remain.
-        // ------------------------------------------------------------------
+        // Merged-artifact invariant, checked only when the deployed DLL exists
 
         [Fact]
         public void MergedArtifact_HasNoUnmergedThirdPartyReferences()
@@ -258,11 +235,11 @@ namespace AtomicAx.Zpl.Render.Tests
 
             if (!File.Exists(mergedPath))
             {
-                // The deployed merged artifact is not present (e.g. CI elsewhere) -> nothing to check.
+                // Nothing to check when the deployed artifact is absent
                 return;
             }
 
-            // Read bytes so we never lock the on-disk file.
+            // Read the bytes so the file is never locked
             byte[] raw = File.ReadAllBytes(mergedPath);
             Assembly merged = Assembly.Load(raw);
 
@@ -284,8 +261,7 @@ namespace AtomicAx.Zpl.Render.Tests
             }
         }
 
-        // A leading ^XA…^XZ printer-configuration preamble (darkness/print-rate/media setup,
-        // no drawable content) must NOT yield a spurious blank label — only the real label.
+        // A configuration-only preamble block must not yield a blank label
         private const string ConfigPreamblePlusLabel =
             "CT~~CD,~CC^~CT~" +
             "^XA~TA000~JSN^LT0^MNW^MTT^PON^PMN^LH0,0^JMA^PR8,8~SD15^JUS^LRN^CI0^XZ" +
@@ -305,8 +281,7 @@ namespace AtomicAx.Zpl.Render.Tests
         [Fact]
         public void RenderToPngList_AllConfigOnly_FallsBackToRenderingTheBlocks()
         {
-            // Degenerate: only a config block, nothing printable -> fallback renders it (count >= 1),
-            // never returns an empty list.
+            // A configuration-only ZPL still renders its block rather than returning nothing
             const string configOnly = "^XA~SD15^PR8,8^MNW^MTT^XZ";
             IList<byte[]> pngs = ZplRenderService.RenderToPngList(configOnly, 8, 101.6, 50.8);
 

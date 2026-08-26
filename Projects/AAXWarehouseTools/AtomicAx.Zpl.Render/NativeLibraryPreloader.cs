@@ -7,19 +7,12 @@ using System.Text;
 namespace AtomicAx.Zpl.Render
 {
     /// <summary>
-    /// Pre-loads the win-x64 native assets (libSkiaSharp.dll, libHarfBuzzSharp.dll) before any
-    /// SkiaSharp P/Invoke runs.
-    ///
-    /// Why: IIS shadow-copies managed assemblies into a temp
-    /// directory before loading them, so when SkiaSharp probes for its native library "next to
-    /// itself" (Assembly.Location) it looks in the shadow-copy folder — where the native DLL is
-    /// not. Assembly.CodeBase still points at the ORIGINAL deployment folder (the model bin),
-    /// so we resolve the natives from there and load them explicitly with LoadLibrary. Once a
-    /// module is in the process, subsequent DllImport("libSkiaSharp") binds to it by base name.
-    ///
-    /// If another model has already loaded a module with the same base name, we leave it alone
-    /// (GetModuleHandle short-circuit) — loading a second copy under the same name would not win the
-    /// DllImport bind anyway.
+    /// Pre-loads the win-x64 native libraries (libSkiaSharp.dll and libHarfBuzzSharp.dll) before any
+    /// SkiaSharp call. IIS shadow-copies managed assemblies, so SkiaSharp probes for its native
+    /// library in the shadow-copy folder where it is absent; this class resolves the natives from the
+    /// original deployment folder (Assembly.CodeBase) or from the embedded resources and loads them
+    /// explicitly so later DllImport binds succeed. A module already loaded by another model is left
+    /// as is.
     /// </summary>
     internal static class NativeLibraryPreloader
     {
@@ -33,17 +26,33 @@ namespace AtomicAx.Zpl.Render
             "libHarfBuzzSharp.dll"
         };
 
+        /// <summary>
+        /// Loads a native module into the process.
+        /// </summary>
+        /// <param name="lpFileName">The path of the module to load.</param>
+        /// <returns>The module handle, or zero on failure.</returns>
         [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
         private static extern IntPtr LoadLibraryW(string lpFileName);
 
+        /// <summary>
+        /// Gets the handle of a module already loaded in the process.
+        /// </summary>
+        /// <param name="lpModuleName">The base name of the module.</param>
+        /// <returns>The module handle, or zero when the module is not loaded.</returns>
         [DllImport("kernel32", CharSet = CharSet.Unicode)]
         private static extern IntPtr GetModuleHandleW(string lpModuleName);
 
+        /// <summary>
+        /// Adds a directory to the native library search path of the process.
+        /// </summary>
+        /// <param name="lpPathName">The directory to add.</param>
+        /// <returns>True on success; otherwise false.</returns>
         [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
         private static extern bool SetDllDirectoryW(string lpPathName);
 
         /// <summary>
-        /// Idempotent; safe to call from every public entry point.
+        /// Loads the native libraries once and records the probe log. Safe to call from every public
+        /// entry point.
         /// </summary>
         public static void EnsureLoaded()
         {
@@ -61,12 +70,7 @@ namespace AtomicAx.Zpl.Render
 
                 StringBuilder log = new StringBuilder();
 
-                // Version-mismatch safety net (zero web.config edits): when the host process has
-                // no binding redirect for one of OUR payload assemblies (e.g. SkiaSharp's net472
-                // build requests System.Runtime.CompilerServices.Unsafe 4.0.4.1 while a newer one
-                // is deployed; or zxing 0.16.11 vs ER's loaded 0.16.5), .NET Framework's strict
-                // bind fails first — only THEN does this handler serve the model-bin copy.
-                // Normal/AOS-provided bindings are never overridden.
+                // Serve assemblies from the deployment folder only when the host bind fails
                 AppDomain.CurrentDomain.AssemblyResolve += ResolveFromDeployFolder;
                 log.AppendLine("AssemblyResolve fallback registered for the deployment folder.");
 
@@ -75,8 +79,7 @@ namespace AtomicAx.Zpl.Render
                 log.AppendLine("Assembly.Location dir: " + SafeLocationDirectory());
                 log.AppendLine("Assembly.CodeBase dir: " + SafeCodeBaseDirectory());
 
-                // Belt-and-braces for SkiaSharp's OWN path-based loader: add the deployment
-                // folder to the process DLL search path so even its internal probing resolves.
+                // Add the deployment folder to the native search path for SkiaSharp's own probing
                 string deployDir = SafeCodeBaseDirectory() ?? SafeLocationDirectory();
                 if (!string.IsNullOrEmpty(deployDir))
                 {
@@ -88,21 +91,14 @@ namespace AtomicAx.Zpl.Render
                 {
                     LoadModule(module, log);
 
-                    // Standalone single-DLL mode: the natives ship INSIDE this assembly as
-                    // embedded resources. Extract beside the assembly (preferred — that is
-                    // exactly where SkiaSharp's file-path-based LibraryLoader probes, and
-                    // post-merge SkiaSharp's types LIVE in this assembly so its Location IS
-                    // ours) or to %TEMP%, then LoadLibrary the extracted file.
+                    // Extract and load the embedded native when nothing is in-process yet
                     if (GetModuleHandleW(module) == IntPtr.Zero)
                     {
                         ExtractAndLoadEmbedded(module, log);
                     }
                 }
 
-                // Legacy belt for UNMERGED layouts (e.g. the net8 test build or a dev deployment
-                // of separate DLLs): SkiaSharp's managed loader probes beside its own
-                // Assembly.Location, so stage the native file there. No-op when the module is
-                // already in-process or the managed assembly is merged into this one.
+                // Stage the native beside an unmerged managed SkiaSharp assembly
                 StageBesideManagedAssembly("SkiaSharp", "libSkiaSharp.dll", log);
                 StageBesideManagedAssembly("HarfBuzzSharp", "libHarfBuzzSharp.dll", log);
 
@@ -117,13 +113,19 @@ namespace AtomicAx.Zpl.Render
         }
 
         /// <summary>
-        /// Probe/load record for error messages and support diagnostics.
+        /// Gets the probe and load log used in error messages and support diagnostics.
         /// </summary>
         public static string Diagnostics
         {
             get { return diagnostics; }
         }
 
+        /// <summary>
+        /// Loads a native module from the first candidate path where it exists, unless it is already
+        /// loaded in the process.
+        /// </summary>
+        /// <param name="module">The file name of the native module.</param>
+        /// <param name="log">The log that receives the probe results.</param>
         private static void LoadModule(string module, StringBuilder log)
         {
             if (GetModuleHandleW(module) != IntPtr.Zero)
@@ -153,34 +155,49 @@ namespace AtomicAx.Zpl.Render
             log.AppendLine(module + ": NOT loaded by preloader; DllImport will fall back to default probing.");
         }
 
+        /// <summary>
+        /// Builds the ordered list of paths where a native module may be found.
+        /// </summary>
+        /// <param name="module">The file name of the native module.</param>
+        /// <returns>The candidate paths in probe order.</returns>
         private static string[] CandidatePaths(string module)
         {
             string codeBaseDir = SafeCodeBaseDirectory();
             string locationDir = SafeLocationDirectory();
 
-            // ARCH-AWARE: pick the runtimes RID folder matching the PROCESS
-            // bitness — loading an x86 native into the 64-bit AOS fails with Win32 error 193.
+            // Pick the runtimes folder matching the process bitness
             string rid = Environment.Is64BitProcess ? "win-x64" : "win-x86";
             string nativeSubPath = Path.Combine("runtimes", Path.Combine(rid, Path.Combine("native", module)));
 
             return new[]
             {
-                // CodeBase = original deployment folder (the model bin) — survives IIS shadow copy.
+                // The original deployment folder, which survives IIS shadow copy
                 Combine(codeBaseDir, nativeSubPath),
-                // Location = shadow-copy dir under IIS, real dir under tests/console.
+                // The shadow-copy folder under IIS or the real folder elsewhere
                 Combine(locationDir, nativeSubPath),
-                // Legacy flat layouts, last resort.
+                // Legacy flat layouts
                 Combine(codeBaseDir, module),
                 Combine(locationDir, module),
                 Combine(AppDomain.CurrentDomain.BaseDirectory, module)
             };
         }
 
+        /// <summary>
+        /// Combines a directory and a file name, returning the file name alone when the directory is empty.
+        /// </summary>
+        /// <param name="directory">The directory, or null.</param>
+        /// <param name="file">The file name or relative path.</param>
+        /// <returns>The combined path.</returns>
         private static string Combine(string directory, string file)
         {
             return string.IsNullOrEmpty(directory) ? file : Path.Combine(directory, file);
         }
 
+        /// <summary>
+        /// Evaluates a string getter and returns its error message instead of throwing.
+        /// </summary>
+        /// <param name="getter">The getter to evaluate.</param>
+        /// <returns>The value, or an error placeholder when the getter throws.</returns>
         private static string SafeString(Func<string> getter)
         {
             try { return getter(); }
@@ -188,10 +205,11 @@ namespace AtomicAx.Zpl.Render
         }
 
         /// <summary>
-        /// Extracts the embedded native (logical name AAX.Natives.&lt;rid&gt;.&lt;module&gt;) to a
-        /// writable location and loads it. Targets, in order: beside Assembly.Location, beside
-        /// Assembly.CodeBase, then %TEMP%\AtomicAx.Zpl.Render\&lt;version&gt;\&lt;rid&gt;\.
+        /// Extracts the embedded native resource AAX.Natives.&lt;rid&gt;.&lt;module&gt; to the first writable
+        /// location beside the assembly or under the temporary folder, and loads it.
         /// </summary>
+        /// <param name="module">The file name of the native module.</param>
+        /// <param name="log">The log that receives the extraction results.</param>
         private static void ExtractAndLoadEmbedded(string module, StringBuilder log)
         {
             try
@@ -272,6 +290,13 @@ namespace AtomicAx.Zpl.Render
             }
         }
 
+        /// <summary>
+        /// Copies a native module from the deployment folder to the folder of its managed assembly so
+        /// the managed loader can find it. Does nothing when the module is already loaded or present.
+        /// </summary>
+        /// <param name="managedSimpleName">The simple name of the managed assembly.</param>
+        /// <param name="nativeFile">The file name of the native module.</param>
+        /// <param name="log">The log that receives the staging results.</param>
         private static void StageBesideManagedAssembly(string managedSimpleName, string nativeFile, StringBuilder log)
         {
             try
@@ -322,6 +347,12 @@ namespace AtomicAx.Zpl.Render
             }
         }
 
+        /// <summary>
+        /// Finds a managed assembly in the current application domain, loading it when it is not
+        /// loaded yet.
+        /// </summary>
+        /// <param name="simpleName">The simple name of the managed assembly.</param>
+        /// <returns>The assembly, or null when it cannot be loaded.</returns>
         private static Assembly FindOrLoadManaged(string simpleName)
         {
             foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
@@ -335,15 +366,13 @@ namespace AtomicAx.Zpl.Render
                 }
                 catch
                 {
-                    // Dynamic assemblies etc. — ignore.
+                    // Ignore dynamic assemblies
                 }
             }
 
             try
             {
-                // Not loaded yet: force-load the MANAGED assembly (safe — does not touch the
-                // native type initializers). Resolution may be served by the host or by our
-                // ResolveFromDeployFolder fallback.
+                // Load the managed assembly without touching the native type initializers
                 return Assembly.Load(simpleName);
             }
             catch
@@ -352,6 +381,12 @@ namespace AtomicAx.Zpl.Render
             }
         }
 
+        /// <summary>
+        /// Resolves an assembly the host failed to bind by loading it from the deployment folder.
+        /// </summary>
+        /// <param name="sender">The application domain raising the event.</param>
+        /// <param name="args">The resolve arguments naming the requested assembly.</param>
+        /// <returns>The loaded assembly, or null when it is not in the deployment folder.</returns>
         private static Assembly ResolveFromDeployFolder(object sender, ResolveEventArgs args)
         {
             try
@@ -377,6 +412,10 @@ namespace AtomicAx.Zpl.Render
             }
         }
 
+        /// <summary>
+        /// Gets the original deployment folder of this assembly from its code base.
+        /// </summary>
+        /// <returns>The folder, or null when it cannot be determined.</returns>
         private static string SafeCodeBaseDirectory()
         {
             try
@@ -391,6 +430,10 @@ namespace AtomicAx.Zpl.Render
             }
         }
 
+        /// <summary>
+        /// Gets the folder this assembly was loaded from.
+        /// </summary>
+        /// <returns>The folder, or null when it cannot be determined.</returns>
         private static string SafeLocationDirectory()
         {
             try

@@ -4,11 +4,9 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// Mobile-flow label capture seams.
-/// The instance CoC on <c>printDocument</c> opens a disposable capture scope; the static CoC on
-/// <c>printLabelToPrinter</c> — the universal ZPL chokepoint, which fires BEFORE the
-/// batch-print diversion and is reached by both the legacy routing path and the
-/// new label-layout path — stages each label while a scope is active.
+/// Extension of the <c>WhsDocumentRouting</c> class for the AAXWarehouseTools model. Opens a
+/// label capture scope around <c>printDocument</c> and stages each ZPL label passed to
+/// <c>printLabelToPrinter</c> while a scope is active.
 /// </summary>
 [ExtensionOf(classStr(WhsDocumentRouting))]
 public final class WhsDocumentRouting_AAXWarehouseTools_Extension
@@ -19,13 +17,16 @@ public final class WhsDocumentRouting_AAXWarehouseTools_Extension
 			<Method>
 				<Name>printDocument</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Extends <c>printDocument</c> to open a label capture scope for the duration of the print.
+    /// Capture is active only when the label has a work id and capture is enabled. The base
+    /// implementation is called with <c>next</c>.
+    /// </summary>
+    /// <param name = "_workTransType">The work transaction type.</param>
+    /// <param name = "_label">The license plate label being printed.</param>
     public void printDocument(WHSWorkTransType _workTransType, WHSLicensePlateLabel _label)
     {
-        // Capture gate: WorkId must be non-empty (no attachment target otherwise) AND
-        // the auto-off-guarded toggle must be on. Production LP labels
-        // (ProdLicensePlateLabelBuild) and WorkId-less reprints are excluded by design.
-        // CoC rule: 'next' must be called exactly once and UNCONDITIONALLY, so the scope is
-        // always created and carries an active flag instead of branching around next.
+        // Capture only labels with a work id while capture is enabled
         boolean capture = _label.WorkId
             && WHSParameters::find().aaxIsPreviewToWorkAttachmentEnabled();
 
@@ -40,10 +41,16 @@ public final class WhsDocumentRouting_AAXWarehouseTools_Extension
 			<Method>
 				<Name>printLabelToPrinter</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Extends <c>printLabelToPrinter</c> to stage the ZPL label in the active capture scope
+    /// before the base implementation is called with <c>next</c>. Without an active scope the
+    /// label passes through unchanged.
+    /// </summary>
+    /// <param name = "_printerName">The target printer name.</param>
+    /// <param name = "_label">The ZPL label text.</param>
     public static void printLabelToPrinter(Name _printerName, str _label)
     {
-        // Universal ZPL chokepoint - fires BEFORE the batch diversion, so batching
-        // cannot detach capture. No active scope (wave/TMS/production flows) => no-op.
+        // Stage the label when a capture scope is active
         AAXWHSLabelCaptureScope scope = AAXWHSLabelCaptureScope::current();
 
         if (scope && _label)

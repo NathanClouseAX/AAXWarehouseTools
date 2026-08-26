@@ -4,10 +4,9 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// Staging buffer for mobile-flow label capture. The print-path CoC
-/// (WhsDocumentRouting_AAXWarehouseTools_Extension) inserts one row per captured ZPL label;
-/// the render batch (AAXWHSLabelCaptureRenderService) renders rows to PNG and attaches them
-/// to the related work record.
+/// Staging buffer for mobile-flow label capture. The print path inserts one record per captured
+/// ZPL label, and the render batch renders each record to PNG and attaches it to the related
+/// work record.
 /// </summary>
 public class AAXWHSLabelCaptureStaging extends common
 {
@@ -18,11 +17,11 @@ public class AAXWHSLabelCaptureStaging extends common
 				<Name>find</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Finds a staging row by record id.
+    /// Finds the staging record with the specified record id.
     /// </summary>
     /// <param name = "_recId">The record id.</param>
     /// <param name = "_forUpdate">True to select the record for update.</param>
-    /// <returns>The staging row, or an empty buffer.</returns>
+    /// <returns>The staging record, or an empty buffer when none exists.</returns>
     public static AAXWHSLabelCaptureStaging find(RecId _recId, boolean _forUpdate = false)
     {
         AAXWHSLabelCaptureStaging staging;
@@ -44,11 +43,15 @@ public class AAXWHSLabelCaptureStaging extends common
 				<Name>existsForWorkAndHash</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Pre-attach dedup check on the (WorkId, ZplHash) index.
+    /// Indicates whether a completed staging record exists for the work id and ZPL hash, so a
+    /// reprinted label is not attached twice.
     /// </summary>
+    /// <param name = "_workId">The work id.</param>
+    /// <param name = "_zplHash">The hash of the captured ZPL.</param>
+    /// <returns>True if a matching completed record exists.</returns>
     public static boolean existsForWorkAndHash(WHSWorkId _workId, AAXWHSZplHash _zplHash)
     {
-        // Expression-selects resolve the FROM target as a table name.
+        // The select refers to the table by name
         return _workId != ''
             && (select firstonly RecId from aaxWHSLabelCaptureStaging
                 where aaxWHSLabelCaptureStaging.WorkId == _workId

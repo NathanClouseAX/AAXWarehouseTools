@@ -7,9 +7,12 @@ using Xunit;
 
 namespace AtomicAx.Zpl.Render.Tests
 {
+    /// <summary>
+    /// Tests the rendering, hashing, token-scan, and rotation surface of <see cref="ZplRenderService"/>.
+    /// </summary>
     public class ZplRenderServiceTests
     {
-        // 4x2 inch label at 8 dpmm => ^PW812 (101.6mm) ^LL406 (50.8mm).
+        // 4x2 inch label at 8 dpmm: ^PW812 (101.6 mm) ^LL406 (50.8 mm)
         private const string Valid4x2 =
             "^XA^PW812^LL406^FO50,50^A0N,40,40^FDHello^FS^XZ";
 
@@ -25,6 +28,10 @@ namespace AtomicAx.Zpl.Render.Tests
 
         private static readonly byte[] PngMagic = { 0x89, 0x50, 0x4E, 0x47 };
 
+        /// <summary>
+        /// Asserts that the bytes are a non-empty PNG image by checking the magic header.
+        /// </summary>
+        /// <param name="bytes">The bytes to check.</param>
         private static void AssertPng(byte[] bytes)
         {
             Assert.NotNull(bytes);
@@ -72,7 +79,7 @@ namespace AtomicAx.Zpl.Render.Tests
         [Fact]
         public void ExplicitDims_OverrideParsing_WorksWithoutPwOrLl()
         {
-            // No ^PW/^LL in the ZPL, but explicit width/height are supplied -> renders.
+            // Explicit dimensions render a label that declares none
             IList<byte[]> pngs = ZplRenderService.RenderToPngList(NoDims, 8, 101.6, 50.8);
 
             Assert.Single(pngs);
@@ -82,11 +89,11 @@ namespace AtomicAx.Zpl.Render.Tests
         [Fact]
         public void GarbageInput_ThrowsZplRenderException_NotNullReference()
         {
-            // Whitespace / empty -> ZplRenderException (the empty-input guard).
+            // Whitespace input is rejected as a render exception
             Assert.Throws<ZplRenderException>(
                 () => ZplRenderService.RenderToPngList("   ", 8));
 
-            // Non-ZPL text with no ^PW/^LL and no dims -> a shaped exception, never a raw NRE.
+            // Non-ZPL text yields a shaped exception rather than a null reference
             Exception ex = Record.Exception(
                 () => ZplRenderService.RenderToPngList("not zpl at all", 8));
             Assert.NotNull(ex);
@@ -107,7 +114,7 @@ namespace AtomicAx.Zpl.Render.Tests
         [Fact]
         public void Barcode_Code128_Renders()
         {
-            // Exercises the ZXing path through BinaryKits.
+            // Exercises the ZXing barcode path
             IList<byte[]> pngs = ZplRenderService.RenderToPngList(Barcode, 8);
 
             Assert.Single(pngs);
@@ -151,7 +158,7 @@ namespace AtomicAx.Zpl.Render.Tests
         [Fact]
         public void ComputeHash_KnownVector()
         {
-            // SHA-256 of UTF-8 "" is the well-known empty-string digest.
+            // The well-known SHA-256 digest of the empty string
             Assert.Equal(
                 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                 ZplRenderService.ComputeHash(string.Empty));
@@ -166,7 +173,7 @@ namespace AtomicAx.Zpl.Render.Tests
 
             Assert.Contains("WHSLicensePlateLabel", records);
             Assert.Contains("PurchLine_1", records);
-            // Record-less $OrderNum$ contributes no record entry.
+            // A record-less token contributes no entry
             Assert.DoesNotContain("OrderNum", records);
         }
 
@@ -181,9 +188,12 @@ namespace AtomicAx.Zpl.Render.Tests
             Assert.Equal("Rec", records[0]);
         }
 
-        // ---- RotatePng (integration contract with X++ AAXZplRenderService.rotatePng) ----
+        // RotatePng contract shared with the X++ AAXZplRenderService.rotatePng wrapper
 
-        // Renders the canonical 4x2 label (812x406 dots @ 8 dpmm) to a single PNG for rotation tests.
+        /// <summary>
+        /// Renders the 4x2 inch label to a single PNG for the rotation tests.
+        /// </summary>
+        /// <returns>The rendered PNG bytes.</returns>
         private static byte[] RenderSinglePng()
         {
             IList<byte[]> pngs = ZplRenderService.RenderToPngList(Valid4x2, 8);
@@ -192,7 +202,11 @@ namespace AtomicAx.Zpl.Render.Tests
             return pngs[0];
         }
 
-        // Decodes a PNG with SkiaSharp and returns (width, height) in pixels.
+        /// <summary>
+        /// Decodes a PNG with SkiaSharp and returns its dimensions in pixels.
+        /// </summary>
+        /// <param name="png">The PNG bytes to decode.</param>
+        /// <returns>The width and height of the image.</returns>
         private static (int Width, int Height) DecodeDimensions(byte[] png)
         {
             using (SKBitmap bmp = SKBitmap.Decode(png))
@@ -212,10 +226,10 @@ namespace AtomicAx.Zpl.Render.Tests
 
             AssertPng(rotated);
             (int w1, int h1) = DecodeDimensions(rotated);
-            // Odd quarter-turn swaps width/height.
+            // An odd quarter turn swaps width and height
             Assert.Equal(h0, w1);
             Assert.Equal(w0, h1);
-            // A 4x2 label is non-square, so the swap is observable.
+            // The label is not square, so the swap is observable
             Assert.NotEqual(w0, h0);
         }
 
@@ -254,7 +268,7 @@ namespace AtomicAx.Zpl.Render.Tests
 
             byte[] result = ZplRenderService.RotatePng(original, 0);
 
-            // Contract: turns==0 returns the SAME byte[] reference (no decode/encode round-trip).
+            // Zero turns returns the same array reference
             Assert.Same(original, result);
         }
 
@@ -273,7 +287,7 @@ namespace AtomicAx.Zpl.Render.Tests
             Assert.Equal(w3, wm);
             Assert.Equal(h3, hm);
 
-            // And both equal the dimension swap (odd turn) vs the original.
+            // Both equal the dimension swap of the original
             (int w0, int h0) = DecodeDimensions(original);
             Assert.Equal(h0, wm);
             Assert.Equal(w0, hm);
