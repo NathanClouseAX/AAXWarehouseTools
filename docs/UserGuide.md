@@ -343,7 +343,7 @@ two places:
 | Message | Meaning | What to do |
 |---------|---------|------------|
 | **"AAXWarehouseTools: feature '%1' ensured - state %2, allowed %3."** | The check-in succeeded; `%2` and `%3` report the state returned by the service. | Nothing. |
-| **"AAXWarehouseTools: feature ensure for '%1' could not reach the service (offline or not yet deployed)."** | The AOS could not reach `api.licensing.atomicax.com`. | Allow outbound HTTPS (port 443) from the AOS to that host. The label features are unaffected; the check-in runs again at the next AOS startup. |
+| **"AAXWarehouseTools: feature ensure for '%1' could not reach the service (offline or not yet deployed)."** | The AOS could not reach the AtomicAx feature service. | Allow outbound HTTPS (port 443) from the AOS to the host configured as `ApiBaseUrl` in the `AAXWarehouseToolsFeature` macro library. The label features are unaffected; the check-in runs again at the next AOS startup. |
 | **"AAXWarehouseTools: feature ensure for '%1' failed - continuing."** / **"… failed (CLR error) - continuing."** | An unexpected error occurred during the check-in. | Informational; the label features are unaffected. Report it to AtomicAx if it persists across restarts. |
 
 The check-in sends environment identity only — tenant id, host URL, Lifecycle Services

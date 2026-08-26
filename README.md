@@ -39,7 +39,7 @@ Capture is designed not to stay on indefinitely: it automatically turns itself o
 - Microsoft Dynamics 365 Finance & Operations with the **Warehouse management** module enabled.
 - Access to deploy a model into the environment and to run a database synchronization (a standard developer or admin task in a non-production environment, or a deployable package in production).
 - System administrator (or equivalent) rights to configure Warehouse management parameters, Document routing, batch tasks, and security roles.
-- Outbound HTTPS (port 443) from the AOS to `api.licensing.atomicax.com` for the feature ensure check-in. If the host is unreachable, the check-in logs a warning and the solution continues; nothing in the label features depends on it.
+- Outbound HTTPS (port 443) from the AOS to the AtomicAx feature service (the host configured as `ApiBaseUrl` in the `AAXWarehouseToolsFeature` macro library) for the feature ensure check-in. If the host is unreachable, the check-in logs a warning and the solution continues; nothing in the label features depends on it.
 
 No printer is required for either feature.
 
@@ -130,7 +130,7 @@ The solution registers each installation with AtomicAx through a short **feature
 
 **When it runs.** Once at every AOS startup. The startup hook only enqueues the check-in as a batch task (description **AAXWarehouseTools feature ensure**), so startup is never delayed or blocked. No scheduling or configuration is required.
 
-**Where it connects.** `https://api.licensing.atomicax.com` over HTTPS (port 443). Allow outbound access to this host from the AOS.
+**Where it connects.** The AtomicAx feature service over HTTPS (port 443); the host is configured as `ApiBaseUrl` in the `AAXWarehouseToolsFeature` macro library. Allow outbound access to that host from the AOS.
 
 **What it sends.** Environment identity only:
 
@@ -162,8 +162,8 @@ It never sends label content, ZPL, rendered images, warehouse data, or any other
 
 **A layout cannot be previewed.** The preview supports the **ZPL** definition type (including template blocks). Layouts whose definition type is **Variables** or **VariablesScript** are not previewable; the dialog reports this. If a layout has no active version, activate one first. If a template layout has no data source, add one to the layout so its template can be expanded.
 
-**The batch history shows *feature ensure … could not reach the service*.** The AOS could not reach `api.licensing.atomicax.com`. Confirm outbound HTTPS (port 443) to that host is allowed from the AOS. The message is a warning only: the label features keep working, and the check-in runs again at the next AOS startup.
+**The batch history shows *feature ensure … could not reach the service*.** The AOS could not reach the AtomicAx feature service. Confirm outbound HTTPS (port 443) to the host configured as `ApiBaseUrl` in the `AAXWarehouseToolsFeature` macro library is allowed from the AOS. The message is a warning only: the label features keep working, and the check-in runs again at the next AOS startup.
 
-## Licensing
+## Third-party components
 
-This solution redistributes third-party components inside the model `bin` folder, all under licenses that permit commercial redistribution. See [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) for the full list of components and their licenses.
+This solution redistributes third-party components inside the model `bin` folder, all under terms that permit commercial redistribution. See [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) for the full list of components and their terms.
