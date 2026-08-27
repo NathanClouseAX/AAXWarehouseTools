@@ -1182,6 +1182,24 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 				</Controls>
 				<FrameType>None</FrameType>
 			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormButtonGroupControl">
+				<Name>ButtonGroupControl</Name>
+				<Type>ButtonGroup</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormCommandButtonControl">
+						<Name>btnClose</Name>
+						<Type>CommandButton</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Command>CloseForm</Command>
+						<Text>@AppCopilotAgentLifecycle:WebComponentPopOver_Close</Text>
+					</AxFormControl>
+				</Controls>
+			</AxFormControl>
 		</Controls>
 	</Design>
 	<Parts />
