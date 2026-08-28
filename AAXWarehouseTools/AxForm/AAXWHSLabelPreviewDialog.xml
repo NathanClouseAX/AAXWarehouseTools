@@ -58,7 +58,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 				<Source><![CDATA[
     /// <summary>
     /// Initializes all form state from a preview context and shows the first page. Clears the
-    /// rotation state and URL cache so the new render starts upright.
+    /// rotation state so the new render starts upright.
     /// </summary>
     /// <param name = "_context">The preview context to bind.</param>
     public void initFromContext(AAXWHSLabelPreviewContext _context)
@@ -66,7 +66,7 @@ public class AAXWHSLabelPreviewDialog extends FormRun
         context = _context;
         pngs    = context.parmPngList();
 
-		// Clear the rotation state for the new render
+        // Clear the rotation state for the new render
         pageTurns = new Map(Types::Integer, Types::Integer);  // page -> cumulative turns (0..3)
 
         // Identity used to re-render and the selected seed record
@@ -123,50 +123,50 @@ public class AAXWHSLabelPreviewDialog extends FormRun
             return;
         }
 
-		if (_page < 1)
-		{
-			_page = 1;
-		}
-		else if (_page > total)
-		{
-			_page = total;
-		}
+        if (_page < 1)
+        {
+            _page = 1;
+        }
+        else if (_page > total)
+        {
+            _page = total;
+        }
 
-		currentIndex = _page;
-		element.setPreviewImage(element.displayContainerForPage(_page));
+        currentIndex = _page;
+        element.setPreviewImage(element.displayContainerForPage(_page));
 
-		PagerText.text(strFmt("@AAXWarehouseTools:LabelNofM", _page, total));
+        PagerText.text(strFmt("@AAXWarehouseTools:LabelNofM", _page, total));
 
-		PrevPageButton.visible(total > 1);
-		NextPageButton.visible(total > 1);
-		PrevPageButton.enabled(_page > 1);
-		NextPageButton.enabled(_page < total);
-	}
+        PrevPageButton.visible(total > 1);
+        NextPageButton.visible(total > 1);
+        PrevPageButton.enabled(_page > 1);
+        NextPageButton.enabled(_page < total);
+    }
 
 ]]></Source>
 			</Method>
 			<Method>
 				<Name>setPreviewImage</Name>
 				<Source><![CDATA[
-	/// <summary>
-	/// Assigns the rendered PNG container directly to the image control.
-	/// </summary>
-	/// <param name = "_pngContainer">The PNG bytes in an X++ container.</param>
-	private void setPreviewImage(container _pngContainer)
-	{
-		Binary  binaryImage;
-		Image   image;
+    /// <summary>
+    /// Assigns the rendered PNG container directly to the image control.
+    /// </summary>
+    /// <param name = "_pngContainer">The PNG bytes in an X++ container.</param>
+    private void setPreviewImage(container _pngContainer)
+    {
+        Binary  binaryImage;
+        Image   image;
 
-		if (conLen(_pngContainer) == 0)
-		{
-			return;
-		}
+        if (conLen(_pngContainer) == 0)
+        {
+            return;
+        }
 
-		binaryImage = Binary::constructFromContainer(_pngContainer);
-		image       = new Image();
-		image.setData(binaryImage.getContainer());
-		PreviewImage.image(image);
-	}
+        binaryImage = Binary::constructFromContainer(_pngContainer);
+        image       = new Image();
+        image.setData(binaryImage.getContainer());
+        PreviewImage.image(image);
+    }
 
 ]]></Source>
 			</Method>
@@ -194,9 +194,11 @@ public class AAXWHSLabelPreviewDialog extends FormRun
             }
         }
 
-        if (conLen(pngContainer) > 0 && element.turnsForPage(_page) != 0)
+        int turns = element.turnsForPage(_page);
+
+        if (conLen(pngContainer) > 0 && turns != 0)
         {
-            return AAXZplRenderService::rotatePng(pngContainer, element.turnsForPage(_page));
+            return AAXZplRenderService::rotatePng(pngContainer, turns);
         }
 
         return pngContainer;
@@ -247,21 +249,21 @@ public class AAXWHSLabelPreviewDialog extends FormRun
 				<Name>downloadCurrentPage</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Opens the current page's PNG in the browser so the user can download it.
+    /// Downloads the current page's PNG at its current rotation.
     /// </summary>
     public void downloadCurrentPage()
     {
-		container              displayContainer;
-		System.IO.MemoryStream stream;
+        container              displayContainer;
+        System.IO.MemoryStream stream;
 
-		displayContainer = element.displayContainerForPage(currentIndex);
-		if (conLen(displayContainer) > 0)
+        displayContainer = element.displayContainerForPage(currentIndex);
+        if (conLen(displayContainer) > 0)
         {
-			stream = AAXZplRenderService::pngContainerToStream(displayContainer);
-			if (stream)
-			{
-				File::SendFileToUser(stream, strFmt('LabelPreview_%1.png', currentIndex));
-			}
+            stream = AAXZplRenderService::pngContainerToStream(displayContainer);
+            if (stream)
+            {
+                File::SendFileToUser(stream, strFmt('LabelPreview_%1.png', currentIndex));
+            }
         }
     }
 

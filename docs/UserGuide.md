@@ -72,8 +72,8 @@ the ZPL text.
   - Both buttons are shown only when the job produced more than one label, and each is
     disabled at the respective end of the range.
 - File group (caption *Download PNG*):
-  - **Download PNG** — opens the currently displayed image in the browser so the user can
-    save it. The download honors the current rotation of the displayed page.
+  - **Download PNG** — downloads the currently displayed image as a PNG file. The download
+    honors the current rotation of the displayed page.
   - **Rotate 90°** — rotates the current page 90 degrees clockwise. Clicks are unlimited;
     rotation is tracked per page, so navigating away and back preserves each page's own
     rotation.
