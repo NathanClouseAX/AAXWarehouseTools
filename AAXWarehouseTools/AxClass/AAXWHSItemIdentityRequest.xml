@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSItemIdentityRequest</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Parameter object for one item identity resolution: item, inventory dimensions, partner context
+/// and account, language, and profile. Caching is on and trace collection is off by default.
+/// </summary>
+public final class AAXWHSItemIdentityRequest
+{
+    private ItemId                           itemId;
+    private InventDimId                      inventDimId;
+    private AAXWHSItemIdentityPartnerContext partnerContext;
+    private CustVendAC                       partnerAccount;
+    private LanguageId                       languageId;
+    private AAXWHSItemIdentityProfileId      profileId;
+    private boolean                          useCache;
+    private boolean                          collectTrace;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>new</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Initializes a new instance of the <c>AAXWHSItemIdentityRequest</c> class.
+    /// </summary>
+    protected void new()
+    {
+        useCache     = true;
+        collectTrace = false;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmItemId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the item number to resolve.
+    /// </summary>
+    /// <param name = "_itemId">The item number.</param>
+    /// <returns>The item number.</returns>
+    public ItemId parmItemId(ItemId _itemId = itemId)
+    {
+        itemId = _itemId;
+        return itemId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmInventDimId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the inventory dimension identifier carrying the product dimensions.
+    /// </summary>
+    /// <param name = "_inventDimId">The inventory dimension identifier.</param>
+    /// <returns>The inventory dimension identifier.</returns>
+    public InventDimId parmInventDimId(InventDimId _inventDimId = inventDimId)
+    {
+        inventDimId = _inventDimId;
+        return inventDimId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmPartnerContext</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the partner context derived from the flow.
+    /// </summary>
+    /// <param name = "_partnerContext">The partner context.</param>
+    /// <returns>The partner context.</returns>
+    public AAXWHSItemIdentityPartnerContext parmPartnerContext(AAXWHSItemIdentityPartnerContext _partnerContext = partnerContext)
+    {
+        partnerContext = _partnerContext;
+        return partnerContext;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmPartnerAccount</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the customer or vendor account of the partner context.
+    /// </summary>
+    /// <param name = "_partnerAccount">The customer or vendor account.</param>
+    /// <returns>The customer or vendor account.</returns>
+    public CustVendAC parmPartnerAccount(CustVendAC _partnerAccount = partnerAccount)
+    {
+        partnerAccount = _partnerAccount;
+        return partnerAccount;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmLanguageId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the language the identity is resolved in.
+    /// </summary>
+    /// <param name = "_languageId">The language identifier.</param>
+    /// <returns>The language identifier.</returns>
+    public LanguageId parmLanguageId(LanguageId _languageId = languageId)
+    {
+        languageId = _languageId;
+        return languageId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmProfileId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the identity profile whose source lines are walked.
+    /// </summary>
+    /// <param name = "_profileId">The identity profile identifier.</param>
+    /// <returns>The identity profile identifier.</returns>
+    public AAXWHSItemIdentityProfileId parmProfileId(AAXWHSItemIdentityProfileId _profileId = profileId)
+    {
+        profileId = _profileId;
+        return profileId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmUseCache</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets whether the process-wide cache may serve and store this resolution.
+    /// </summary>
+    /// <param name = "_useCache">True to allow the cache.</param>
+    /// <returns>True if the cache is allowed.</returns>
+    public boolean parmUseCache(boolean _useCache = useCache)
+    {
+        useCache = _useCache;
+        return useCache;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmCollectTrace</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets whether the resolver collects a per-source trace for diagnostics.
+    /// </summary>
+    /// <param name = "_collectTrace">True to collect the trace.</param>
+    /// <returns>True if the trace is collected.</returns>
+    public boolean parmCollectTrace(boolean _collectTrace = collectTrace)
+    {
+        collectTrace = _collectTrace;
+        return collectTrace;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Constructs a new instance of the <c>AAXWHSItemIdentityRequest</c> class.
+    /// </summary>
+    /// <returns>A new <c>AAXWHSItemIdentityRequest</c> instance.</returns>
+    public static AAXWHSItemIdentityRequest construct()
+    {
+        return new AAXWHSItemIdentityRequest();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

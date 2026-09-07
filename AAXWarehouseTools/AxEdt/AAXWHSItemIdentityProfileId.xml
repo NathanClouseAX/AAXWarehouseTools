@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
+	i:type="AxEdtString">
+	<Name>AAXWHSItemIdentityProfileId</Name>
+	<Label>@AAXWarehouseTools:IdentityProfile</Label>
+	<ArrayElements />
+	<Relations>
+		<AxEdtRelation>
+			<RelatedField>ProfileId</RelatedField>
+			<Table>AAXWHSItemIdentityProfile</Table>
+		</AxEdtRelation>
+	</Relations>
+	<TableReferences />
+	<StringSize>20</StringSize>
+</AxEdt>

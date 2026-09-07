@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>WhsWorkExecuteDisplay_AAXWarehouseTools_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Extension of the <c>WhsWorkExecuteDisplay</c> class for the AAXWarehouseTools model. Appends the
+/// configured item identity line to the pages built by <c>buildPick</c> and <c>buildPut</c> when
+/// the menu item has identity display enabled.
+/// </summary>
+[ExtensionOf(classStr(WhsWorkExecuteDisplay))]
+public final class WhsWorkExecuteDisplay_AAXWarehouseTools_Extension
+{
+    #WHSRF
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>buildPick</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Extends <c>buildPick</c> to append the item identity line for the current work line after
+    /// the base implementation has built the pick page. The base implementation is called with
+    /// <c>next</c>.
+    /// </summary>
+    /// <param name = "_con">Container containing the form state before the controls are added.</param>
+    /// <param name = "_extraText">Label text, empty string by default.</param>
+    /// <param name = "_updatePass">Determines whether the pass through map should be updated, true by default.</param>
+    /// <param name = "_includeActualData">Determines whether the form just shows label control for pick line, false by default.</param>
+    /// <returns>Container containing the form state after the controls are added.</returns>
+    public container buildPick(
+        container   _con,
+        str         _extraText,
+        boolean     _updatePass,
+        boolean     _includeActualData)
+    {
+        container ret = next buildPick(_con, _extraText, _updatePass, _includeActualData);
+
+        return this.aaxAppendItemIdentityForWorkLine(ret);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>buildPut</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Extends <c>buildPut</c> to append the item identity line for the current work line after
+    /// the base implementation has built the put page. The base implementation is called with
+    /// <c>next</c>.
+    /// </summary>
+    /// <param name = "_con">Container containing the form state before the controls are added.</param>
+    /// <param name = "_extraText">Label text.</param>
+    /// <param name = "_overrideLP">Determines whether the Override LP control needs to be added or not.</param>
+    /// <param name = "_location">The location ID to set in the location control.</param>
+    /// <returns>Container containing the form state after the controls are added.</returns>
+    public container buildPut(
+                    container           _con,
+                    str                 _extraText,
+                    boolean             _overrideLP,
+                    WMSLocationId       _location)
+    {
+        container ret = next buildPut(_con, _extraText, _overrideLP, _location);
+
+        return this.aaxAppendItemIdentityForWorkLine(ret);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>aaxAppendItemIdentityForWorkLine</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Appends the item identity line for the current work line when it carries an item and the
+    /// line is not yet on the page. Sales work resolves for the order's invoice customer.
+    /// </summary>
+    /// <param name = "_displayCon">Container containing the built form state.</param>
+    /// <returns>Container containing the form state with the identity line appended when resolved.</returns>
+    private container aaxAppendItemIdentityForWorkLine(container _displayCon)
+    {
+        container ret = _displayCon;
+
+        try
+        {
+            if (workLine.ItemId
+                && !this.buildControlExistsInContainer(ret, AAXWHSItemIdentityInjectionService::ControlName))
+            {
+                AAXWHSItemIdentityPartnerContext partnerContext = AAXWHSItemIdentityPartnerContext::None;
+                CustVendAC                       partnerAccount;
+
+                // Sales work resolves for the invoice customer
+                if (workTable.WorkTransType == WHSWorkTransType::Sales)
+                {
+                    partnerContext = AAXWHSItemIdentityPartnerContext::Customer;
+                    partnerAccount = SalesTable::find(workTable.OrderNum).InvoiceAccount;
+                }
+
+                container identityLine = AAXWHSItemIdentityInjectionService::identityLineForMenuItem(
+                    pass.parmMenuItem(), workLine.ItemId, workLine.InventDimId, partnerContext, partnerAccount);
+
+                if (identityLine != conNull())
+                {
+                    // Read-only line typed with the identity EDT
+                    ret += [this.buildControl(#RFText, AAXWHSItemIdentityInjectionService::ControlName, conPeek(identityLine, 1), 1, conPeek(identityLine, 2), extendedTypeNum(AAXWHSItemIdentityValue), '', 0, false)];
+                }
+            }
+        }
+        catch
+        {
+            // Leave the page unchanged on failure
+            ret = _displayCon;
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxDataEntityView xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSItemIdentityMenuItemSettingEntity</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Data entity for the item identity display mobile menu item settings.
+/// </summary>
+[OfficeMenuOmit]
+public class AAXWHSItemIdentityMenuItemSettingEntity extends common
+{
+}
+]]></Declaration>
+		<Methods />
+	</SourceCode>
+	<DeveloperDocumentation>@AAXWarehouseTools:IdentityEntityMenuItemSetting</DeveloperDocumentation>
+	<FormRef>AAXWHSItemIdentityMenuItemSetting</FormRef>
+	<Label>@AAXWarehouseTools:IdentityEntityMenuItemSetting</Label>
+	<Tags>Warehouse setup</Tags>
+	<AllowRowVersionChangeTracking>Yes</AllowRowVersionChangeTracking>
+	<DataManagementEnabled>Yes</DataManagementEnabled>
+	<DataManagementStagingTable>AAXWHSItemIdentityMenuItemSettingStaging</DataManagementStagingTable>
+	<IsPublic>Yes</IsPublic>
+	<Modules>WMS</Modules>
+	<PrimaryCompanyContext>DataAreaId</PrimaryCompanyContext>
+	<PrimaryKey>EntityKey</PrimaryKey>
+	<PublicCollectionName>AAXItemIdentityMenuItemSettings</PublicCollectionName>
+	<PublicEntityName>AAXItemIdentityMenuItemSetting</PublicEntityName>
+	<SupportsSetBasedSqlOperations>Yes</SupportsSetBasedSqlOperations>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>MenuItemName</Name>
+			<DataField>MenuItemName</DataField>
+			<DataSource>AAXWHSItemIdentityMenuItemSetting</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>Enabled</Name>
+			<DataField>Enabled</DataField>
+			<DataSource>AAXWHSItemIdentityMenuItemSetting</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ProfileId</Name>
+			<DataField>ProfileId</DataField>
+			<DataSource>AAXWHSItemIdentityMenuItemSetting</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>LabelOverride</Name>
+			<DataField>LabelOverride</DataField>
+			<DataSource>AAXWHSItemIdentityMenuItemSetting</DataSource>
+		</AxDataEntityViewField>
+	</Fields>
+	<Keys>
+		<AxDataEntityViewKey>
+			<Name>EntityKey</Name>
+			<Fields>
+				<AxDataEntityViewKeyField>
+					<DataField>MenuItemName</DataField>
+				</AxDataEntityViewKeyField>
+			</Fields>
+		</AxDataEntityViewKey>
+	</Keys>
+	<Mappings />
+	<Ranges />
+	<Relations />
+	<StateMachines />
+	<ViewMetadata>
+		<Name>Metadata</Name>
+		<SourceCode>
+			<Methods>
+				<Method>
+					<Name>classDeclaration</Name>
+					<Source><![CDATA[
+[Query]
+public class Metadata extends QueryRun
+{
+}
+]]></Source>
+				</Method>
+			</Methods>
+		</SourceCode>
+		<DataSources>
+			<AxQuerySimpleRootDataSource>
+				<Name>AAXWHSItemIdentityMenuItemSetting</Name>
+				<DynamicFields>Yes</DynamicFields>
+				<Table>AAXWHSItemIdentityMenuItemSetting</Table>
+				<DataSources />
+				<DerivedDataSources />
+				<Fields />
+				<Ranges />
+				<GroupBy />
+				<Having />
+				<OrderBy />
+			</AxQuerySimpleRootDataSource>
+		</DataSources>
+	</ViewMetadata>
+</AxDataEntityView>

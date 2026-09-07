@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AAX Warehouse Tools — ZPL Label Preview User Guide</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="aax-warehouse-tools-zpl-label-preview-user-guide">AAX Warehouse Tools — ZPL Label Preview User Guide</h1>
+<p>This guide is written for functional consultants, WMS administrators and warehouse
+users who configure and use the <strong>ZPL Label Preview</strong> solution delivered in the
+<code>AAXWarehouseTools</code> model. It covers the two end-user features, the security objects
+an administrator must assign, and the messages a user may encounter.</p>
+<p>The solution has two independent capabilities:</p>
+<ul>
+<li><strong>Feature A — On-demand label preview.</strong> A <em>Generate label preview</em> button on the
+label-layout setup forms that renders a layout's ZPL to an on-screen image so a user
+can check a label <em>before</em> it is ever printed.</li>
+<li><strong>Feature B — Mobile-flow capture.</strong> An opt-in parameter that automatically renders
+ZPL labels printed from mobile (RF) work flows to PNG images and attaches them to the
+related Work record, for audit/troubleshooting.</li>
+</ul>
+<blockquote>
+<p><em>Screenshots are indicated as italic placeholder notes; insert the corresponding
+images in your own copy.</em></p>
+</blockquote>
+<hr />
+<h2 id="on-demand-label-preview-feature-a">1. On-demand label preview (Feature A)</h2>
+<h3 id="where-the-button-lives">1.1 Where the button lives</h3>
+<p>The solution adds an action-pane tab and a single button — <strong>Generate label preview</strong>
+— to the two standard layout setup forms. The button group caption and the button text
+are both <em>Generate label preview</em>.</p>
+<table>
+<thead>
+<tr>
+<th>Form</th>
+<th>Navigation path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Label layout</strong> (<code>WHSLabelLayout</code>)</td>
+<td><em>Warehouse management &gt; Setup &gt; Document routing &gt; Label layouts</em></td>
+</tr>
+<tr>
+<td><strong>Document routing layout</strong> (<code>WHSDocumentRoutingLayout</code>)</td>
+<td><em>Warehouse management &gt; Setup &gt; Document routing &gt; Document routing layouts</em></td>
+</tr>
+</tbody>
+</table>
+<p>On each form, select the layout record you want to inspect, then choose
+<strong>Generate label preview</strong>.</p>
+<blockquote>
+<p><em>Screenshot: the action-pane tab &quot;Generate label preview&quot; on the Label layouts form.</em></p>
+</blockquote>
+<h3 id="what-happens-on-click">1.2 What happens on click</h3>
+<p>The button calls the preview controller, which:</p>
+<ol>
+<li>Resolves the layout's ZPL (see the layout-type matrix in section 1.5).</li>
+<li>Resolves a <strong>seed record</strong> — the most-recent record (highest RecId) on the table
+that naturally drives that layout (a license-plate label, container, or the layout's
+own data-source root table).</li>
+<li>Substitutes the <code>$token$</code> placeholders in the ZPL using the standard warehouse
+document-routing translator. If a live seed record is found it is bound; any tokens
+it cannot fill (and any layout that found no live record at all) are filled with
+realistic sample values.</li>
+<li>Renders the resulting ZPL to one or more PNG images and opens the <strong>Label preview</strong>
+dialog.</li>
+</ol>
+<p>If a gate stops the preview (non-ZPL layout, no active version, template with no data
+source), the dialog does <strong>not</strong> open; instead an information message is shown — see
+section 4.</p>
+<h3 id="the-label-preview-dialog-a-tour">1.3 The Label preview dialog — a tour</h3>
+<p>The dialog caption is <strong>Label preview</strong>. It is a large dialog with an action pane at the
+top and a body that stacks the badge, pager, data-source group, the rendered image and
+the ZPL text.</p>
+<blockquote>
+<p><em>Screenshot: the Label preview dialog with the rendered image, pager and ZPL panel.</em></p>
+</blockquote>
+<p><strong>Action pane.</strong> Two button groups:</p>
+<ul>
+<li>Navigation group (caption <em>Label %1 of %2</em>):
+<ul>
+<li><strong>Previous label</strong> — moves to the previous label page.</li>
+<li><strong>Next label</strong> — moves to the next label page.</li>
+<li>Both buttons are shown only when the job produced more than one label, and each is
+disabled at the respective end of the range.</li>
+</ul>
+</li>
+<li>File group (caption <em>Download PNG</em>):
+<ul>
+<li><strong>Download PNG</strong> — downloads the currently displayed image as a PNG file. The download
+honors the current rotation of the displayed page.</li>
+<li><strong>Rotate 90°</strong> — rotates the current page 90 degrees clockwise. Clicks are unlimited;
+rotation is tracked per page, so navigating away and back preserves each page's own
+rotation.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Body.</strong></p>
+<ul>
+<li><strong>Badge</strong> — a read-only line just above the image indicating the data behind the
+render (see section 1.4).</li>
+<li><strong>Pager</strong> — read-only text <em>Label %1 of %2</em> (for example, <em>Label 1 of 3</em>) showing the
+current page and total number of label images.</li>
+<li><strong>Data source</strong> group (caption <em>Data source</em>) — see section 1.6.</li>
+<li><strong>Image</strong> — the rendered label PNG for the current page.</li>
+<li><strong>ZPL text</strong> panel (group caption <em>Copy ZPL</em>) — a read-only, multi-line text box
+containing the final, token-substituted ZPL. This is the copy surface: select the
+text to copy it to the clipboard.</li>
+</ul>
+<h3 id="badges">1.4 Badges</h3>
+<p>The badge tells the user what data produced the preview:</p>
+<table>
+<thead>
+<tr>
+<th>Badge text</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Live record: %1</strong></td>
+<td>The preview bound a real seed record; <code>%1</code> is the record's title (or <code>RecId &lt;n&gt;</code> if the table has no title field).</td>
+</tr>
+<tr>
+<td><strong>Sample data</strong></td>
+<td>No live seed record was available, so all tokens were filled with synthetic sample values.</td>
+</tr>
+<tr>
+<td><strong>Template: %1 label(s)</strong></td>
+<td>A template-translator layout was expanded; <code>%1</code> is the number of labels produced by the expansion.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="layout-type-behavior-matrix">1.5 Layout-type behavior matrix</h3>
+<table>
+<thead>
+<tr>
+<th>Layout / definition type</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Plain ZPL</strong> (<code>WHSLabelLayout</code> with definition type <em>ZPL</em>, or any <code>WHSDocumentRoutingLayout</code>)</td>
+<td>The active-version ZPL is read, tokens are substituted from the seed record + sample data, and the result is rendered. A single ZPL source may contain several <code>^XA…^XZ</code> blocks; each block becomes its own page in the pager.</td>
+</tr>
+<tr>
+<td><strong>Template-translator layout</strong> (<code>WHSLabelLayout</code> with <em>Enable template translator</em> = Yes — <strong>now supported</strong>)</td>
+<td>The layout's <code>{{Header}}/{{Row}}/{{Footer}}</code> template is expanded against the layout's data-source query. Each row the query returns drives a row body; the layout's <em>Rows per label</em> / <em>Maximum labels</em> settings chunk those rows into one or more emitted labels, and each emitted label becomes one or more preview pages. The badge reads <em>Template: %1 label(s)</em>. If a template layout has <strong>no usable data source</strong>, the dialog does not open and the user sees: <em>&quot;Add a data source to the layout to preview its template.&quot;</em></td>
+</tr>
+<tr>
+<td><strong>Variables / VariablesScript layout</strong></td>
+<td><strong>Not supported for preview.</strong> The dialog does not open; the user sees: <em>&quot;Preview supports layouts with definition type 'ZPL' only.&quot;</em></td>
+</tr>
+<tr>
+<td><strong>No active version</strong> (a ZPL layout whose active version yields no ZPL)</td>
+<td>The dialog does not open; the user sees: <em>&quot;Activate a layout version first.&quot;</em></td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-data-source-group-picking-the-record-that-drives-the-output">1.6 The Data source group — picking the record that drives the output</h3>
+<p>The <strong>Data source</strong> group lets the user steer which record the preview renders from.
+It shows, left to right:</p>
+<ul>
+<li>the <strong>seed table label</strong> (read-only text — the display name of the table being
+sourced, e.g. the license-plate label table or container table);</li>
+<li><strong>Record</strong> — a selector (label <em>Record</em>) whose lookup lists records from that seed
+table, most-recent first, showing a friendly title column where one exists. Picking a
+record stores its identity for the next refresh; clearing the field means
+&quot;auto-resolve the most-recent record&quot;;</li>
+<li><strong>Refresh preview</strong> — re-renders the preview using the record currently chosen in the
+selector.</li>
+</ul>
+<p>For <strong>plain ZPL</strong> layouts the chosen record is bound directly, so its field values
+appear in the rendered label. For <strong>template</strong> layouts the chosen record scopes the
+template's row expansion to that record; leaving the selector empty expands the full
+query result, exactly as printing would.</p>
+<p>Pressing <strong>Refresh preview</strong> clears all per-page rotation and re-renders from page 1.</p>
+<h3 id="dynamic-sample-data-the-empty-system-story">1.7 Dynamic sample data — the empty-system story</h3>
+<p>Sample data fills tokens whenever no live data is available:</p>
+<ul>
+<li>When <strong>no live seed record</strong> exists on the seed table, the whole preview is built from
+sample values and the badge reads <em>Sample data</em>.</li>
+<li>When a live record <strong>is</strong> bound but the ZPL references tokens the record cannot fill
+(e.g. qualified tokens for other tables), those individual tokens are filled with
+realistic, type-aware sample values so the label still renders fully populated.</li>
+</ul>
+<p>Sample values are realistic in length and shape — for example identifiers such as
+<code>PO123456</code>, <code>LP000123</code>, <code>A0001</code>, <code>WK000123</code>, a quantity such as <code>12</code>, and dates that
+default to today. This means a brand-new or empty environment can still produce a
+meaningful, fully-populated preview of any ZPL layout.</p>
+<blockquote>
+<p><em>Note:</em> for a template layout that returns <strong>zero rows</strong>, the row-level tokens remain
+unresolved by design (there is no live row to bind, and substituting sample data there
+would corrupt the populated case).</p>
+</blockquote>
+<hr />
+<h2 id="mobile-flow-capture-feature-b">2. Mobile-flow capture (Feature B)</h2>
+<p>Feature B captures ZPL labels that are printed during mobile (RF) work execution and
+attaches a rendered image of each label to the originating Work record. It is <strong>opt-in</strong>
+and <strong>auto-expiring</strong>.</p>
+<h3 id="the-parameter-group">2.1 The parameter group</h3>
+<p>The parameters live on <strong>Warehouse management parameters</strong>
+(<em>Warehouse management &gt; Setup &gt; Warehouse management parameters</em>), on the <strong>Work</strong> tab,
+under the field group captioned <strong>Label preview to attachment</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Field (label)</th>
+<th>Type</th>
+<th>Help / behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Print label preview to work attachment</strong></td>
+<td>Yes/No</td>
+<td>Master toggle. Help text: <em>&quot;When enabled, ZPL labels printed from mobile flows are rendered as images and attached to the related work record. Automatically turns off after the configured number of days. Applies only to ZPL labels that have a related work record.&quot;</em> When switched on, the auto-off timestamp is initialized to <em>now + Auto-off days</em>.</td>
+</tr>
+<tr>
+<td><strong>Label preview attachment turns off</strong></td>
+<td>Date/time (read-only)</td>
+<td>Shows when capture will automatically disable itself.</td>
+</tr>
+<tr>
+<td><strong>Auto-off days</strong></td>
+<td>Integer</td>
+<td>Number of days after enabling before capture turns itself off automatically. Default when unset: <strong>14</strong>.</td>
+</tr>
+<tr>
+<td><strong>Default print density (dots/mm)</strong></td>
+<td>Integer</td>
+<td>Render-density fallback used when the ZPL does not declare its own dimensions. Default when unset: <strong>8</strong> dpmm (203 DPI).</td>
+</tr>
+<tr>
+<td><strong>Default label width (mm)</strong></td>
+<td>Real</td>
+<td>Width fallback used when the ZPL does not declare dimensions. Default when unset: <strong>101.6</strong> mm (4 in).</td>
+</tr>
+<tr>
+<td><strong>Default label height (mm)</strong></td>
+<td>Real</td>
+<td>Height fallback used when the ZPL does not declare dimensions. Default when unset: <strong>50.8</strong> mm (2 in).</td>
+</tr>
+<tr>
+<td><strong>Label preview retention days</strong></td>
+<td>Integer</td>
+<td>Age (in days) after which captured attachments and their staging rows are purged. Default when unset: <strong>30</strong>.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><em>Screenshot: the &quot;Label preview to attachment&quot; group on the Work tab of Warehouse
+management parameters.</em></p>
+</blockquote>
+<p><strong>Auto-off semantics.</strong> Capture is not just a flag — it expires:</p>
+<ul>
+<li>Turning the toggle <strong>on</strong> sets <em>Label preview attachment turns off</em> to now plus the
+<em>Auto-off days</em> window.</li>
+<li>After that timestamp passes, capture stops. The flip-off is <strong>lazy</strong> and happens on
+first access after expiry: the next time either the print hot path or the render batch
+checks the toggle, an expired window flips the toggle back to <strong>No</strong> (under a lock) so
+it no longer captures. In other words, leaving the toggle on indefinitely is safe — it
+self-disables after the configured number of days, whether or not anyone reopens the
+parameters form.</li>
+</ul>
+<h3 id="what-gets-captured-and-what-does-not">2.2 What gets captured — and what does not</h3>
+<p>Capture stages a label <strong>only</strong> when both conditions hold at print time:</p>
+<ol>
+<li>the capture toggle is on (and not expired); and</li>
+<li>the label being printed has a <strong>related Work record</strong> (a non-empty WorkId).</li>
+</ol>
+<p>This deliberately limits capture to ZPL labels that have a Work record to attach to. The
+following are <strong>explicitly NOT captured</strong>:</p>
+<ul>
+<li><strong>Production license-plate labels</strong> (<code>ProdLicensePlateLabelBuild</code>) — built without a
+Work record, so there is no attachment target.</li>
+<li><strong>WorkId-less reprints</strong> — any reprint where the label carries no WorkId.</li>
+<li><strong>Wave labels</strong> — a different print path, out of scope.</li>
+<li><strong>External print-service commands</strong> (<code>ExternalLabelPrintServiceCommand</code>) — these are
+not raw ZPL, so there is nothing to render.</li>
+</ul>
+<p>Capture sits on the universal ZPL print chokepoint, which fires <em>before</em> any batch-print
+diversion — so a label sent to a batched printer is still captured.</p>
+<h3 id="the-staging-batch-attachment-flow">2.3 The staging → batch → attachment flow</h3>
+<p>Capture is asynchronous, so it never slows down the mobile operator:</p>
+<ol>
+<li><strong>Stage.</strong> At print time, each qualifying final ZPL label is written to the
+<strong>Label preview capture staging</strong> buffer with status <strong>Pending</strong>. A per-print hash set
+prevents the same label being staged twice within one print operation. (If the print
+transaction rolls back, its staging row rolls back with it.)</li>
+<li><strong>Render (batch).</strong> The render batch picks up Pending rows, renders each to PNG(s) and
+attaches them to the Work record (see section 2.5).</li>
+<li><strong>Attach.</strong> Each rendered PNG is attached to the Work record as a <em>Label preview</em>
+document (document type <code>LBLPREV</code>), which appears under the Work record's attachments
+(paperclip).</li>
+</ol>
+<p><strong>Where the images land and how they are named.</strong> Attachments are reachable from the
+<strong>Work</strong> record's attachments/paperclip. File names follow the pattern:</p>
+<pre><code>{WorkId}_{LayoutId}_{yyyyMMdd_HHmmss}_{seq}.png
+</code></pre>
+<p>(the timestamp is UTC; the <code>{LayoutId}</code> segment is omitted if the layout id is empty, and
+<code>{seq}</code> is the 1-based label-block number when one ZPL produced several images).</p>
+<h3 id="dedup-on-reprints">2.4 Dedup on reprints</h3>
+<p>Each attachment records the SHA-256 hash of the captured ZPL. Before attaching, the
+render batch checks whether the Work record already carries a <em>Label preview</em> attachment
+with that same hash. If it does, the staging row is completed without attaching a
+duplicate. The practical effect: reprinting an identical label to the same Work record
+does <strong>not</strong> create duplicate images.</p>
+<h3 id="the-render-batch-and-the-purge-batch">2.5 The render batch and the purge batch</h3>
+<p>Both batch jobs are under the standard Warehouse management menu:</p>
+<table>
+<thead>
+<tr>
+<th>Job</th>
+<th>Menu location</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Render captured label previews</strong></td>
+<td><em>Warehouse management &gt; Periodic tasks</em></td>
+<td>Renders Pending staging rows and attaches the images.</td>
+</tr>
+<tr>
+<td><strong>Purge label preview attachments</strong></td>
+<td><em>Warehouse management &gt; Periodic tasks &gt; Clean up</em></td>
+<td>Deletes aged captured attachments and their terminal staging rows.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><em>Screenshot: the Render captured label previews and Purge label preview attachments
+menu items under Warehouse management.</em></p>
+</blockquote>
+<p><strong>Render batch parameters</strong> (on the job's dialog):</p>
+<ul>
+<li><strong>Chunk size</strong> — number of pending captured labels processed per batch pass
+(default <strong>50</strong>).</li>
+<li><strong>Maximum retries</strong> — maximum render attempts before a failing row is marked <em>Poison</em>
+(default <strong>3</strong>).</li>
+</ul>
+<p>Each staging row is processed independently in its own short transaction, so one failing
+label never blocks the rest of the batch. The batch runs across all legal entities, and
+each company's labels are rendered and attached inside that company.</p>
+<p><strong>Purge batch.</strong> The purge job is parameter-driven (it has no dialog of its own for the
+window). It deletes only <em>Label preview</em> (<code>LBLPREV</code>) attachments on Work records and
+<em>Done</em> / <em>Poison</em> staging rows that are older than the <strong>Label preview retention days</strong>
+parameter. It never touches Pending, Processing or Error rows.</p>
+<h3 id="staging-row-statuses">2.6 Staging row statuses</h3>
+<p>A staging row moves through these lifecycle statuses (field label <strong>Status</strong>):</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Pending</strong></td>
+<td>Staged label waiting for the render batch.</td>
+</tr>
+<tr>
+<td><strong>Processing</strong></td>
+<td>Staged label currently being rendered.</td>
+</tr>
+<tr>
+<td><strong>Done</strong></td>
+<td>Staged label rendered and attached — or terminally skipped (e.g. the Work record no longer exists, or a duplicate was deduped).</td>
+</tr>
+<tr>
+<td><strong>Error</strong></td>
+<td>Render/attach failed; the row will be retried on a later pass.</td>
+</tr>
+<tr>
+<td><strong>Poison</strong></td>
+<td>Failed too many times (reached <em>Maximum retries</em>); excluded from future pickup.</td>
+</tr>
+</tbody>
+</table>
+<p>If the target Work record was deleted between capture and render, the row is completed as
+<strong>Done</strong> with the note <em>&quot;The work record no longer exists; the label image was not
+attached.&quot;</em> — it is never marked Error or Poison for this reason.</p>
+<hr />
+<h2 id="security">3. Security</h2>
+<p>The solution ships one duty and two privileges. An administrator must assign the duty
+(or the individual privileges) to the appropriate <strong>roles</strong> — none are assigned to any
+role out of the box.</p>
+<table>
+<thead>
+<tr>
+<th>Object</th>
+<th>Type</th>
+<th>Label</th>
+<th>Grants</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AAXWHSLabelPreviewMaintain</code></td>
+<td>Duty</td>
+<td><strong>Maintain warehouse label preview</strong></td>
+<td>Bundles both privileges below.</td>
+</tr>
+<tr>
+<td><code>AAXWHSLabelPreviewView</code></td>
+<td>Privilege</td>
+<td><strong>Generate label preview</strong></td>
+<td>Access to the on-demand preview action (the <em>Generate label preview</em> button / <code>AAXWHSLabelPreview</code> menu item). Grants Feature A.</td>
+</tr>
+<tr>
+<td><code>AAXWHSLabelCaptureAdminister</code></td>
+<td>Privilege</td>
+<td><strong>Administer label preview capture</strong></td>
+<td>Access to the capture toggle and the two batch jobs (<code>AAXWHSLabelCaptureRender</code> and <code>AAXWHSLabelCapturePurge</code>). Grants the administrative side of Feature B.</td>
+</tr>
+</tbody>
+</table>
+<p>Recommended assignment:</p>
+<ul>
+<li>Give <strong>Maintain warehouse label preview</strong> to warehouse supervisor/administrator roles
+that should both preview layouts and administer capture.</li>
+<li>For users who should only preview layouts (not configure capture), assign just
+<strong>Generate label preview</strong>.</li>
+</ul>
+<hr />
+<h2 id="troubleshooting-for-users">4. Troubleshooting for users</h2>
+<p>The messages below appear as on-screen information or error messages. Each is quoted
+verbatim from the application.</p>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th>When it appears</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>&quot;Preview supports layouts with definition type 'ZPL' only.&quot;</strong></td>
+<td>You pressed <em>Generate label preview</em> on a label layout whose definition type is Variables or VariablesScript.</td>
+<td>Preview is only available for ZPL-type layouts. There is nothing to fix on a Variables layout — it is out of scope for preview.</td>
+</tr>
+<tr>
+<td><strong>&quot;Activate a layout version first.&quot;</strong></td>
+<td>A ZPL layout has no active version (no ZPL to read).</td>
+<td>Activate a version of the layout on the Label layouts form, then try the preview again.</td>
+</tr>
+<tr>
+<td><strong>&quot;Add a data source to the layout to preview its template.&quot;</strong></td>
+<td>A template-translator layout (<em>Enable template translator</em> = Yes) has no usable data-source query to expand.</td>
+<td>Add/configure the layout's data source so the template's rows can be resolved, then preview again.</td>
+</tr>
+<tr>
+<td><strong>&quot;The label could not be rendered: %1&quot;</strong></td>
+<td>The ZPL renderer rejected the label; <code>%1</code> carries the underlying renderer message.</td>
+<td>Check the ZPL for syntax the renderer cannot parse. The trailing detail (<code>%1</code>) usually identifies the offending command. Correct the layout's ZPL and re-preview.</td>
+</tr>
+<tr>
+<td><strong>&quot;The work record no longer exists; the label image was not attached.&quot;</strong></td>
+<td>(Capture/render batch) The Work record was completed, cancelled or purged between capture and rendering.</td>
+<td>Informational. The staging row is closed as <em>Done</em>; no action is needed.</td>
+</tr>
+</tbody>
+</table>
+<p>For captured labels that never appear on a Work record, an administrator should check, in
+order: the capture toggle is on and not expired (<em>Label preview attachment turns off</em>);
+the label actually had a WorkId (production LP labels and WorkId-less reprints are never
+captured); the <strong>Render captured label previews</strong> batch is scheduled and running; and the
+staging rows are not in <strong>Error</strong> or <strong>Poison</strong> status (which would carry an error
+message explaining the render failure).</p>
+
+</body>
+</html>

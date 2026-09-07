@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSItemIdentityResult</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Outcome of one item identity resolution: whether a source hit, the final display value, the
+/// winning source, and the per-source trace lines when trace collection was requested on the
+/// <c>AAXWHSItemIdentityRequest</c>.
+/// </summary>
+public final class AAXWHSItemIdentityResult
+{
+    private boolean                  found;
+    private str                      value;
+    private AAXWHSItemIdentitySource source;
+    private List                     trace;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>parmFound</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets whether a source resolved a value.
+    /// </summary>
+    /// <param name = "_found">True when a source resolved a value.</param>
+    /// <returns>True if a source resolved a value.</returns>
+    public boolean parmFound(boolean _found = found)
+    {
+        found = _found;
+        return found;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the final display value, with the content option and dimension summary of the
+    /// winning line already applied.
+    /// </summary>
+    /// <param name = "_value">The display value.</param>
+    /// <returns>The display value.</returns>
+    public str parmValue(str _value = value)
+    {
+        value = _value;
+        return value;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmSource</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the identity source that resolved the value.
+    /// </summary>
+    /// <param name = "_source">The winning identity source.</param>
+    /// <returns>The winning identity source.</returns>
+    public AAXWHSItemIdentitySource parmSource(AAXWHSItemIdentitySource _source = source)
+    {
+        source = _source;
+        return source;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmTrace</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the per-source trace lines. Only filled when the request asked for trace
+    /// collection; null otherwise.
+    /// </summary>
+    /// <param name = "_trace">A list of trace strings.</param>
+    /// <returns>The list of trace strings, or null when no trace was collected.</returns>
+    public List parmTrace(List _trace = trace)
+    {
+        trace = _trace;
+        return trace;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Constructs a new instance of the <c>AAXWHSItemIdentityResult</c> class.
+    /// </summary>
+    /// <returns>A new <c>AAXWHSItemIdentityResult</c> instance.</returns>
+    public static AAXWHSItemIdentityResult construct()
+    {
+        return new AAXWHSItemIdentityResult();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

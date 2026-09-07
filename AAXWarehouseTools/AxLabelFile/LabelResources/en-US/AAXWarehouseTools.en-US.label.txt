@@ -140,3 +140,141 @@ SizeOverrideHint=Leave off to use the label's own size (4x6 in if it declares no
  ;Hint under the size-override controls in the preview dialog.
 WorkNoLongerExists=The work record no longer exists; the label image was not attached.
  ;Staging note when the target work was deleted before the render batch ran.
+IdentityAccount=Account
+ ;Customer or vendor account input on the Test resolution dialog.
+IdentityAppendDims=Append dimension summary
+ ;Profile line option that suffixes the active product dimension values, for example '- Red / L'.
+IdentityCacheGroup=Caching
+ ;Group caption for the cache settings on the parameters form.
+IdentityCacheTtl=Cache duration (minutes)
+ ;How long resolved identity values are cached before re-resolution.
+IdentityDefaultLabel=Default label
+ ;Label shown for the identity line on the device unless a menu item overrides it.
+IdentityDefaultLabelValue=Item identity
+ ;Shipped default text of the identity line label on the device.
+IdentityDisplayGroup=Display
+ ;Group caption for the display settings on the parameters form.
+IdentityDutyMaintain=Maintain item identity configuration
+ ;Security duty bundling the item identity maintenance privilege.
+IdentityEnabled=Enable item identity display
+ ;Master switch; when off, mobile steps render standard pages only.
+IdentityEnabledHelp=When enabled, configured mobile device menu items show one read-only item identity line resolved through the assigned profile.
+ ;Help text for the enable toggle.
+IdentityEntityMenuItemSetting=Item identity menu item settings
+ ;Data entity for the per menu item settings.
+IdentityEntityParameters=Item identity parameters
+ ;Data entity for the feature parameters.
+IdentityEntityProfile=Item identity profiles
+ ;Data entity for profile headers.
+IdentityEntityProfileLine=Item identity profile lines
+ ;Data entity for profile source lines.
+IdentityExtContent=External item content
+ ;What to show when the external item number resolves.
+IdentityExtContentDefault=Parameter default
+ ;Profile line option: use the content choice from the parameters.
+IdentityExtContentDescription=Description
+ ;Show the external item description only.
+IdentityExtContentId=Identifier
+ ;Show the external item identifier only.
+IdentityExtContentIdAndDescription=Identifier and description
+ ;Show the external item identifier followed by its description.
+IdentityFallbackBehavior=Fallback behavior
+ ;What the identity line does when no source resolves.
+IdentityFallbackFixedText=Fixed text
+ ;Show a configured fixed text when no source resolves.
+IdentityFallbackGroup=Fallback
+ ;Group caption for the fallback settings on the parameters form.
+IdentityFallbackHide=Hide
+ ;Omit the identity line when no source resolves.
+IdentityFallbackItemNumber=Item number
+ ;Show the item number when no source resolves.
+IdentityFallbackText=Fallback text
+ ;Fixed text shown when fallback behavior is Fixed text.
+IdentityFeature=Item identity display
+ ;Feature area name used on setup surfaces.
+IdentityGeneralGroup=General
+ ;Group caption for the general settings.
+IdentityLabelOverride=Label override
+ ;Menu item specific label for the identity line; blank uses the parameter default.
+IdentityMenuItem=Mobile device menu item
+ ;The mobile device menu item this setting applies to.
+IdentityMenuItemButton=Item identity
+ ;Action pane button on Mobile device menu items opening the item identity settings.
+IdentityMenuItemSettingsForm=Item identity menu item settings
+ ;Form and menu item label for the menu item assignments.
+IdentityParametersForm=Item identity parameters
+ ;Form and menu item label for the feature parameters.
+IdentityPartnerContext=Partner context
+ ;Partner family derived from the menu item's flow; customer for sales picking, vendor for purchase receiving.
+IdentityPartnerCustomer=Customer
+ ;Partner context resolved from the sales order invoice account.
+IdentityPartnerNone=None
+ ;No partner context; partner-dependent sources are skipped.
+IdentityPartnerVendor=Vendor
+ ;Partner context resolved from the purchase order invoice account.
+IdentityPrivEntityMenuItemSetting=Maintain item identity menu item settings entity
+ ;Security privilege granting data management access to the menu item settings entity.
+IdentityPrivEntityParameters=Maintain item identity parameters entity
+ ;Security privilege granting data management access to the parameters entity.
+IdentityPrivEntityProfile=Maintain item identity profiles entity
+ ;Security privilege granting data management access to the profile entity.
+IdentityPrivEntityProfileLine=Maintain item identity profile lines entity
+ ;Security privilege granting data management access to the profile line entity.
+IdentityPrivMaintain=Maintain item identity configuration
+ ;Security privilege for the item identity setup forms and test action.
+IdentityProfile=Profile
+ ;Identity resolution profile; ordered sources, first hit wins.
+IdentityProfileLinesGroup=Sources
+ ;Grid caption for the ordered source lines of a profile.
+IdentityProfilesForm=Item identity profiles
+ ;Form and menu item label for the resolution profiles.
+IdentityProfileVersion=Profile version
+ ;Stamp bumped on every profile edit; part of the cache key.
+IdentitySequence=Sequence
+ ;Order in which the profile tries this source.
+IdentitySetupWarnPartner=The profile contains only partner-dependent sources, but menu item %1 derives no partner context; the identity line will always use the fallback.
+ ;Setup warning on menu item settings.
+IdentitySource=Source
+ ;Identity source this profile line resolves.
+IdentitySourceExternalItem=External item number
+ ;Customer or vendor external item number for the flow's partner.
+IdentitySourceGtin=GTIN
+ ;GTIN registered for the item and its product dimensions.
+IdentitySourceItemBarcode=Item barcode
+ ;Barcode registered for the item and its product dimensions.
+IdentitySourceItemNumber=Item number
+ ;The released product number; always resolves.
+IdentitySourceSearchName=Search name
+ ;The released product's search name when not empty.
+IdentitySourceVariantName=Variant product name
+ ;Translated product name of the distinct product variant.
+IdentityTableMenuItemSetting=Item identity menu item setting
+ ;Table label for the per menu item identity settings.
+IdentityTableParameters=Item identity parameters
+ ;Table label for the feature parameters.
+IdentityTableProfile=Item identity profile
+ ;Table label for the resolution profile header.
+IdentityTableProfileLine=Item identity profile line
+ ;Table label for the ordered source lines.
+IdentityTestHit=%1 - resolved: %2
+ ;Test resolution output line for the first source that resolved; %1 = source, %2 = value.
+IdentityTestMiss=%1 - no value (%2)
+ ;Test resolution output line for a source that did not resolve; %1 = source, %2 = reason.
+IdentityTestNoHit=No source resolved; the device line would follow the fallback behavior.
+ ;Test resolution summary when the whole chain misses.
+IdentityTestProductDimensions=Product dimension number
+ ;Optional inventory dimension id supplying the product dimensions for the test.
+IdentityTestResolution=Test resolution
+ ;Action that resolves a sample item against a profile and lists each source's outcome.
+IdentityTestResult=Winning source: %1. Value: %2
+ ;Test resolution summary line for a successful resolution.
+IdentityResolutionMode=Resolution mode
+ ;How the profile combines its sources: the first hit wins, or every hit is concatenated.
+IdentityResolutionModeConcatenate=Concatenate
+ ;Every source that resolves contributes; the values are joined with the separator.
+IdentityResolutionModeFirstHit=First hit
+ ;The first source that resolves supplies the value; later lines are skipped.
+IdentitySeparator=Separator
+ ;Text placed between concatenated values.
+IdentitySetupWarnDuplicateSource=Source %1 is already used on sequence %2 of this profile; a repeated source never adds a different value.
+ ;Setup warning on profile lines.

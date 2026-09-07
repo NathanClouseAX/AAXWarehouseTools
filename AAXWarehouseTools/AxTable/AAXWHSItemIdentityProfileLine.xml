@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSItemIdentityProfileLine</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// One prioritized identity source within an item identity profile. The resolver walks the
+/// lines of a profile in sequence order and stops at the first source that yields a value.
+/// </summary>
+public class AAXWHSItemIdentityProfileLine extends common
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>insert</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Inserts the line and bumps the parent profile version so cached resolutions become
+    /// stale.
+    /// </summary>
+    public void insert()
+    {
+        // Default a blank sequence
+        if (!this.LineNum)
+        {
+            this.LineNum = AAXWHSItemIdentityProfileLine::nextLineNum(this.ProfileId);
+        }
+
+        super();
+
+        AAXWHSItemIdentityProfile::bumpVersion(this.ProfileId);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>initValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Initializes a new line with the next free sequence number of its profile.
+    /// </summary>
+    public void initValue()
+    {
+        super();
+
+        if (this.ProfileId)
+        {
+            this.LineNum = AAXWHSItemIdentityProfileLine::nextLineNum(this.ProfileId);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>nextLineNum</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the next free sequence number of a profile, in steps of ten.
+    /// </summary>
+    /// <param name = "_profileId">The profile.</param>
+    /// <returns>The highest existing sequence number plus ten, or ten for an empty profile.</returns>
+    public static LineNum nextLineNum(AAXWHSItemIdentityProfileId _profileId)
+    {
+        AAXWHSItemIdentityProfileLine profileLine;
+
+        select firstonly maxof(LineNum) from profileLine
+            where profileLine.ProfileId == _profileId;
+
+        return profileLine.LineNum + 10;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateWrite</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Validates the line and warns when another line of the profile already uses the same source.
+    /// </summary>
+    /// <returns>True if the record is valid; otherwise, false.</returns>
+    public boolean validateWrite()
+    {
+        boolean ret = super();
+
+        if (ret)
+        {
+            AAXWHSItemIdentityProfileLine sameSourceLine;
+
+            select firstonly RecId, LineNum from sameSourceLine
+                order by LineNum
+                where sameSourceLine.ProfileId == this.ProfileId
+                   && sameSourceLine.Source    == this.Source
+                   && sameSourceLine.RecId     != this.RecId;
+
+            // Warn only
+            if (sameSourceLine.RecId != 0)
+            {
+                warning(strFmt("@AAXWarehouseTools:IdentitySetupWarnDuplicateSource", enum2Str(this.Source), num2Str(sameSourceLine.LineNum, 0, 0, 1, 0)));
+            }
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>update</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Updates the line and bumps the parent profile version so cached resolutions become
+    /// stale.
+    /// </summary>
+    public void update()
+    {
+        super();
+
+        AAXWHSItemIdentityProfile::bumpVersion(this.ProfileId);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>delete</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Deletes the line and bumps the version of the profile it belonged to, so cached
+    /// resolutions become stale.
+    /// </summary>
+    public void delete()
+    {
+        // Capture before super() removes the record
+        AAXWHSItemIdentityProfileId origProfileId = this.orig().ProfileId;
+
+        super();
+
+        AAXWHSItemIdentityProfile::bumpVersion(origProfileId);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+	<DeveloperDocumentation>@AAXWarehouseTools:IdentityTableProfileLine</DeveloperDocumentation>
+	<Label>@AAXWarehouseTools:IdentityTableProfileLine</Label>
+	<TableGroup>Main</TableGroup>
+	<TitleField1>ProfileId</TitleField1>
+	<TitleField2>LineNum</TitleField2>
+	<AllowRowVersionChangeTracking>Yes</AllowRowVersionChangeTracking>
+	<CacheLookup>Found</CacheLookup>
+	<ClusteredIndex>ProfileLineIdx</ClusteredIndex>
+	<PrimaryIndex>ProfileLineIdx</PrimaryIndex>
+	<ReplacementKey>ProfileLineIdx</ReplacementKey>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>ProfileId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>LineNum</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Source</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>ProfileId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>LineNum</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>ProfileId</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>AAXWHSItemIdentityProfileId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldReal">
+			<Name>LineNum</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>LineNum</ExtendedDataType>
+			<Label>@AAXWarehouseTools:IdentitySequence</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>Source</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<Label>@AAXWarehouseTools:IdentitySource</Label>
+			<EnumType>AAXWHSItemIdentitySource</EnumType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>ExtContent</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<Label>@AAXWarehouseTools:IdentityExtContent</Label>
+			<EnumType>AAXWHSItemIdentityExtContent</EnumType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>AppendDimensionSummary</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>NoYesId</ExtendedDataType>
+			<Label>@AAXWarehouseTools:IdentityAppendDims</Label>
+			<EnumType>NoYes</EnumType>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>ProfileLineIdx</Name>
+			<AlternateKey>Yes</AlternateKey>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>ProfileId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>LineNum</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<Relations>
+		<AxTableRelation>
+			<Name>AAXWHSItemIdentityProfile</Name>
+			<Cardinality>ZeroMore</Cardinality>
+			<RelatedTable>AAXWHSItemIdentityProfile</RelatedTable>
+			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
+			<RelationshipType>Composition</RelationshipType>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>ProfileId</Name>
+					<SourceEDT>AAXWHSItemIdentityProfileId</SourceEDT>
+					<Field>ProfileId</Field>
+					<RelatedField>ProfileId</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+		</AxTableRelation>
+	</Relations>
+	<StateMachines />
+</AxTable>

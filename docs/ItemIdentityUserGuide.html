@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AAX Warehouse Tools — Item Identity Display User Guide</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="aax-warehouse-tools-item-identity-display-user-guide">AAX Warehouse Tools — Item Identity Display User Guide</h1>
+<p>This guide is for the people who see the feature day to day: warehouse workers on the mobile app, and the power users who keep the configuration healthy. For first-time configuration, start with the <a href="ItemIdentitySetup.html">setup guide</a>.</p>
+<h2 id="what-you-see-on-the-device">1. What you see on the device</h2>
+<p>On configured screens, one extra read-only line appears with the other item information:</p>
+<pre><code>Item:            A0001
+Item identity:   L102
+Qty:             12 ea
+</code></pre>
+<ul>
+<li>The <strong>caption</strong> (<em>Item identity</em> by default) is set by your administrator and can differ per menu item — sites often rename it to what it shows, such as <em>Customer item no.</em> or <em>Variant</em>.</li>
+<li>The <strong>value</strong> is the first identity that resolves from the configured chain — typically the trading partner's item number or the variant's product name. With the dimension-summary option on, the variant values are appended: <code>L102 - Black / M</code>.</li>
+<li>The line is <strong>display only</strong>. You cannot type into it, it is never a scan target, and it never stops you from completing a step.</li>
+</ul>
+<h2 id="where-it-appears">2. Where it appears</h2>
+<table>
+<thead>
+<tr>
+<th>Screen</th>
+<th>The value is resolved for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Picking work — pick and put screens (including the target license plate screens)</td>
+<td>The customer on the sales order, when the work is sales work</td>
+</tr>
+<tr>
+<td>Purchase order line receiving — item/quantity confirmation</td>
+<td>The vendor on the purchase order</td>
+</tr>
+<tr>
+<td>Purchase order item receiving — item/quantity confirmation</td>
+<td>The vendor on the purchase order</td>
+</tr>
+<tr>
+<td>Load item receiving</td>
+<td>The vendor, when the load line comes from a purchase order</td>
+</tr>
+</tbody>
+</table>
+<p>Only menu items your administrator has configured show the line. Two workers on the same flow can see different captions (label override) but the same value.</p>
+<h2 id="what-the-value-can-be">3. What the value can be</h2>
+<p>The administrator defines an ordered chain. Normally the first source with a value wins; a profile can instead be set to <em>concatenate</em>, in which case every source that has a value appears, joined by a separator (for example <code>L102 | Golf Shirt - Black / M</code>). The sources are:</p>
+<ol>
+<li><strong>External item number</strong> — what <em>this</em> customer or vendor calls the item. Different partners see their own numbers.</li>
+<li><strong>Variant product name</strong> — the variant's name in your session language (&quot;Golf Shirt - Midnight Black / M&quot; instead of a bare code).</li>
+<li><strong>GTIN</strong> — the variant's registered GTIN.</li>
+<li><strong>Item barcode</strong> — a registered barcode for the variant.</li>
+<li><strong>Search name</strong> — the released product's search name.</li>
+<li><strong>Item number</strong> — the plain released product number.</li>
+</ol>
+<h2 id="when-the-line-is-absent">4. When the line is absent</h2>
+<p>An absent line is normal in three situations:</p>
+<ul>
+<li>The menu item is not configured for item identity (most screens, by design).</li>
+<li>Nothing in the chain resolved and the fallback is <em>Hide</em> — for example, external-number-only sites picking an item this customer has no number for.</li>
+<li>The item is not known yet on the current screen (the line appears once the item is identified).</li>
+</ul>
+<p>If the site prefers, the administrator can configure the fallback to show the item number or a fixed text instead of hiding.</p>
+<h2 id="checking-a-value-without-a-device-test-resolution">5. Checking a value without a device — Test resolution</h2>
+<p>Power users can replay the exact resolution from the rich client:</p>
+<ol>
+<li>Open <strong>Warehouse management &gt; Setup &gt; Mobile device &gt; Item identity profiles</strong>, select the profile, and choose <strong>Test resolution</strong>.</li>
+<li>Enter the item, optionally the product dimension number for a specific variant, and the partner the flow would supply — pick the context first, and the account lookup offers the matching customers or vendors (the field is disabled while the context is <em>None</em>).</li>
+<li>Run. The log lists every source in chain order:</li>
+</ol>
+<pre><code>External item number - no value (no external item record)
+Variant product name - resolved: Golf Shirt - Midnight Black / M
+Winning source: Variant product name. Value: Golf Shirt - Midnight Black / M
+</code></pre>
+<p>The device shows exactly this winning value for the same inputs. Test resolution always resolves fresh (no cache), so it also answers &quot;why does the device still show the old value&quot; — see the next section.</p>
+<h2 id="troubleshooting">6. Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The line never appears anywhere</td>
+<td><strong>Item identity parameters</strong> — is <em>Enable item identity display</em> on?</td>
+</tr>
+<tr>
+<td>The line is missing on one menu item</td>
+<td><strong>Item identity menu item settings</strong> — does the menu item have a row, and is it <em>Enabled</em> with a profile? Is the fallback <em>Hide</em> while nothing resolves (run Test resolution to see the per-source misses)?</td>
+</tr>
+<tr>
+<td>The line shows the item number instead of the expected identity</td>
+<td>The expected source missed — Test resolution shows why (no external item record for <em>that</em> partner, item has no product dimensions, empty search name, …). Also check the chain order: an earlier source may be winning.</td>
+</tr>
+<tr>
+<td>The external item number never shows</td>
+<td>External numbers need a partner. Movement-style flows have none, and non-sales work resolves without a customer — the source is skipped there by design. On picking, confirm the work belongs to a sales order.</td>
+</tr>
+<tr>
+<td>A new GTIN / external number / renamed variant does not show yet</td>
+<td>Resolved values are cached (default 30 minutes). Wait out the cache duration, or make any edit to the profile — that takes effect immediately.</td>
+</tr>
+<tr>
+<td>The line sits in the wrong place on the screen</td>
+<td>Placement is standard <strong>Warehouse app field priority</strong> setup, not AAX configuration — move the <strong>Item identity</strong> field there.</td>
+</tr>
+<tr>
+<td>The caption is wrong on one menu item</td>
+<td>That menu item has a <strong>Label override</strong> in its setting row.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="performance">7. Performance</h2>
+<p>Resolution runs on the server during the normal screen build and is cached per item, variant, partner, and language. On a warm cache the added cost per screen is negligible; even the first (cold) resolution is a handful of indexed lookups. If a site ever suspects the feature in a slow step, disabling the menu item's setting row is an instant, zero-deployment way to test — the screen renders standard again on the next request.</p>
+
+</body>
+</html>

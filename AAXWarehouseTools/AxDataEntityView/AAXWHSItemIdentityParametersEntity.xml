@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxDataEntityView xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSItemIdentityParametersEntity</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Data entity for the item identity display parameters.
+/// </summary>
+[OfficeMenuOmit]
+public class AAXWHSItemIdentityParametersEntity extends common
+{
+}
+]]></Declaration>
+		<Methods />
+	</SourceCode>
+	<DeveloperDocumentation>@AAXWarehouseTools:IdentityEntityParameters</DeveloperDocumentation>
+	<FormRef>AAXWHSItemIdentityParameters</FormRef>
+	<Label>@AAXWarehouseTools:IdentityEntityParameters</Label>
+	<Tags>Warehouse setup</Tags>
+	<AllowRowVersionChangeTracking>Yes</AllowRowVersionChangeTracking>
+	<DataManagementEnabled>Yes</DataManagementEnabled>
+	<DataManagementStagingTable>AAXWHSItemIdentityParametersStaging</DataManagementStagingTable>
+	<EntityCategory>Parameters</EntityCategory>
+	<IsPublic>Yes</IsPublic>
+	<Modules>WMS</Modules>
+	<PrimaryCompanyContext>DataAreaId</PrimaryCompanyContext>
+	<PrimaryKey>EntityKey</PrimaryKey>
+	<PublicCollectionName>AAXItemIdentityParameters</PublicCollectionName>
+	<PublicEntityName>AAXItemIdentityParameter</PublicEntityName>
+	<SupportsSetBasedSqlOperations>Yes</SupportsSetBasedSqlOperations>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>Key</Name>
+			<AccessModifier>Private</AccessModifier>
+			<DataField>Key</DataField>
+			<DataSource>AAXWHSItemIdentityParameters</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>Enabled</Name>
+			<DataField>Enabled</DataField>
+			<DataSource>AAXWHSItemIdentityParameters</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>DefaultLabel</Name>
+			<DataField>DefaultLabel</DataField>
+			<DataSource>AAXWHSItemIdentityParameters</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FallbackBehavior</Name>
+			<DataField>FallbackBehavior</DataField>
+			<DataSource>AAXWHSItemIdentityParameters</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FallbackText</Name>
+			<DataField>FallbackText</DataField>
+			<DataSource>AAXWHSItemIdentityParameters</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>CacheTtlMinutes</Name>
+			<DataField>CacheTtlMinutes</DataField>
+			<DataSource>AAXWHSItemIdentityParameters</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ExtContentDefault</Name>
+			<DataField>ExtContentDefault</DataField>
+			<DataSource>AAXWHSItemIdentityParameters</DataSource>
+		</AxDataEntityViewField>
+	</Fields>
+	<Keys>
+		<AxDataEntityViewKey>
+			<Name>EntityKey</Name>
+			<Fields>
+				<AxDataEntityViewKeyField>
+					<DataField>dataAreaId</DataField>
+				</AxDataEntityViewKeyField>
+			</Fields>
+		</AxDataEntityViewKey>
+	</Keys>
+	<Mappings />
+	<Ranges />
+	<Relations />
+	<StateMachines />
+	<ViewMetadata>
+		<Name>Metadata</Name>
+		<SourceCode>
+			<Methods>
+				<Method>
+					<Name>classDeclaration</Name>
+					<Source><![CDATA[
+[Query]
+public class Metadata extends QueryRun
+{
+}
+]]></Source>
+				</Method>
+			</Methods>
+		</SourceCode>
+		<DataSources>
+			<AxQuerySimpleRootDataSource>
+				<Name>AAXWHSItemIdentityParameters</Name>
+				<DynamicFields>Yes</DynamicFields>
+				<Table>AAXWHSItemIdentityParameters</Table>
+				<DataSources />
+				<DerivedDataSources />
+				<Fields />
+				<Ranges />
+				<GroupBy />
+				<Having />
+				<OrderBy />
+			</AxQuerySimpleRootDataSource>
+		</DataSources>
+	</ViewMetadata>
+</AxDataEntityView>

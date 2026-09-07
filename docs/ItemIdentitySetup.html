@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AAX Warehouse Tools — Item Identity Display Setup Guide</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="aax-warehouse-tools-item-identity-display-setup-guide">AAX Warehouse Tools — Item Identity Display Setup Guide</h1>
+<p>This guide is for the implementer configuring the <strong>item identity line</strong>: a single read-only line on Warehouse Management mobile app screens that shows the identity your warehouse actually works with — a customer or vendor external item number, the variant's product name, a GTIN, an item barcode, or the search name — instead of only the released product number.</p>
+<p>The feature is entirely configuration-driven and dormant until configured. With the feature disabled, or on menu items without a setting, the app renders standard pages with no change.</p>
+<h2 id="prerequisites">1. Prerequisites</h2>
+<ul>
+<li>The AAXWarehouseTools model is deployed and the database has been synchronized (four new tables are created by sync).</li>
+<li>After deployment, restart the AOS once so the new label texts load.</li>
+<li>Your user has the <strong>Maintain item identity configuration</strong> duty (see <a href="#7-security">Security</a>) or system administrator rights.</li>
+</ul>
+<blockquote>
+<p><strong>First deployment or &quot;nothing shows&quot;?</strong> Follow the <a href="ItemIdentitySmokeTest.html">smoke test and diagnostics</a> — a fixed configuration that proves the line renders before you design real profiles, with a diagnostic ladder for each failure layer. Note that all configuration is <strong>per legal entity</strong>: configure in the company the device session runs in.</p>
+</blockquote>
+<h2 id="setup-at-a-glance">2. Setup at a glance</h2>
+<ol>
+<li>Turn the feature on and choose defaults — <strong>Item identity parameters</strong>.</li>
+<li>Define one or more resolution profiles — <strong>Item identity profiles</strong>.</li>
+<li>Assign a profile to each mobile device menu item that should show the line — <strong>Item identity menu item settings</strong>.</li>
+<li>Place the line on the screen — standard <strong>Warehouse app field priority</strong> (and optionally promoted fields).</li>
+</ol>
+<p>All three setup forms are under <strong>Warehouse management &gt; Setup &gt; Mobile device</strong>.</p>
+<h2 id="item-identity-parameters">3. Item identity parameters</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Enable item identity display</strong></td>
+<td>Master switch. Off = every mobile screen is standard, byte for byte.</td>
+</tr>
+<tr>
+<td><strong>Default label</strong></td>
+<td>Caption of the identity line on the device. Ships as <em>Item identity</em>; each menu item can override it.</td>
+</tr>
+<tr>
+<td><strong>Fallback behavior</strong></td>
+<td>What the line does when no source in the profile resolves: <strong>Hide</strong> (default — the line is simply absent), <strong>Item number</strong> (show the released product number), or <strong>Fixed text</strong>.</td>
+</tr>
+<tr>
+<td><strong>Fallback text</strong></td>
+<td>The text shown when Fallback behavior is <em>Fixed text</em>.</td>
+</tr>
+<tr>
+<td><strong>External item content</strong></td>
+<td>What an external item number resolves to: <strong>Identifier</strong> (default), <strong>Description</strong>, or <strong>Identifier and description</strong>. Profile lines can override this per source.</td>
+</tr>
+<tr>
+<td><strong>Cache duration (minutes)</strong></td>
+<td>How long a resolved value is reused before it is looked up again. Default 30. <code>0</code> disables caching (every screen render resolves fresh — not recommended on busy sites).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="item-identity-profiles">4. Item identity profiles</h2>
+<p>A profile is an ordered list of identity sources. At render time the resolver walks the lines in sequence; what happens on a hit depends on the profile's <strong>Resolution mode</strong>:</p>
+<ul>
+<li><strong>First hit</strong> (default) — the first source that returns a value supplies the line; later lines are skipped.</li>
+<li><strong>Concatenate</strong> — every source that returns a value contributes, and the values are joined with the profile's <strong>Separator</strong> (ships as <code>|</code>), for example <code>L102 | Golf Shirt - Black / M</code>. The fallback still applies only when <em>no</em> source resolves.</li>
+</ul>
+<p>New lines get their <strong>Sequence</strong> automatically (the highest existing sequence plus ten, so lines can be inserted between existing ones); overtype it to reorder. Using the same source on two lines raises a warning on save — it is allowed, but a repeated source never adds a different value.</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Returns</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>External item number</strong></td>
+<td>The trading partner's item number for this item and variant</td>
+<td>Resolved with partner context: the customer on sales picking, the vendor on purchase receiving. Follows the standard precedence — an account-specific record beats an item-group record, and an exact variant match beats an item-level record. Skipped entirely on flows without a partner.</td>
+</tr>
+<tr>
+<td><strong>Variant product name</strong></td>
+<td>The distinct product variant's product name, translated to the worker's language</td>
+<td>Falls back to the product master's translation, then the released product name. Skipped when the item has no product dimensions (the master name would duplicate the item line).</td>
+</tr>
+<tr>
+<td><strong>GTIN</strong></td>
+<td>The GTIN registered for the item and variant</td>
+<td>A unit-blank registration is preferred over unit-specific ones.</td>
+</tr>
+<tr>
+<td><strong>Item barcode</strong></td>
+<td>A barcode registered for the item and variant</td>
+<td>A scanning-enabled barcode is preferred.</td>
+</tr>
+<tr>
+<td><strong>Search name</strong></td>
+<td>The released product's search name</td>
+<td>Skipped when empty.</td>
+</tr>
+<tr>
+<td><strong>Item number</strong></td>
+<td>The released product number</td>
+<td>Always resolves — use it as the last line when you want the line always filled.</td>
+</tr>
+</tbody>
+</table>
+<p>Per line you can also set:</p>
+<ul>
+<li><strong>External item content</strong> — override the parameter default for this profile's external item number line.</li>
+<li><strong>Append dimension summary</strong> — suffix the active product dimension values to the resolved value, for example <code>L102 - Black / M</code>.</li>
+</ul>
+<p><strong>Profile version</strong> is stamped automatically: any edit to the profile or its lines bumps it, which immediately invalidates cached values for that profile. You never maintain it by hand.</p>
+<h3 id="recommended-starting-profile">Recommended starting profile</h3>
+<table>
+<thead>
+<tr>
+<th>Sequence</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>External item number</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Variant product name</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Item number</td>
+</tr>
+</tbody>
+</table>
+<p>The partner-specific number is the most operative identity when it exists; variant-only sites still get the variant name because the external lookup simply misses; the item number guarantees the line is never empty. Pair it with Fallback behavior <em>Hide</em> if you prefer the line to disappear instead when nothing better than the item number exists — then drop line 3.</p>
+<h2 id="item-identity-menu-item-settings">5. Item identity menu item settings</h2>
+<p>Assign profiles to mobile device menu items either from <strong>Item identity menu item settings</strong> directly, or from <strong>Mobile device menu items</strong> via the <strong>Item identity</strong> button (which opens the settings filtered to the selected menu item).</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mobile device menu item</strong></td>
+<td>The menu item the setting applies to. One setting per menu item.</td>
+</tr>
+<tr>
+<td><strong>Enabled</strong></td>
+<td>Turns the line on or off for this menu item without deleting the row.</td>
+</tr>
+<tr>
+<td><strong>Profile</strong></td>
+<td>The resolution profile to use.</td>
+</tr>
+<tr>
+<td><strong>Label override</strong></td>
+<td>Menu-item-specific caption; blank uses the parameter default.</td>
+</tr>
+<tr>
+<td><strong>Partner context</strong></td>
+<td>Read-only, derived from the menu item's flow: <strong>Vendor</strong> for purchase order line/item receiving, <strong>Customer</strong> for work execution (picking), <strong>None</strong> otherwise.</td>
+</tr>
+</tbody>
+</table>
+<p>If you assign a profile whose only source is <em>External item number</em> to a menu item with no partner context, the form warns you — that combination can never resolve and the line will always follow the fallback. The save still goes through.</p>
+<h3 id="where-the-line-can-appear">Where the line can appear</h3>
+<p>The line is injected into these screens when their menu item has an enabled setting:</p>
+<ul>
+<li><strong>Work execution</strong> (user directed, system directed, cluster picking, grouping, pick and pack, work list) — the <strong>pick</strong> and <strong>put</strong> screens, including the screens that carry the target license plate prompt. Partner context is the <strong>customer</strong> from the sales order's invoice account when the work is sales work; other work types resolve without a partner (the external item number source is skipped, everything else works).</li>
+<li><strong>Purchase order line receiving</strong> and <strong>purchase order item receiving</strong> (including the <em>and locate</em> variants) — the item/quantity confirmation screens, with the <strong>vendor</strong> from the purchase order's invoice account.</li>
+<li><strong>Load item receiving</strong> — with the vendor when the load line traces to a purchase order.</li>
+</ul>
+<p>Configuring any other menu item type (movement, counting, inquiries, …) has no effect in this version.</p>
+<h2 id="placing-the-line-warehouse-app-field-priority">6. Placing the line — Warehouse app field priority</h2>
+<p>The identity line participates in the standard <strong>Warehouse app field priority</strong> mechanism.</p>
+<ol>
+<li>Open <strong>Warehouse management &gt; Setup &gt; Mobile device &gt; Warehouse app field priority</strong>. Opening the form registers the <strong>Item identity</strong> field automatically — no extra step.</li>
+<li>Find <strong>Item identity</strong> in the field list and assign it to the priority group directly below the Item field (its shipped default priority already places it near the item description).</li>
+<li>To make the line prominent on a specific step (large font, top of screen), promote it with the standard <strong>step instructions / promoted fields</strong> feature — no AAX setup involved.</li>
+</ol>
+<h2 id="security">7. Security</h2>
+<table>
+<thead>
+<tr>
+<th>Element</th>
+<th>Grants</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Duty <strong>Maintain item identity configuration</strong></td>
+<td>The three setup forms, the Test resolution action, and data management access to the four entities below. Assign it to your warehouse-manager-class roles.</td>
+</tr>
+<tr>
+<td>Privilege <strong>Maintain item identity configuration</strong></td>
+<td>Included in the duty; use it directly for finer-grained role design.</td>
+</tr>
+<tr>
+<td>Privileges <strong>…EntityMaintain</strong> (four)</td>
+<td>Data management (DMF) access per entity, included in the duty.</td>
+</tr>
+</tbody>
+</table>
+<p>Warehouse workers need <strong>no additional access</strong> — resolution and display ride on the worker's existing mobile-flow permissions.</p>
+<h2 id="moving-configuration-between-environments">8. Moving configuration between environments</h2>
+<p>Four data management entities carry the whole setup:</p>
+<table>
+<thead>
+<tr>
+<th>Entity</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Item identity parameters</strong></td>
+<td>The parameter record</td>
+</tr>
+<tr>
+<td><strong>Item identity profiles</strong></td>
+<td>Profile headers</td>
+</tr>
+<tr>
+<td><strong>Item identity profile lines</strong></td>
+<td>The ordered source lines</td>
+</tr>
+<tr>
+<td><strong>Item identity menu item settings</strong></td>
+<td>The menu item assignments</td>
+</tr>
+</tbody>
+</table>
+<p>Import order matters: <strong>profiles before profile lines and before menu item settings</strong> (both reference the profile). Parameters can load any time. Profile versions are re-stamped on import; caches on the target start cold.</p>
+<h2 id="verifying-a-profile-test-resolution">9. Verifying a profile — Test resolution</h2>
+<p>On <strong>Item identity profiles</strong>, the <strong>Test resolution</strong> action resolves a sample request without a device and lists every source in order with its outcome:</p>
+<ul>
+<li>Enter an <strong>Item number</strong>, optionally a <strong>Product dimension number</strong> (an inventory dimension number carrying the variant's product dimensions), a <strong>Partner context</strong> and <strong>Account</strong>, and the <strong>Profile</strong> (defaulted from the selected profile). The <strong>Account</strong> lookup follows the partner context — it lists customers for <em>Customer</em>, vendors for <em>Vendor</em>, and the field is disabled while the context is <em>None</em>.</li>
+<li>The output shows one line per source — resolved value or the miss reason — followed by the winning source and value. This is exactly what the device would show, except Test resolution always bypasses the cache.</li>
+</ul>
+<h2 id="behavior-guarantees">10. Behavior guarantees</h2>
+<ul>
+<li><strong>Non-intrusive</strong>: feature off or menu item unconfigured means unchanged standard screens; no standard table gets AAX data.</li>
+<li><strong>Never blocks the flow</strong>: the line is read-only, is ignored by input-completeness logic, and every resolution error is swallowed — the worst case is an absent line.</li>
+<li><strong>Caching</strong>: resolved values are cached per item, variant, partner, profile version, and language for the configured duration. Editing a profile takes effect immediately (the version bump invalidates the cache); master-data changes (a new GTIN, a new external item number) appear when the cache entry expires — or immediately after you touch the profile.</li>
+</ul>
+
+</body>
+</html>

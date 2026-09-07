@@ -1,0 +1,653 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSItemIdentityResolver</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Resolves an item identity by walking the ordered source lines of a profile. Source lookups
+/// are isolated so a failure counts as a miss, and a resolver failure returns a not-found result.
+/// </summary>
+public final class AAXWHSItemIdentityResolver
+{
+    private List    traceLines;
+    private boolean collectTrace;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>resolve</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Resolves the request through its profile chain; the first line that yields a value wins.
+    /// When the request allows caching, a cached outcome is served first and the final outcome,
+    /// found or not, is stored for the parameter TTL.
+    /// </summary>
+    /// <param name = "_request">The resolution request.</param>
+    /// <returns>The resolution outcome; <c>parmFound</c> is false when no source resolved.</returns>
+    public AAXWHSItemIdentityResult resolve(AAXWHSItemIdentityRequest _request)
+    {
+        AAXWHSItemIdentityResult result = AAXWHSItemIdentityResult::construct();
+
+        collectTrace = _request.parmCollectTrace();
+        traceLines   = collectTrace ? new List(Types::String) : null;
+
+        try
+        {
+            AAXWHSItemIdentityParameters parameters = AAXWHSItemIdentityParameters::find();
+            AAXWHSItemIdentityProfile    profile    = AAXWHSItemIdentityProfile::find(_request.parmProfileId());
+
+            if (_request.parmUseCache())
+            {
+                container cached = AAXWHSItemIdentityCache::get(_request, profile.ProfileVersion, parameters.CacheTtlMinutes);
+
+                if (cached != conNull())
+                {
+                    boolean                  cachedFound;
+                    AAXWHSItemIdentitySource cachedSource;
+                    str                      cachedValue;
+                    utcdatetime              storedUtc;
+
+                    [cachedFound, cachedSource, cachedValue, storedUtc] = cached;
+
+                    result.parmFound(cachedFound);
+                    result.parmSource(cachedSource);
+                    result.parmValue(cachedValue);
+                    result.parmTrace(traceLines);
+
+                    return result;
+                }
+            }
+
+            InventDim                     inventDim   = InventDim::find(_request.parmInventDimId());
+            AAXWHSItemIdentityProfileId   profileId   = _request.parmProfileId();
+            boolean                       concatenate = profile.ResolutionMode == AAXWHSItemIdentityResolutionMode::Concatenate;
+            AAXWHSItemIdentityProfileLine profileLine;
+
+            // First hit wins unless the profile concatenates
+            while select profileLine
+                order by LineNum
+                where profileLine.ProfileId == profileId
+            {
+                str value = this.resolveLine(profileLine, _request, inventDim, parameters);
+
+                if (value)
+                {
+                    if (profileLine.AppendDimensionSummary)
+                    {
+                        value += this.dimensionSummarySuffix(inventDim);
+                    }
+
+                    this.addHit(profileLine.Source, value);
+
+                    if (!result.parmFound())
+                    {
+                        // First contributor is the reported source
+                        result.parmFound(true);
+                        result.parmSource(profileLine.Source);
+                        result.parmValue(value);
+                    }
+                    else
+                    {
+                        result.parmValue(result.parmValue() + profile.Separator + value);
+                    }
+
+                    if (!concatenate)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            if (_request.parmUseCache())
+            {
+                AAXWHSItemIdentityCache::set(_request, profile.ProfileVersion, parameters.CacheTtlMinutes, result);
+            }
+        }
+        catch
+        {
+            // Report a resolver failure as a miss
+            result = AAXWHSItemIdentityResult::construct();
+        }
+
+        result.parmTrace(traceLines);
+
+        return result;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>resolveLine</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Resolves one profile line. Any exception inside a source lookup is swallowed and traced as
+    /// a miss so the walk continues with the next line.
+    /// </summary>
+    /// <param name = "_profileLine">The profile line to resolve.</param>
+    /// <param name = "_request">The resolution request.</param>
+    /// <param name = "_inventDim">The inventory dimensions of the request.</param>
+    /// <param name = "_parameters">The identity parameters record.</param>
+    /// <returns>The resolved value, or an empty string when the source missed.</returns>
+    private str resolveLine(
+        AAXWHSItemIdentityProfileLine _profileLine,
+        AAXWHSItemIdentityRequest     _request,
+        InventDim                     _inventDim,
+        AAXWHSItemIdentityParameters  _parameters)
+    {
+        str value;
+
+        try
+        {
+            switch (_profileLine.Source)
+            {
+                case AAXWHSItemIdentitySource::ExternalItemNumber:
+                    value = this.resolveExternalItemNumber(_profileLine, _request, _inventDim, _parameters);
+                    break;
+
+                case AAXWHSItemIdentitySource::VariantProductName:
+                    value = this.resolveVariantProductName(_request, _inventDim);
+                    break;
+
+                case AAXWHSItemIdentitySource::GTIN:
+                    value = this.resolveGtin(_request, _inventDim);
+                    break;
+
+                case AAXWHSItemIdentitySource::ItemBarcode:
+                    value = this.resolveItemBarcode(_request, _inventDim);
+                    break;
+
+                case AAXWHSItemIdentitySource::SearchName:
+                    value = this.resolveSearchName(_request);
+                    break;
+
+                case AAXWHSItemIdentitySource::ItemNumber:
+                    value = _request.parmItemId();
+
+                    if (!value)
+                    {
+                        this.addMiss(_profileLine.Source, 'empty item number');
+                    }
+                    break;
+
+                default:
+                    this.addMiss(_profileLine.Source, 'unhandled source');
+                    break;
+            }
+        }
+        catch
+        {
+            value = '';
+            this.addMiss(_profileLine.Source, 'source lookup failed');
+        }
+
+        return value;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>resolveExternalItemNumber</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Resolves the external item number for the request partner through
+    /// <c>CustVendExternalItemDescription::findExternalItemDescription</c> and returns the
+    /// identifier, the description, or both according to the line content option.
+    /// </summary>
+    /// <param name = "_profileLine">The profile line to resolve.</param>
+    /// <param name = "_request">The resolution request.</param>
+    /// <param name = "_inventDim">The inventory dimensions of the request.</param>
+    /// <param name = "_parameters">The identity parameters record.</param>
+    /// <returns>The external item content, or an empty string when the source missed.</returns>
+    private str resolveExternalItemNumber(
+        AAXWHSItemIdentityProfileLine _profileLine,
+        AAXWHSItemIdentityRequest     _request,
+        InventDim                     _inventDim,
+        AAXWHSItemIdentityParameters  _parameters)
+    {
+        if (_request.parmPartnerContext() == AAXWHSItemIdentityPartnerContext::None)
+        {
+            this.addMiss(_profileLine.Source, 'no partner context');
+            return '';
+        }
+
+        if (!_request.parmPartnerAccount())
+        {
+            this.addMiss(_profileLine.Source, 'no partner account');
+            return '';
+        }
+
+        ModuleCustVend      moduleType;
+        CustVendItemGroupId itemGroupId;
+
+        if (_request.parmPartnerContext() == AAXWHSItemIdentityPartnerContext::Customer)
+        {
+            moduleType  = ModuleCustVend::Cust;
+            itemGroupId = CustTable::find(_request.parmPartnerAccount()).CustItemGroupId;
+        }
+        else
+        {
+            moduleType  = ModuleCustVend::Vend;
+            itemGroupId = VendTable::find(_request.parmPartnerAccount()).VendItemGroupId;
+        }
+
+        boolean              found;
+        ExternalItemId       externalItemId;
+        ExternalItemFreeTxt  externalItemTxt;
+        CustVendExternalItem externalItem;
+
+        [found, externalItemId, externalItemTxt, externalItem] = CustVendExternalItemDescription::findExternalItemDescription(
+            moduleType,
+            _request.parmItemId(),
+            _inventDim,
+            _request.parmPartnerAccount(),
+            itemGroupId);
+
+        if (!found)
+        {
+            this.addMiss(_profileLine.Source, 'no external item record');
+            return '';
+        }
+
+        // Default defers to the parameter
+        AAXWHSItemIdentityExtContent content = _profileLine.ExtContent;
+
+        if (content == AAXWHSItemIdentityExtContent::Default)
+        {
+            content = _parameters.ExtContentDefault;
+        }
+
+        if (content == AAXWHSItemIdentityExtContent::Default)
+        {
+            content = AAXWHSItemIdentityExtContent::Id;
+        }
+
+        str value = this.externalItemContent(externalItemId, externalItemTxt, content);
+
+        if (!value)
+        {
+            this.addMiss(_profileLine.Source, 'empty external item content');
+        }
+
+        return value;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>externalItemContent</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the external item display content for one content option. When both parts are asked
+    /// for but only one is filled, that part stands alone.
+    /// </summary>
+    /// <param name = "_externalItemId">The external item identifier.</param>
+    /// <param name = "_externalItemTxt">The external item description text.</param>
+    /// <param name = "_content">The effective content option.</param>
+    /// <returns>The content string; empty when the selected parts are empty.</returns>
+    private str externalItemContent(
+        ExternalItemId               _externalItemId,
+        ExternalItemFreeTxt          _externalItemTxt,
+        AAXWHSItemIdentityExtContent _content)
+    {
+        str content;
+
+        switch (_content)
+        {
+            case AAXWHSItemIdentityExtContent::Description:
+                content = _externalItemTxt;
+                break;
+
+            case AAXWHSItemIdentityExtContent::IdAndDescription:
+                if (_externalItemId && _externalItemTxt)
+                {
+                    content = strFmt('%1 - %2', _externalItemId, _externalItemTxt);
+                }
+                else
+                {
+                    content = _externalItemId ? _externalItemId : _externalItemTxt;
+                }
+                break;
+
+            default:
+                content = _externalItemId;
+                break;
+        }
+
+        return content;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>resolveVariantProductName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Resolves the translated product name of the distinct product variant matching the request
+    /// item and product dimensions, falling back to the product master translation and then the
+    /// released product name. Skipped when the dimensions carry no product dimension.
+    /// </summary>
+    /// <param name = "_request">The resolution request.</param>
+    /// <param name = "_inventDim">The inventory dimensions of the request.</param>
+    /// <returns>The variant product name, or an empty string when the source missed.</returns>
+    private str resolveVariantProductName(AAXWHSItemIdentityRequest _request, InventDim _inventDim)
+    {
+        if (!this.hasProductDimensions(_inventDim))
+        {
+            this.addMiss(AAXWHSItemIdentitySource::VariantProductName, 'no product dimensions');
+            return '';
+        }
+
+        InventDimCombination dimCombination = InventDimCombination::findByInventDim(_request.parmItemId(), _inventDim);
+
+        if (!dimCombination.RecId)
+        {
+            this.addMiss(AAXWHSItemIdentitySource::VariantProductName, 'no product variant');
+            return '';
+        }
+
+        EcoResDistinctProductVariant variant = EcoResDistinctProductVariant::find(dimCombination.DistinctProductVariant);
+
+        EcoResProductName name = EcoResProductTranslation::findByProductLanguage(variant.RecId, _request.parmLanguageId()).Name;
+
+        if (!name)
+        {
+            name = EcoResProductTranslation::findByProductLanguage(variant.ProductMaster, _request.parmLanguageId()).Name;
+        }
+
+        if (!name)
+        {
+            name = InventTable::find(_request.parmItemId()).defaultProductName();
+        }
+
+        if (!name)
+        {
+            this.addMiss(AAXWHSItemIdentitySource::VariantProductName, 'no product name');
+        }
+
+        return name;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>resolveGtin</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Resolves the Global Trade Item Number registered for the request item and its product
+    /// dimensions. A registration for the exact product dimensions wins over an item-level
+    /// registration, and within each a unit-blank registration wins over unit-specific ones.
+    /// </summary>
+    /// <param name = "_request">The resolution request.</param>
+    /// <param name = "_inventDim">The inventory dimensions of the request.</param>
+    /// <returns>The Global Trade Item Number, or an empty string when the source missed.</returns>
+    private str resolveGtin(AAXWHSItemIdentityRequest _request, InventDim _inventDim)
+    {
+        InventItemGTIN itemGtin = this.findGtin(_request.parmItemId(), this.productDimensionInventDimId(_inventDim));
+
+        if (!itemGtin.RecId)
+        {
+            itemGtin = this.findGtin(_request.parmItemId(), InventDim::inventDimIdBlank());
+        }
+
+        if (!itemGtin.GlobalTradeItemNumber)
+        {
+            this.addMiss(AAXWHSItemIdentitySource::GTIN, 'no GTIN record');
+        }
+
+        return itemGtin.GlobalTradeItemNumber;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>findGtin</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds the Global Trade Item Number registration for an item and inventory dimension,
+    /// preferring a unit-blank registration.
+    /// </summary>
+    /// <param name = "_itemId">The item.</param>
+    /// <param name = "_inventDimId">The product dimension inventory dimension.</param>
+    /// <returns>The registration, or an empty buffer when none exists.</returns>
+    private InventItemGTIN findGtin(ItemId _itemId, InventDimId _inventDimId)
+    {
+        InventItemGTIN itemGtin;
+
+        if (!_inventDimId)
+        {
+            return itemGtin;
+        }
+
+        // A unit-blank registration wins over unit-specific ones
+        select firstonly itemGtin
+            where itemGtin.ItemId      == _itemId
+               && itemGtin.InventDimId == _inventDimId
+               && itemGtin.UnitId      == '';
+
+        if (!itemGtin.RecId)
+        {
+            select firstonly itemGtin
+                where itemGtin.ItemId      == _itemId
+                   && itemGtin.InventDimId == _inventDimId;
+        }
+
+        return itemGtin;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>productDimensionInventDimId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Reduces the request dimensions to the product dimension inventory dimension that GTIN and
+    /// barcode registrations are keyed by.
+    /// </summary>
+    /// <param name = "_inventDim">The inventory dimensions of the request.</param>
+    /// <returns>The product dimension inventory dimension, or the blank dimension when there are none.</returns>
+    private InventDimId productDimensionInventDimId(InventDim _inventDim)
+    {
+        if (!this.hasProductDimensions(_inventDim))
+        {
+            return InventDim::inventDimIdBlank();
+        }
+
+        return InventDimCombination::getInventDimIdForProductDimensions(_inventDim);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>resolveItemBarcode</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Resolves the item barcode registered for the request item and its product dimensions. A
+    /// barcode for the exact product dimensions wins over an item-level barcode, and within each a
+    /// scanning-enabled barcode wins over the rest.
+    /// </summary>
+    /// <param name = "_request">The resolution request.</param>
+    /// <param name = "_inventDim">The inventory dimensions of the request.</param>
+    /// <returns>The item barcode, or an empty string when the source missed.</returns>
+    private str resolveItemBarcode(AAXWHSItemIdentityRequest _request, InventDim _inventDim)
+    {
+        InventItemBarcode itemBarcode = this.findItemBarcode(_request.parmItemId(), this.productDimensionInventDimId(_inventDim));
+
+        if (!itemBarcode.RecId)
+        {
+            itemBarcode = this.findItemBarcode(_request.parmItemId(), InventDim::inventDimIdBlank());
+        }
+
+        if (!itemBarcode.ItemBarCode)
+        {
+            this.addMiss(AAXWHSItemIdentitySource::ItemBarcode, 'no barcode record');
+        }
+
+        return itemBarcode.ItemBarCode;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>findItemBarcode</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds the barcode registration for an item and inventory dimension, preferring a
+    /// scanning-enabled barcode.
+    /// </summary>
+    /// <param name = "_itemId">The item.</param>
+    /// <param name = "_inventDimId">The product dimension inventory dimension.</param>
+    /// <returns>The registration, or an empty buffer when none exists.</returns>
+    private InventItemBarcode findItemBarcode(ItemId _itemId, InventDimId _inventDimId)
+    {
+        InventItemBarcode itemBarcode;
+
+        if (!_inventDimId)
+        {
+            return itemBarcode;
+        }
+
+        // A scanning-enabled barcode wins over the rest
+        select firstonly itemBarcode
+            where itemBarcode.ItemId      == _itemId
+               && itemBarcode.InventDimId == _inventDimId
+               && itemBarcode.UseForInput == NoYes::Yes;
+
+        if (!itemBarcode.RecId)
+        {
+            select firstonly itemBarcode
+                where itemBarcode.ItemId      == _itemId
+                   && itemBarcode.InventDimId == _inventDimId;
+        }
+
+        return itemBarcode;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>resolveSearchName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Resolves the search name of the request item.
+    /// </summary>
+    /// <param name = "_request">The resolution request.</param>
+    /// <returns>The search name, or an empty string when the source missed.</returns>
+    private str resolveSearchName(AAXWHSItemIdentityRequest _request)
+    {
+        ItemNameAlias searchName = InventTable::find(_request.parmItemId()).NameAlias;
+
+        if (!searchName)
+        {
+            this.addMiss(AAXWHSItemIdentitySource::SearchName, 'empty search name');
+        }
+
+        return searchName;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>hasProductDimensions</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Indicates whether the dimensions carry at least one product dimension value.
+    /// </summary>
+    /// <param name = "_inventDim">The inventory dimensions to inspect.</param>
+    /// <returns>True if a configuration, size, color, style, or version is set.</returns>
+    private boolean hasProductDimensions(InventDim _inventDim)
+    {
+        return _inventDim.ConfigId
+            || _inventDim.InventSizeId
+            || _inventDim.InventColorId
+            || _inventDim.InventStyleId
+            || _inventDim.InventVersionId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>dimensionSummarySuffix</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the dimension summary suffix from the non-empty product dimension values in
+    /// configuration, size, color, style, version order.
+    /// </summary>
+    /// <param name = "_inventDim">The inventory dimensions of the request.</param>
+    /// <returns>A suffix such as ' - Red / L', or an empty string without product dimensions.</returns>
+    private str dimensionSummarySuffix(InventDim _inventDim)
+    {
+        container dimensionValues = [_inventDim.ConfigId,
+                                     _inventDim.InventSizeId,
+                                     _inventDim.InventColorId,
+                                     _inventDim.InventStyleId,
+                                     _inventDim.InventVersionId];
+        str summary;
+
+        for (int i = 1; i <= conLen(dimensionValues); i++)
+        {
+            str dimensionValue = conPeek(dimensionValues, i);
+
+            if (dimensionValue)
+            {
+                summary = summary ? summary + ' / ' + dimensionValue : dimensionValue;
+            }
+        }
+
+        return summary ? ' - ' + summary : '';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addHit</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds a hit line to the trace when trace collection is enabled.
+    /// </summary>
+    /// <param name = "_source">The winning identity source.</param>
+    /// <param name = "_value">The resolved display value.</param>
+    private void addHit(AAXWHSItemIdentitySource _source, str _value)
+    {
+        if (collectTrace)
+        {
+            traceLines.addEnd(strFmt("@AAXWarehouseTools:IdentityTestHit", enum2Str(_source), _value));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addMiss</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds a miss line to the trace when trace collection is enabled.
+    /// </summary>
+    /// <param name = "_source">The identity source that missed.</param>
+    /// <param name = "_reason">A short reason for the miss.</param>
+    private void addMiss(AAXWHSItemIdentitySource _source, str _reason)
+    {
+        if (collectTrace)
+        {
+            traceLines.addEnd(strFmt("@AAXWarehouseTools:IdentityTestMiss", enum2Str(_source), _reason));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Constructs a new instance of the <c>AAXWHSItemIdentityResolver</c> class.
+    /// </summary>
+    /// <returns>A new <c>AAXWHSItemIdentityResolver</c> instance.</returns>
+    public static AAXWHSItemIdentityResolver construct()
+    {
+        return new AAXWHSItemIdentityResolver();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>
