@@ -129,7 +129,8 @@ $docs = @(
     @{ in = "$repo\docs\ItemIdentitySetup.md";       out = "$repo\docs\ItemIdentitySetup.html" },
     @{ in = "$repo\docs\ItemIdentityUserGuide.md";   out = "$repo\docs\ItemIdentityUserGuide.html" },
     @{ in = "$repo\docs\ItemIdentityScenarios.md";   out = "$repo\docs\ItemIdentityScenarios.html" },
-    @{ in = "$repo\docs\ItemIdentitySmokeTest.md";   out = "$repo\docs\ItemIdentitySmokeTest.html" }
+    @{ in = "$repo\docs\ItemIdentitySmokeTest.md";   out = "$repo\docs\ItemIdentitySmokeTest.html" },
+    @{ in = "$repo\docs\BuildPipeline.md";           out = "$repo\docs\BuildPipeline.html" }
 )
 
 foreach ($d in $docs) { Convert-Doc $d.in $d.out }

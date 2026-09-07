@@ -179,6 +179,8 @@ img { max-width: 100%; }
 <li>Run a configured flow on the mobile app; the identity line appears with the item information. Use the <strong>Test resolution</strong> action on the profile to replay any resolution from the rich client, source by source.</li>
 </ol>
 <p>The <a href="docs/ItemIdentitySetup.html">setup guide</a> covers every option; the <a href="docs/ItemIdentityUserGuide.html">user guide</a> covers what workers see and troubleshooting. If the line does not appear, run the <a href="docs/ItemIdentitySmokeTest.html">smoke test</a> — it isolates deployment, configuration, injection and resolution problems in about twenty minutes.</p>
+<h2 id="building-from-source">Building from source</h2>
+<p>The repository includes an Azure DevOps pipeline (<code>azure-pipelines.yml</code>) that builds the model from GitHub on a Microsoft-hosted agent and publishes a deployable package — no build VM required. The one-time Azure DevOps setup (build tasks extension, package feed, GitHub connection) is described in the <a href="docs/BuildPipeline.html">build pipeline guide</a>.</p>
 <h2 id="how-it-works-and-data-privacy">How it works and data privacy</h2>
 <ul>
 <li><strong>100% in-process rendering.</strong> ZPL is resolved, token-substituted, and rendered to PNG entirely within the AOS process. No label content, ZPL, or image is sent to any external service, and the features make no outbound network calls for rendering.</li>
