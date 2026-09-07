@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AAX Warehouse Tools — Item Identity Display Smoke Test and Diagnostics</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="aax-warehouse-tools-item-identity-display-smoke-test-and-diagnostics">AAX Warehouse Tools — Item Identity Display Smoke Test and Diagnostics</h1>
+<p>Use this when someone reports &quot;the identity line does not show&quot; (or shows the wrong thing). It is a deterministic 20-minute test that isolates the four layers the feature depends on — <strong>deployment</strong>, <strong>configuration</strong>, <strong>injection</strong>, and <strong>resolution</strong> — so a failure report names the layer, not just the symptom.</p>
+<p>The trick: the smoke configuration uses a profile whose only source is <strong>Item number</strong> (which always resolves) with fallback <strong>Item number</strong> and caching off. With that setup the line <em>must</em> appear on a configured screen. If it does, injection works and any remaining problem is master data or profile design. If it does not, the problem is deployment or configuration, and the ladder in section 5 finds it.</p>
+<hr />
+<h2 id="pre-flight-checks">1. Pre-flight checks</h2>
+<p>Run these in order. Each has a pass condition; do not continue past a failed check.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Check</th>
+<th>How to verify</th>
+<th>If it fails</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P1</td>
+<td><strong>Model deployed</strong></td>
+<td><strong>Warehouse management &gt; Setup &gt; Mobile device</strong> shows <em>Item identity parameters</em>, <em>Item identity profiles</em>, <em>Item identity menu item settings</em>.</td>
+<td>The package is not deployed to this environment, or the navigation cache is stale — restart the AOS / redeploy.</td>
+</tr>
+<tr>
+<td>P2</td>
+<td><strong>Database synchronized</strong></td>
+<td>Open <em>Item identity parameters</em>; it opens and saves without an error.</td>
+<td>A SQL error about a missing table or column means the sync did not run for this model — run a database synchronization.</td>
+</tr>
+<tr>
+<td>P3</td>
+<td><strong>AOS restarted after deployment</strong></td>
+<td>Form captions read as text (&quot;Item identity parameters&quot;), not as label ids (&quot;@AAXWarehouseTools:…&quot;).</td>
+<td>Restart the AOS. This also loads the extension classes and refreshes the extension caches the mobile pipeline uses.</td>
+</tr>
+<tr>
+<td>P4</td>
+<td><strong>Field registration visible</strong></td>
+<td>Open <strong>Warehouse app field priority</strong> once. The field list contains <strong>Item identity</strong>.</td>
+<td>The runtime has not loaded the new field class: restart the AOS (development box: also rebuild the model). The line can still render without this, but it proves the assembly is live.</td>
+</tr>
+<tr>
+<td>P5</td>
+<td><strong>Correct legal entity</strong></td>
+<td>Note the mobile worker's <strong>default company</strong> (Warehouse management &gt; Setup &gt; Worker &gt; the user's <em>Default company</em>, or the company the device session shows).</td>
+<td>All item identity configuration is <strong>per legal entity</strong>. Configure in the company the device session runs in — configuring in another company produces nothing.</td>
+</tr>
+<tr>
+<td>P6</td>
+<td><strong>Exact menu item names</strong></td>
+<td>On <strong>Mobile device menu items</strong>, write down the <strong>Menu item name</strong> (not the <em>Title</em> the device shows) of the picking and receiving items the tester uses.</td>
+<td>Settings are keyed by <em>Menu item name</em>. A row keyed on the title, or on a similarly named item, matches nothing.</td>
+</tr>
+<tr>
+<td>P7</td>
+<td><strong>Supported flow type</strong></td>
+<td>The picking item is a <strong>Work</strong> menu item (user or system directed, cluster, grouping, pick and pack, work list); the receiving item is <strong>Purchase order line receiving</strong> or <strong>Purchase order item receiving</strong> (or the <em>and locate</em> variants).</td>
+<td>Other menu item types (movement, counting, inquiries, adjustments) do not receive the line in this version — a setting row on them does nothing.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="smoke-configuration">2. Smoke configuration</h2>
+<p>Configure in the legal entity from P5.</p>
+<p><strong>Item identity parameters</strong></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Enable item identity display</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td>Default label</td>
+<td>Item identity</td>
+</tr>
+<tr>
+<td>Fallback behavior</td>
+<td><strong>Item number</strong></td>
+</tr>
+<tr>
+<td>Fallback text</td>
+<td>(blank)</td>
+</tr>
+<tr>
+<td>External item content</td>
+<td>Identifier</td>
+</tr>
+<tr>
+<td>Cache duration (minutes)</td>
+<td><strong>0</strong> (caching off while testing so every change shows immediately)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Item identity profiles</strong> — create profile <code>SMOKE</code> (leave <strong>Resolution mode</strong> at <em>First hit</em>)</p>
+<table>
+<thead>
+<tr>
+<th>Sequence</th>
+<th>Source</th>
+<th>External item content</th>
+<th>Append dimension summary</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10 <em>(assigned automatically)</em></td>
+<td>Item number</td>
+<td>Parameter default</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Item identity menu item settings</strong> — one row per menu item from P6</p>
+<table>
+<thead>
+<tr>
+<th>Mobile device menu item</th>
+<th>Enabled</th>
+<th>Profile</th>
+<th>Label override</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(exact picking menu item name)</em></td>
+<td>Yes</td>
+<td>SMOKE</td>
+<td>(blank)</td>
+</tr>
+<tr>
+<td><em>(exact PO line receiving menu item name)</em></td>
+<td>Yes</td>
+<td>SMOKE</td>
+<td>(blank)</td>
+</tr>
+</tbody>
+</table>
+<p>Do <strong>not</strong> configure field priority yet. Without a priority row the line renders in the default (details) area, which is enough to prove injection.</p>
+<h2 id="execute">3. Execute</h2>
+<h3 id="test-a-sales-picking">Test A — Sales picking</h3>
+<ol>
+<li>Release a sales order for any item to the warehouse and wave it so picking work exists (any item — variants are not needed for the smoke test).</li>
+<li>On the device, open the picking menu item from P6 and start the work.</li>
+<li>Reach the <strong>pick confirmation</strong> page (item and quantity shown).</li>
+</ol>
+<p><strong>Expected</strong>: the page shows a read-only line <strong>Item identity: <code>&lt;item number&gt;</code></strong>. On the Warehouse Management mobile app it renders among the item's detail fields — scroll or expand the item card if the screen is short. Continue to the <strong>put</strong> page: the line appears there too.</p>
+<h3 id="test-b-purchase-order-line-receiving">Test B — Purchase order line receiving</h3>
+<ol>
+<li>Create and confirm a purchase order for any item.</li>
+<li>On the device, open the PO line receiving menu item, scan the PO, then identify the item.</li>
+<li>Reach the <strong>quantity/confirmation</strong> page.</li>
+</ol>
+<p><strong>Expected</strong>: the same <strong>Item identity: <code>&lt;item number&gt;</code></strong> line among the item detail fields.</p>
+<h3 id="test-c-test-resolution-rich-client-no-device">Test C — Test resolution (rich client, no device)</h3>
+<ol>
+<li><strong>Item identity profiles</strong> &gt; select <code>SMOKE</code> &gt; <strong>Test resolution</strong>.</li>
+<li>Item = the item from Test A; leave Product dimension number blank; Partner context = None; Profile = SMOKE. Run.</li>
+</ol>
+<p><strong>Expected</strong> infolog:</p>
+<pre><code>Item number - resolved: &lt;item number&gt;
+Winning source: Item number. Value: &lt;item number&gt;
+</code></pre>
+<h2 id="reading-the-results">4. Reading the results</h2>
+<table>
+<thead>
+<tr>
+<th>A (pick)</th>
+<th>B (receive)</th>
+<th>C (Test resolution)</th>
+<th>Meaning</th>
+<th>Go to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pass</td>
+<td>Pass</td>
+<td>Pass</td>
+<td>Deployment, configuration and injection all work. Any &quot;wrong value&quot; report is resolution/master data.</td>
+<td>Section 6</td>
+</tr>
+<tr>
+<td>Fail</td>
+<td>Fail</td>
+<td>Pass</td>
+<td>The engine works; injection is not reaching the page.</td>
+<td>Section 5, ladder I</td>
+</tr>
+<tr>
+<td>Pass</td>
+<td>Fail</td>
+<td>—</td>
+<td>Picking injection works; receiving flow or its setting row is the issue.</td>
+<td>Section 5, ladder I (steps I2, I4)</td>
+</tr>
+<tr>
+<td>Fail</td>
+<td>Pass</td>
+<td>—</td>
+<td>Receiving works; the picking menu item or its setting is the issue.</td>
+<td>Section 5, ladder I (steps I2, I4)</td>
+</tr>
+<tr>
+<td>Fail</td>
+<td>Fail</td>
+<td>Fail or error</td>
+<td>Configuration or deployment.</td>
+<td>Section 5, ladder C</td>
+</tr>
+<tr>
+<td>—</td>
+<td>—</td>
+<td>Error / form errors</td>
+<td>Deployment or sync.</td>
+<td>Section 1</td>
+</tr>
+</tbody>
+</table>
+<h2 id="diagnostic-ladders">5. Diagnostic ladders</h2>
+<h3 id="ladder-c-configuration-test-resolution-fails-or-errors">Ladder C — configuration (Test resolution fails or errors)</h3>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Check</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C1</td>
+<td>Test resolution reports <em>no source resolved</em></td>
+<td>The profile has no lines, or the lines all miss for this item. For <code>SMOKE</code> this means the profile lines grid is empty — add sequence 10 = Item number.</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>Test resolution throws</td>
+<td>Capture the message; a missing-table error means the sync did not run (P2).</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>Profile not offered in the dialog</td>
+<td>You are in a different legal entity than the one the profile was created in (P5).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ladder-i-injection-test-resolution-passes-device-shows-nothing">Ladder I — injection (Test resolution passes, device shows nothing)</h3>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Check</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>I1</td>
+<td><strong>Parameters &gt; Enable item identity display</strong> is Yes <em>in the device session's legal entity</em></td>
+<td>Enable it in that company (P5). The parameters record is per company.</td>
+</tr>
+<tr>
+<td>I2</td>
+<td>The setting row's <strong>Mobile device menu item</strong> equals the <strong>Menu item name</strong> (P6) of the item the tester actually opened, and <strong>Enabled</strong> is Yes</td>
+<td>Fix the row. Titles on the device are not names.</td>
+</tr>
+<tr>
+<td>I3</td>
+<td>The device page is one the feature covers: <strong>pick / put</strong> pages of a work menu item, or the <strong>item/quantity</strong> page of PO line or item receiving</td>
+<td>Pages before the item is known (PO scan, work id scan, location scan) never carry the line by design; movement/counting flows are unsupported.</td>
+</tr>
+<tr>
+<td>I4</td>
+<td>AOS restarted after the deployment (P3)</td>
+<td>Restart — the injection classes are chain-of-command extensions loaded at startup.</td>
+</tr>
+<tr>
+<td>I5</td>
+<td>Look in the <strong>details area</strong> of the item card on the app; scroll</td>
+<td>Without a field-priority row the line sits at the end of the detail fields. Open <strong>Warehouse app field priority</strong> and give <em>Item identity</em> a priority directly under the Item field to bring it up.</td>
+</tr>
+<tr>
+<td>I6</td>
+<td>The tester is on the same environment the configuration was made in</td>
+<td>Confirm the app's connection (environment URL) and the company shown after login.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ladder-r-resolution-line-shows-the-item-number-instead-of-the-expected-identity">Ladder R — resolution (line shows the item number instead of the expected identity)</h3>
+<p>This is the fallback doing its job: the intended source missed. Reproduce with <strong>Test resolution</strong> using the same item, the variant's product dimension number, and the partner the flow supplies, then read the miss reason:</p>
+<table>
+<thead>
+<tr>
+<th>Miss reason</th>
+<th>Meaning</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>no partner context</code></td>
+<td>External item number needs a customer or vendor; this flow supplies none</td>
+<td>Expected on non-sales work and on movement-type flows. On sales picking, confirm the work belongs to a sales order.</td>
+</tr>
+<tr>
+<td><code>no partner account</code></td>
+<td>The order behind the work/receipt has no invoice account resolved</td>
+<td>Check the sales/purchase order's invoice account.</td>
+</tr>
+<tr>
+<td><code>no external item record</code></td>
+<td>No external item description for <em>that</em> account (or its item group) and <em>those</em> product dimensions, nor an item-level one</td>
+<td>Create the external item description on the customer/vendor, with the variant's dimensions or with blank dimensions.</td>
+</tr>
+<tr>
+<td><code>no product dimensions</code></td>
+<td>Variant product name skipped: the item is not a variant</td>
+<td>Expected for plain items — the next source runs.</td>
+</tr>
+<tr>
+<td><code>no product variant</code></td>
+<td>Dimensions present but no released variant matches</td>
+<td>Check the released product variants of the item.</td>
+</tr>
+<tr>
+<td><code>no GTIN record</code> / <code>no barcode record</code></td>
+<td>No registration for the variant nor at item level</td>
+<td>Register the GTIN/barcode on the released product (variant-specific or item-level).</td>
+</tr>
+<tr>
+<td><code>empty search name</code></td>
+<td>Search name blank on the released product</td>
+<td>Fill it or drop the source.</td>
+</tr>
+</tbody>
+</table>
+<p>If Test resolution resolves correctly but the device still shows the old/other value, caching is the reason — with <strong>Cache duration</strong> at 0 for the test this cannot occur; in production, edit the profile to force a refresh.</p>
+<h2 id="from-smoke-to-the-real-profile">6. From smoke to the real profile</h2>
+<p>Once Tests A and B pass, switch the setting rows to the intended profile (for example External item number → Variant product name → Item number) and re-run Test A with a variant item and a customer that has an external item description. Use Test resolution with the same inputs first — its winning value is exactly what the device will show. Then set <strong>Cache duration</strong> back to its production value (30) and configure <strong>Warehouse app field priority</strong> for placement.</p>
+<h2 id="what-to-include-in-a-failure-report">7. What to include in a failure report</h2>
+<ul>
+<li>Environment URL, legal entity of the device session, and the deployed package/model version.</li>
+<li>The <strong>Menu item name</strong> (P6) and its type (work / PO line receiving / PO item receiving) — a screenshot of the Mobile device menu items record is ideal.</li>
+<li>Screenshots of <strong>Item identity parameters</strong>, the profile with its lines, and the menu item setting row, all taken in the device session's company.</li>
+<li>The device page where the line was expected (screenshot), including whether the details area was expanded.</li>
+<li>The <strong>Test resolution</strong> infolog for the same item, dimensions, partner and profile.</li>
+<li>The result table from section 4 (A / B / C pass or fail).</li>
+</ul>
+
+</body>
+</html>

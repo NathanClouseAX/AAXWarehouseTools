@@ -21,6 +21,33 @@
 				<MenuItemType>Action</MenuItemType>
 			</MenuElement>
 		</AxMenuExtensionElement>
+		<AxMenuExtensionElement xmlns="">
+			<Parent>RF</Parent>
+			<MenuElement xmlns=""
+				i:type="AxMenuElementMenuItem">
+				<Name>AAXWHSItemIdentityParameters</Name>
+				<MenuItemName>AAXWHSItemIdentityParameters</MenuItemName>
+				<MenuItemType>Display</MenuItemType>
+			</MenuElement>
+		</AxMenuExtensionElement>
+		<AxMenuExtensionElement xmlns="">
+			<Parent>RF</Parent>
+			<MenuElement xmlns=""
+				i:type="AxMenuElementMenuItem">
+				<Name>AAXWHSItemIdentityProfile</Name>
+				<MenuItemName>AAXWHSItemIdentityProfile</MenuItemName>
+				<MenuItemType>Display</MenuItemType>
+			</MenuElement>
+		</AxMenuExtensionElement>
+		<AxMenuExtensionElement xmlns="">
+			<Parent>RF</Parent>
+			<MenuElement xmlns=""
+				i:type="AxMenuElementMenuItem">
+				<Name>AAXWHSItemIdentityMenuItemSetting</Name>
+				<MenuItemName>AAXWHSItemIdentityMenuItemSetting</MenuItemName>
+				<MenuItemType>Display</MenuItemType>
+			</MenuElement>
+		</AxMenuExtensionElement>
 	</Elements>
 	<MenuElementModifications />
 	<PropertyModifications />

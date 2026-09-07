@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSItemIdentityTestResolution</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Diagnostic dialog that runs one item identity resolution with tracing and without the cache,
+/// then lists each source outcome in the infolog. The profile defaults from the calling record.
+/// </summary>
+internal final class AAXWHSItemIdentityTestResolution extends RunBase
+{
+    private DialogField dialogItemId;
+    private DialogField dialogInventDimId;
+    private DialogField dialogPartnerContext;
+    private DialogField dialogPartnerAccount;
+    private DialogField dialogProfileId;
+
+    private ItemId                           itemId;
+    private InventDimId                      inventDimId;
+    private AAXWHSItemIdentityPartnerContext partnerContext;
+    private CustVendAC                       partnerAccount;
+    private AAXWHSItemIdentityProfileId      profileId;
+    private AAXWHSItemIdentityProfileId      argsProfileId;
+
+    #DEFINE.CurrentVersion(1)
+    #LOCALMACRO.CurrentList
+        itemId,
+        inventDimId,
+        partnerContext,
+        partnerAccount
+    #ENDMACRO
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>dialog</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the dialog with the resolution inputs. A profile handed over by the caller wins over
+    /// the remembered value.
+    /// </summary>
+    /// <returns>The dialog to prompt with.</returns>
+    public Object dialog()
+    {
+        DialogRunBase dialog = super();
+
+        if (argsProfileId)
+        {
+            profileId = argsProfileId;
+        }
+
+        // Add fields to the dialog
+        dialogItemId         = dialog.addFieldValue(extendedTypeStr(ItemId), itemId);
+        dialogInventDimId    = dialog.addFieldValue(extendedTypeStr(InventDimId), inventDimId, "@AAXWarehouseTools:IdentityTestProductDimensions");
+        dialogPartnerContext = dialog.addFieldValue(enumStr(AAXWHSItemIdentityPartnerContext), partnerContext);
+        dialogPartnerAccount = dialog.addFieldValue(extendedTypeStr(CustVendAC), partnerAccount, "@AAXWarehouseTools:IdentityAccount");
+        dialogProfileId      = dialog.addFieldValue(extendedTypeStr(AAXWHSItemIdentityProfileId), profileId);
+
+        dialogItemId.fieldControl().mandatory(true);
+
+        // Enable dialogSelectCtrl callbacks
+        dialog.allowUpdateOnSelectCtrl(true);
+
+        return dialog;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>dialogPostRun</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Wires the account control to the partner context: the lookup follows the selected context
+    /// and the control is disabled without one.
+    /// </summary>
+    /// <param name = "_dialog">The dialog being shown.</param>
+    public void dialogPostRun(DialogRunbase _dialog)
+    {
+        super(_dialog);
+
+        FormStringControl   accountControl = dialogPartnerAccount.fieldControl();
+        FormComboBoxControl contextControl = dialogPartnerContext.fieldControl();
+
+        accountControl.registerOverrideMethod(methodStr(FormStringControl, lookup), methodStr(AAXWHSItemIdentityTestResolution, partnerAccountLookup), this);
+        contextControl.registerOverrideMethod(methodStr(FormComboBoxControl, modified), methodStr(AAXWHSItemIdentityTestResolution, partnerContextModified), this);
+
+        this.syncPartnerAccountControl();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>dialogSelectCtrl</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Keeps the account control in step with the partner context when the dialog selection moves.
+    /// </summary>
+    public void dialogSelectCtrl()
+    {
+        super();
+
+        this.syncPartnerAccountControl();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>partnerContextModified</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Realigns the account control immediately when the partner context selection changes.
+    /// </summary>
+    /// <param name = "_formControl">The partner context control.</param>
+    /// <returns>True to accept the modification.</returns>
+    private boolean partnerContextModified(FormControl _formControl = null)
+    {
+        this.syncPartnerAccountControl();
+
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>partnerAccountLookup</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Shows the customer or vendor lookup matching the selected partner context.
+    /// </summary>
+    /// <param name = "_control">The account control.</param>
+    private void partnerAccountLookup(FormStringControl _control)
+    {
+        AAXWHSItemIdentityPartnerContext currentContext = dialogPartnerContext.value();
+
+        switch (currentContext)
+        {
+            case AAXWHSItemIdentityPartnerContext::Customer:
+                CustTable::lookupCustomer(_control);
+                break;
+
+            case AAXWHSItemIdentityPartnerContext::Vendor:
+                VendTable::lookupVendor(_control);
+                break;
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>syncPartnerAccountControl</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Enables the account control only while a partner context is selected.
+    /// </summary>
+    private void syncPartnerAccountControl()
+    {
+        AAXWHSItemIdentityPartnerContext currentContext = dialogPartnerContext.value();
+
+        dialogPartnerAccount.enabled(currentContext != AAXWHSItemIdentityPartnerContext::None);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>getFromDialog</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Reads the resolution inputs back from the dialog.
+    /// </summary>
+    /// <returns>True if the dialog values were read.</returns>
+    public boolean getFromDialog()
+    {
+        itemId         = dialogItemId.value();
+        inventDimId    = dialogInventDimId.value();
+        partnerContext = dialogPartnerContext.value();
+        partnerAccount = dialogPartnerAccount.value();
+        profileId      = dialogProfileId.value();
+
+        return super();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validate</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Validates the dialog input before the resolution runs.
+    /// </summary>
+    /// <param name = "_calledFrom">The object that requested validation.</param>
+    /// <returns>True if an item was specified.</returns>
+    public boolean validate(Object _calledFrom = null)
+    {
+        boolean ok = super(_calledFrom);
+
+        if (!itemId)
+        {
+            ok = checkFailed(strFmt("@SYS26332", "@SYS12836"));
+        }
+
+        return ok;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>canRunInNewSession</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The dialog always runs in the current session.
+    /// </summary>
+    /// <returns>Always false.</returns>
+    protected boolean canRunInNewSession()
+    {
+        return false;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>run</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Runs one resolution with trace collection enabled and the cache bypassed, lists every
+    /// per-source trace line in the infolog, and closes with the winning source and value or the
+    /// no-hit summary.
+    /// </summary>
+    public void run()
+    {
+        AAXWHSItemIdentityRequest request = AAXWHSItemIdentityRequest::construct();
+
+        request.parmItemId(itemId);
+        request.parmInventDimId(inventDimId);
+        request.parmPartnerContext(partnerContext);
+        request.parmPartnerAccount(partnerAccount);
+        request.parmProfileId(profileId);
+        request.parmLanguageId(currentUserLanguage());
+        request.parmUseCache(false);
+        request.parmCollectTrace(true);
+
+        AAXWHSItemIdentityResult result = AAXWHSItemIdentityResolver::construct().resolve(request);
+
+        setPrefix("@AAXWarehouseTools:IdentityTestResolution");
+
+        // Every per-source hit or miss line
+        List traceLines = result.parmTrace();
+
+        if (traceLines)
+        {
+            ListEnumerator traceEnumerator = traceLines.getEnumerator();
+
+            while (traceEnumerator.moveNext())
+            {
+                info(traceEnumerator.current());
+            }
+        }
+
+        if (result.parmFound())
+        {
+            info(strFmt("@AAXWarehouseTools:IdentityTestResult", enum2Str(result.parmSource()), result.parmValue()));
+        }
+        else
+        {
+            info("@AAXWarehouseTools:IdentityTestNoHit");
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>pack</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Serializes the dialog state into a container.
+    /// </summary>
+    /// <returns>A container holding the serialized state.</returns>
+    public container pack()
+    {
+        return [#CurrentVersion, #CurrentList];
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>unpack</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Deserializes the dialog state from a container.
+    /// </summary>
+    /// <param name = "_packedClass">A container holding the serialized state.</param>
+    /// <returns>True if the container version is supported.</returns>
+    public boolean unpack(container _packedClass)
+    {
+        boolean     ret;
+        Integer     version = RunBase::getVersion(_packedClass);
+
+        switch (version)
+        {
+            case #CurrentVersion:
+                [version, #CurrentList] = _packedClass;
+                ret = true;
+                break;
+
+            default:
+                ret = false;
+                break;
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Constructs a new instance of the <c>AAXWHSItemIdentityTestResolution</c> class.
+    /// </summary>
+    /// <returns>A new <c>AAXWHSItemIdentityTestResolution</c> instance.</returns>
+    internal static AAXWHSItemIdentityTestResolution construct()
+    {
+        return new AAXWHSItemIdentityTestResolution();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>description</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Provides a description for the dialog.
+    /// </summary>
+    /// <returns>The Test resolution caption.</returns>
+    static ClassDescription description()
+    {
+        return "@AAXWarehouseTools:IdentityTestResolution";
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Entry point invoked by the AAXWHSItemIdentityTestResolution menu item. The profile defaults
+    /// from the calling identity profile record.
+    /// </summary>
+    /// <param name = "args">Framework arguments from the caller.</param>
+    static void main(Args args)
+    {
+        AAXWHSItemIdentityTestResolution testResolution = AAXWHSItemIdentityTestResolution::construct();
+
+        if (args && args.dataset() == tableNum(AAXWHSItemIdentityProfile))
+        {
+            AAXWHSItemIdentityProfile profile = args.record() as AAXWHSItemIdentityProfile;
+
+            testResolution.argsProfileId = profile.ProfileId;
+        }
+
+        if (testResolution.prompt())
+        {
+            testResolution.runOperation();
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

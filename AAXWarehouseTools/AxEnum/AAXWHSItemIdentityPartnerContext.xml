@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSItemIdentityPartnerContext</Name>
+	<Label>@AAXWarehouseTools:IdentityPartnerContext</Label>
+	<EnumValues>
+		<AxEnumValue>
+			<Name>None</Name>
+			<Label>@AAXWarehouseTools:IdentityPartnerNone</Label>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Customer</Name>
+			<Label>@AAXWarehouseTools:IdentityPartnerCustomer</Label>
+			<Value>1</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Vendor</Name>
+			<Label>@AAXWarehouseTools:IdentityPartnerVendor</Label>
+			<Value>2</Value>
+		</AxEnumValue>
+	</EnumValues>
+</AxEnum>

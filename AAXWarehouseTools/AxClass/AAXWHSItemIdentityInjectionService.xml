@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSItemIdentityInjectionService</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Facade the mobile flow adapters call for the item identity line of a menu item. Applies the
+/// parameters and the menu item setting, resolves through <c>AAXWHSItemIdentityResolver</c>, and
+/// returns an empty container when nothing is to be shown or a failure occurs.
+/// </summary>
+public final class AAXWHSItemIdentityInjectionService
+{
+    // Control name of the injected line
+    public static const str ControlName = 'AAXItemIdentity';
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>identityLineForMenuItem</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the identity line for one rendered step of a mobile device menu item. The label is
+    /// the setting override, then the parameter default label, then the shipped default.
+    /// </summary>
+    /// <param name = "_menuItemName">The mobile device menu item being rendered.</param>
+    /// <param name = "_itemId">The item on the current step.</param>
+    /// <param name = "_inventDimId">The inventory dimensions of the current step.</param>
+    /// <param name = "_partnerContext">The partner context derived from the flow.</param>
+    /// <param name = "_partnerAccount">The customer or vendor account of the partner context.</param>
+    /// <returns>A [label, value] container, or <c>conNull</c> when nothing must be injected.</returns>
+    public static container identityLineForMenuItem(WHSMenuItemName _menuItemName, ItemId _itemId,
+        InventDimId _inventDimId, AAXWHSItemIdentityPartnerContext _partnerContext, CustVendAC _partnerAccount)
+    {
+        container identityLine;
+
+        try
+        {
+            AAXWHSItemIdentityParameters parameters = AAXWHSItemIdentityParameters::find();
+
+            if (!parameters.Enabled)
+            {
+                return conNull();
+            }
+
+            AAXWHSItemIdentityMenuItemSetting menuItemSetting = AAXWHSItemIdentityMenuItemSetting::findByMenuItem(_menuItemName);
+
+            if (!menuItemSetting.RecId || !menuItemSetting.Enabled)
+            {
+                return conNull();
+            }
+
+            AAXWHSItemIdentityRequest request = AAXWHSItemIdentityRequest::construct();
+
+            request.parmItemId(_itemId);
+            request.parmInventDimId(_inventDimId);
+            request.parmPartnerContext(_partnerContext);
+            request.parmPartnerAccount(_partnerAccount);
+            request.parmLanguageId(currentUserLanguage());
+            request.parmProfileId(menuItemSetting.ProfileId);
+
+            AAXWHSItemIdentityResult identityResult = AAXWHSItemIdentityResolver::construct().resolve(request);
+
+            str labelText = menuItemSetting.LabelOverride ? menuItemSetting.LabelOverride : parameters.DefaultLabel;
+
+            if (!labelText)
+            {
+                labelText = "@AAXWarehouseTools:IdentityDefaultLabelValue";
+            }
+
+            if (identityResult.parmFound())
+            {
+                identityLine = [labelText, identityResult.parmValue()];
+            }
+            else
+            {
+                switch (parameters.FallbackBehavior)
+                {
+                    case AAXWHSItemIdentityFallback::ItemNumber:
+                        identityLine = [labelText, _itemId];
+                        break;
+
+                    case AAXWHSItemIdentityFallback::FixedText:
+                        identityLine = [labelText, parameters.FallbackText];
+                        break;
+
+                    default:
+                        identityLine = conNull();
+                        break;
+                }
+            }
+        }
+        catch
+        {
+            // Swallow resolution errors
+            identityLine = conNull();
+        }
+
+        return identityLine;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

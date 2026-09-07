@@ -92,7 +92,8 @@
        so nothing stale can shadow it. -->
   <Target Name="AAXCopyToModelBin" AfterTargets="AAXILRepack" Condition="'$(TargetFramework)' == 'net472' and '$(AAXSkipDeploy)' != 'true'">
     <PropertyGroup>
-      <AAXModelBin>C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin\</AAXModelBin>
+      <!-- Model bin folder: the repository root is the model folder. Override with /p:AAXModelBin=... -->
+      <AAXModelBin Condition="'$(AAXModelBin)' == ''">$(MSBuildProjectDirectory)\..\..\..\bin\</AAXModelBin>
     </PropertyGroup>
     <ItemGroup>
       <AAXStalePayload Include="$(AAXModelBin)BinaryKits.Zpl.Viewer.dll;$(AAXModelBin)BinaryKits.Zpl.Label.dll;$(AAXModelBin)SkiaSharp.dll;$(AAXModelBin)SkiaSharp.HarfBuzz.dll;$(AAXModelBin)HarfBuzzSharp.dll;$(AAXModelBin)zxing.dll;$(AAXModelBin)zxing.presentation.dll;$(AAXModelBin)SixLabors.ImageSharp.dll;$(AAXModelBin)System.Buffers.dll;$(AAXModelBin)System.Memory.dll;$(AAXModelBin)System.Numerics.Vectors.dll;$(AAXModelBin)System.Runtime.CompilerServices.Unsafe.dll;$(AAXModelBin)System.Text.Encoding.CodePages.dll;$(AAXModelBin)libSkiaSharp.dll;$(AAXModelBin)libHarfBuzzSharp.dll" />

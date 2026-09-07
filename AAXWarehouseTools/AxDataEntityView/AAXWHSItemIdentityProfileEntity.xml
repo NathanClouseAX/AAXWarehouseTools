@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxDataEntityView xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSItemIdentityProfileEntity</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Data entity for the item identity display profiles.
+/// </summary>
+[OfficeMenuOmit]
+public class AAXWHSItemIdentityProfileEntity extends common
+{
+}
+]]></Declaration>
+		<Methods />
+	</SourceCode>
+	<DeveloperDocumentation>@AAXWarehouseTools:IdentityEntityProfile</DeveloperDocumentation>
+	<FormRef>AAXWHSItemIdentityProfile</FormRef>
+	<Label>@AAXWarehouseTools:IdentityEntityProfile</Label>
+	<Tags>Warehouse setup</Tags>
+	<AllowRowVersionChangeTracking>Yes</AllowRowVersionChangeTracking>
+	<DataManagementEnabled>Yes</DataManagementEnabled>
+	<DataManagementStagingTable>AAXWHSItemIdentityProfileStaging</DataManagementStagingTable>
+	<IsPublic>Yes</IsPublic>
+	<Modules>WMS</Modules>
+	<PrimaryCompanyContext>DataAreaId</PrimaryCompanyContext>
+	<PrimaryKey>EntityKey</PrimaryKey>
+	<PublicCollectionName>AAXItemIdentityProfiles</PublicCollectionName>
+	<PublicEntityName>AAXItemIdentityProfile</PublicEntityName>
+	<SupportsSetBasedSqlOperations>Yes</SupportsSetBasedSqlOperations>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ProfileId</Name>
+			<DataField>ProfileId</DataField>
+			<DataSource>AAXWHSItemIdentityProfile</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>Description</Name>
+			<DataField>Description</DataField>
+			<DataSource>AAXWHSItemIdentityProfile</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ResolutionMode</Name>
+			<DataField>ResolutionMode</DataField>
+			<DataSource>AAXWHSItemIdentityProfile</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>Separator</Name>
+			<DataField>Separator</DataField>
+			<DataSource>AAXWHSItemIdentityProfile</DataSource>
+		</AxDataEntityViewField>
+	</Fields>
+	<Keys>
+		<AxDataEntityViewKey>
+			<Name>EntityKey</Name>
+			<Fields>
+				<AxDataEntityViewKeyField>
+					<DataField>ProfileId</DataField>
+				</AxDataEntityViewKeyField>
+			</Fields>
+		</AxDataEntityViewKey>
+	</Keys>
+	<Mappings />
+	<Ranges />
+	<Relations />
+	<StateMachines />
+	<ViewMetadata>
+		<Name>Metadata</Name>
+		<SourceCode>
+			<Methods>
+				<Method>
+					<Name>classDeclaration</Name>
+					<Source><![CDATA[
+[Query]
+public class Metadata extends QueryRun
+{
+}
+]]></Source>
+				</Method>
+			</Methods>
+		</SourceCode>
+		<DataSources>
+			<AxQuerySimpleRootDataSource>
+				<Name>AAXWHSItemIdentityProfile</Name>
+				<DynamicFields>Yes</DynamicFields>
+				<Table>AAXWHSItemIdentityProfile</Table>
+				<DataSources />
+				<DerivedDataSources />
+				<Fields />
+				<Ranges />
+				<GroupBy />
+				<Having />
+				<OrderBy />
+			</AxQuerySimpleRootDataSource>
+		</DataSources>
+	</ViewMetadata>
+</AxDataEntityView>

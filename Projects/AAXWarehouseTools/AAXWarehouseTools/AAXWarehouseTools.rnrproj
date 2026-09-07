@@ -225,7 +225,7 @@
   <ItemGroup>
     <Reference Include="AAXWarehouseTools.Feature.FnO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
       <Name>AAXWarehouseTools.Feature.FnO</Name>
-      <HintPath>C:\AOSService\PackagesLocalDirectory\AAXWarehouseTools\bin\AAXWarehouseTools.Feature.FnO.dll</HintPath>
+      <HintPath>..\..\..\ExternalReferences\AAXWarehouseTools.Feature.FnO.dll</HintPath>
     </Reference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />

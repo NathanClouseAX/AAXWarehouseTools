@@ -1,0 +1,105 @@
+# Azure DevOps build for the AAXWarehouseTools model.
+#
+# Runs on a Microsoft-hosted Windows agent with no Finance and Operations installation:
+# the compiler and reference packages are restored from an Azure Artifacts feed (see
+# pipeline/packages.config and pipeline/nuget.config), the ZPL renderer is built first so the
+# X++ compile can resolve it, the model is compiled, and a deployable package is published.
+# Setup steps for the Azure DevOps side are in docs/BuildPipeline.md.
+
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: windows-latest
+
+variables:
+  ModelName: AAXWarehouseTools
+  # The repository root is the model folder; it is checked out one level below Metadata so the
+  # build tools see the usual <Metadata>\<Model>\Descriptor layout.
+  MetadataPath: $(Build.SourcesDirectory)\Metadata
+  ModelPath: $(Build.SourcesDirectory)\Metadata\AAXWarehouseTools
+  NugetConfigsPath: $(Build.SourcesDirectory)\Metadata\AAXWarehouseTools\pipeline
+  NugetsPath: $(Pipeline.Workspace)\NuGets
+  ToolsPackage: Microsoft.Dynamics.AX.Platform.CompilerPackage
+  PlatPackage: Microsoft.Dynamics.AX.Platform.DevALM.BuildXpp
+  AppPackage: Microsoft.Dynamics.AX.Application.DevALM.BuildXpp
+  AppSuitePackage: Microsoft.Dynamics.AX.ApplicationSuite.DevALM.BuildXpp
+  ModelVersion: 1.0.$(Build.BuildId).0
+
+steps:
+  - checkout: self
+    path: s/Metadata/AAXWarehouseTools
+    clean: true
+
+  - task: NuGetToolInstaller@1
+    displayName: Install NuGet
+
+  - task: NuGetAuthenticate@1
+    displayName: Authenticate to Azure Artifacts
+
+  - task: NuGetCommand@2
+    displayName: Restore build reference packages
+    inputs:
+      command: custom
+      arguments: restore "$(NugetConfigsPath)\packages.config" -PackagesDirectory "$(NugetsPath)" -ConfigFile "$(NugetConfigsPath)\nuget.config" -ExcludeVersion
+
+  - task: XppUpdateModelVersion@1
+    displayName: Stamp model version
+    inputs:
+      XppSourcePath: $(MetadataPath)
+      XppDescriptorSearch: $(ModelName)\Descriptor\*.xml
+      XppLayer: USR
+      VersionNumber: $(ModelVersion)
+
+  - task: VSBuild@1
+    displayName: Build ZPL renderer
+    inputs:
+      solution: $(ModelPath)\Projects\AAXWarehouseTools\AtomicAx.Zpl.Render\AtomicAx.Zpl.Render.csproj
+      msbuildArgs: -restore -p:TargetFramework=net472 -p:AAXModelBin="$(ModelPath)\bin\"
+      configuration: Release
+      platform: Any CPU
+
+  - task: VSBuild@1
+    displayName: Build X++ model
+    inputs:
+      solution: $(ModelPath)\Projects\AAXWarehouseTools\AAXWarehouseTools\AAXWarehouseTools.rnrproj
+      msbuildArgs: >-
+        /p:BuildTasksDirectory="$(NugetsPath)\$(ToolsPackage)\DevAlm"
+        /p:MetadataDirectory="$(MetadataPath)"
+        /p:FrameworkDirectory="$(NugetsPath)\$(ToolsPackage)"
+        /p:ReferenceFolder="$(NugetsPath)\$(PlatPackage)\ref\net40;$(NugetsPath)\$(AppPackage)\ref\net40;$(NugetsPath)\$(AppSuitePackage)\ref\net40;$(MetadataPath);$(Build.BinariesDirectory)"
+        /p:ReferencePath="$(NugetsPath)\$(ToolsPackage);$(ModelPath)\bin;$(ModelPath)\ExternalReferences"
+        /p:OutputDirectory="$(Build.BinariesDirectory)"
+      configuration: Debug
+      platform: AnyCPU
+
+  - task: CopyFiles@2
+    displayName: Add custom assemblies to the model binaries
+    inputs:
+      SourceFolder: $(ModelPath)
+      Contents: |
+        bin\AtomicAx.Zpl.Render.dll
+        ExternalReferences\AAXWarehouseTools.Feature.FnO.dll
+      TargetFolder: $(Build.BinariesDirectory)\$(ModelName)\bin
+      flattenFolders: true
+
+  - task: XppCreatePackage@1
+    displayName: Create deployable package
+    inputs:
+      XppToolsPath: $(NugetsPath)\$(ToolsPackage)
+      XppBinariesPath: $(Build.BinariesDirectory)
+      XppBinariesSearch: $(ModelName)
+      DeployablePackagePath: $(Build.ArtifactStagingDirectory)\AXDeployableRuntime_$(ModelVersion).zip
+
+  - task: PublishBuildArtifacts@1
+    displayName: Publish deployable package
+    inputs:
+      PathtoPublish: $(Build.ArtifactStagingDirectory)
+      ArtifactName: DeployablePackage

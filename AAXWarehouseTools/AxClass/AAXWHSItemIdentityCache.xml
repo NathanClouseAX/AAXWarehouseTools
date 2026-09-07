@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSItemIdentityCache</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Process-wide cache of resolved item identity values, keyed by company, item, dimensions,
+/// partner, profile version, and language. Entries expire after the parameter TTL, and a TTL of
+/// zero bypasses the cache.
+/// </summary>
+internal final class AAXWHSItemIdentityCache
+{
+    private const str CacheScope = 'AAXWHSItemIdentity';
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>cacheKey</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the cache key for one request. The profile version keys every entry so a
+    /// configuration edit invalidates without an explicit flush.
+    /// </summary>
+    /// <param name = "_request">The resolution request.</param>
+    /// <param name = "_profileVersion">The version stamp of the requested profile.</param>
+    /// <returns>The cache key container.</returns>
+    private static container cacheKey(AAXWHSItemIdentityRequest _request, int _profileVersion)
+    {
+        return [curExt(),
+                curExt2dataareaid(tableNum(AAXWHSItemIdentityProfile)),
+                _request.parmItemId(),
+                _request.parmInventDimId(),
+                _request.parmPartnerContext(),
+                _request.parmPartnerAccount(),
+                _request.parmProfileId(),
+                _profileVersion,
+                _request.parmLanguageId()];
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>get</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Reads the cached outcome for one request. Returns nothing when the TTL disables caching,
+    /// no entry exists, or the entry is older than the TTL.
+    /// </summary>
+    /// <param name = "_request">The resolution request.</param>
+    /// <param name = "_profileVersion">The version stamp of the requested profile.</param>
+    /// <param name = "_ttlMinutes">The cache time to live in minutes; zero or less bypasses.</param>
+    /// <returns>A [found, source, value, storedUtcDateTime] container, or <c>conNull</c> on a miss.</returns>
+    internal static container get(AAXWHSItemIdentityRequest _request, int _profileVersion, int _ttlMinutes)
+    {
+        if (_ttlMinutes <= 0)
+        {
+            return conNull();
+        }
+
+        SysGlobalObjectCache cache = new SysGlobalObjectCache();
+        container value = cache.find(CacheScope, AAXWHSItemIdentityCache::cacheKey(_request, _profileVersion));
+
+        if (value == conNull())
+        {
+            return conNull();
+        }
+
+        // A stale entry reads as a miss
+        utcdatetime storedUtc = conPeek(value, 4);
+
+        if (DateTimeUtil::getDifference(DateTimeUtil::utcNow(), storedUtc) > _ttlMinutes * 60)
+        {
+            return conNull();
+        }
+
+        return value;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>set</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Stores the outcome of one resolution, found or not, stamped with the store time. Does
+    /// nothing when the TTL disables caching.
+    /// </summary>
+    /// <param name = "_request">The resolution request.</param>
+    /// <param name = "_profileVersion">The version stamp of the requested profile.</param>
+    /// <param name = "_ttlMinutes">The cache time to live in minutes; zero or less bypasses.</param>
+    /// <param name = "_result">The resolution outcome to store.</param>
+    internal static void set(AAXWHSItemIdentityRequest _request, int _profileVersion, int _ttlMinutes, AAXWHSItemIdentityResult _result)
+    {
+        if (_ttlMinutes <= 0)
+        {
+            return;
+        }
+
+        SysGlobalObjectCache cache = new SysGlobalObjectCache();
+
+        cache.insert(
+            CacheScope,
+            AAXWHSItemIdentityCache::cacheKey(_request, _profileVersion),
+            [_result.parmFound(), _result.parmSource(), _result.parmValue(), DateTimeUtil::utcNow()]);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

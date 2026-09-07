@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSItemIdentityMaintain</Name>
+	<Label>@AAXWarehouseTools:IdentityDutyMaintain</Label>
+	<Privileges>
+		<AxSecurityPrivilegeReference>
+			<Name>AAXWHSItemIdentityMaintain</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>AAXWHSItemIdentityMenuItemSettingEntityMaintain</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>AAXWHSItemIdentityParametersEntityMaintain</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>AAXWHSItemIdentityProfileEntityMaintain</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>AAXWHSItemIdentityProfileLineEntityMaintain</Name>
+		</AxSecurityPrivilegeReference>
+	</Privileges>
+</AxSecurityDuty>

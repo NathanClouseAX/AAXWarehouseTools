@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <BuildTasksDirectory Condition=" '$(BuildTasksDirectory)' == ''">$(MSBuildProgramFiles32)\MSBuild\Microsoft\Dynamics\AX</BuildTasksDirectory>
+    <Model>AAXWarehouseTools</Model>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <OutputPath>bin</OutputPath>
+    <SchemaVersion>2.0</SchemaVersion>
+    <GenerateCrossReferences>True</GenerateCrossReferences>
+    <ProjectGuid>{e6f21c84-9b3d-4a70-b5c8-1d47a92e6f03}</ProjectGuid>
+    <Name>AAXWHSItemIdentity</Name>
+    <RootNamespace>AAXWHSItemIdentity</RootNamespace>
+    <RunAppcheckerRules>False</RunAppcheckerRules>
+    <LogAppcheckerDiagsAsErrors>False</LogAppcheckerDiagsAsErrors>
+    <DeployOnline>False</DeployOnline>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
+    <Configuration>Debug</Configuration>
+    <DBSyncInBuild>True</DBSyncInBuild>
+    <GenerateFormAdaptors>False</GenerateFormAdaptors>
+    <Company>
+    </Company>
+    <Partition>initial</Partition>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DataEntityExpandParentChildRelations>False</DataEntityExpandParentChildRelations>
+    <DataEntityUseLabelTextAsFieldName>False</DataEntityUseLabelTextAsFieldName>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <ItemGroup>
+    <Folder Include="Action Menu Items\" />
+    <Folder Include="Base Enums\" />
+    <Folder Include="Classes\" />
+    <Folder Include="Data Entities\" />
+    <Folder Include="Display Menu Items\" />
+    <Folder Include="Extended Data Types\" />
+    <Folder Include="Form Extensions\" />
+    <Folder Include="Forms\" />
+    <Folder Include="Security Duties\" />
+    <Folder Include="Security Privileges\" />
+    <Folder Include="Tables\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="AxEnum\AAXWHSItemIdentitySource">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentitySource</Name>
+      <Link>Base Enums\AAXWHSItemIdentitySource</Link>
+    </Content>
+    <Content Include="AxEnum\AAXWHSItemIdentityFallback">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityFallback</Name>
+      <Link>Base Enums\AAXWHSItemIdentityFallback</Link>
+    </Content>
+    <Content Include="AxEnum\AAXWHSItemIdentityExtContent">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityExtContent</Name>
+      <Link>Base Enums\AAXWHSItemIdentityExtContent</Link>
+    </Content>
+    <Content Include="AxEnum\AAXWHSItemIdentityPartnerContext">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityPartnerContext</Name>
+      <Link>Base Enums\AAXWHSItemIdentityPartnerContext</Link>
+    </Content>
+    <Content Include="AxEnum\AAXWHSItemIdentityResolutionMode">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityResolutionMode</Name>
+      <Link>Base Enums\AAXWHSItemIdentityResolutionMode</Link>
+    </Content>
+    <Content Include="AxEdt\AAXWHSItemIdentityProfileId">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityProfileId</Name>
+      <Link>Extended Data Types\AAXWHSItemIdentityProfileId</Link>
+    </Content>
+    <Content Include="AxEdt\AAXWHSItemIdentityValue">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityValue</Name>
+      <Link>Extended Data Types\AAXWHSItemIdentityValue</Link>
+    </Content>
+    <Content Include="AxTable\AAXWHSItemIdentityParameters">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityParameters</Name>
+      <Link>Tables\AAXWHSItemIdentityParameters</Link>
+    </Content>
+    <Content Include="AxTable\AAXWHSItemIdentityProfile">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityProfile</Name>
+      <Link>Tables\AAXWHSItemIdentityProfile</Link>
+    </Content>
+    <Content Include="AxTable\AAXWHSItemIdentityProfileLine">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityProfileLine</Name>
+      <Link>Tables\AAXWHSItemIdentityProfileLine</Link>
+    </Content>
+    <Content Include="AxTable\AAXWHSItemIdentityMenuItemSetting">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityMenuItemSetting</Name>
+      <Link>Tables\AAXWHSItemIdentityMenuItemSetting</Link>
+    </Content>
+    <Content Include="AxTable\AAXWHSItemIdentityParametersStaging">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityParametersStaging</Name>
+      <Link>Tables\AAXWHSItemIdentityParametersStaging</Link>
+    </Content>
+    <Content Include="AxTable\AAXWHSItemIdentityProfileStaging">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityProfileStaging</Name>
+      <Link>Tables\AAXWHSItemIdentityProfileStaging</Link>
+    </Content>
+    <Content Include="AxTable\AAXWHSItemIdentityProfileLineStaging">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityProfileLineStaging</Name>
+      <Link>Tables\AAXWHSItemIdentityProfileLineStaging</Link>
+    </Content>
+    <Content Include="AxTable\AAXWHSItemIdentityMenuItemSettingStaging">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityMenuItemSettingStaging</Name>
+      <Link>Tables\AAXWHSItemIdentityMenuItemSettingStaging</Link>
+    </Content>
+    <Content Include="AxDataEntityView\AAXWHSItemIdentityParametersEntity">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityParametersEntity</Name>
+      <Link>Data Entities\AAXWHSItemIdentityParametersEntity</Link>
+    </Content>
+    <Content Include="AxDataEntityView\AAXWHSItemIdentityProfileEntity">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityProfileEntity</Name>
+      <Link>Data Entities\AAXWHSItemIdentityProfileEntity</Link>
+    </Content>
+    <Content Include="AxDataEntityView\AAXWHSItemIdentityProfileLineEntity">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityProfileLineEntity</Name>
+      <Link>Data Entities\AAXWHSItemIdentityProfileLineEntity</Link>
+    </Content>
+    <Content Include="AxDataEntityView\AAXWHSItemIdentityMenuItemSettingEntity">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityMenuItemSettingEntity</Name>
+      <Link>Data Entities\AAXWHSItemIdentityMenuItemSettingEntity</Link>
+    </Content>
+    <Content Include="AxClass\AAXWHSItemIdentityRequest">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityRequest</Name>
+      <Link>Classes\AAXWHSItemIdentityRequest</Link>
+    </Content>
+    <Content Include="AxClass\AAXWHSItemIdentityResult">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityResult</Name>
+      <Link>Classes\AAXWHSItemIdentityResult</Link>
+    </Content>
+    <Content Include="AxClass\AAXWHSItemIdentityResolver">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityResolver</Name>
+      <Link>Classes\AAXWHSItemIdentityResolver</Link>
+    </Content>
+    <Content Include="AxClass\AAXWHSItemIdentityCache">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityCache</Name>
+      <Link>Classes\AAXWHSItemIdentityCache</Link>
+    </Content>
+    <Content Include="AxClass\AAXWHSItemIdentityInjectionService">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityInjectionService</Name>
+      <Link>Classes\AAXWHSItemIdentityInjectionService</Link>
+    </Content>
+    <Content Include="AxClass\AAXWHSItemIdentityTestResolution">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityTestResolution</Name>
+      <Link>Classes\AAXWHSItemIdentityTestResolution</Link>
+    </Content>
+    <Content Include="AxClass\AAXWHSFieldItemIdentity">
+      <SubType>Content</SubType>
+      <Name>AAXWHSFieldItemIdentity</Name>
+      <Link>Classes\AAXWHSFieldItemIdentity</Link>
+    </Content>
+    <Content Include="AxClass\WhsWorkExecuteDisplay_AAXWarehouseTools_Extension">
+      <SubType>Content</SubType>
+      <Name>WhsWorkExecuteDisplay_AAXWarehouseTools_Extension</Name>
+      <Link>Classes\WhsWorkExecuteDisplay_AAXWarehouseTools_Extension</Link>
+    </Content>
+    <Content Include="AxClass\WHSWorkExecuteDisplayPOReceiving_AAXWarehouseTools_Extension">
+      <SubType>Content</SubType>
+      <Name>WHSWorkExecuteDisplayPOReceiving_AAXWarehouseTools_Extension</Name>
+      <Link>Classes\WHSWorkExecuteDisplayPOReceiving_AAXWarehouseTools_Extension</Link>
+    </Content>
+    <Content Include="AxForm\AAXWHSItemIdentityParameters">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityParameters</Name>
+      <Link>Forms\AAXWHSItemIdentityParameters</Link>
+    </Content>
+    <Content Include="AxForm\AAXWHSItemIdentityProfile">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityProfile</Name>
+      <Link>Forms\AAXWHSItemIdentityProfile</Link>
+    </Content>
+    <Content Include="AxForm\AAXWHSItemIdentityMenuItemSetting">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityMenuItemSetting</Name>
+      <Link>Forms\AAXWHSItemIdentityMenuItemSetting</Link>
+    </Content>
+    <Content Include="AxFormExtension\WHSRFMenuItem.AAXWarehouseTools">
+      <SubType>Content</SubType>
+      <Name>WHSRFMenuItem.AAXWarehouseTools</Name>
+      <Link>Form Extensions\WHSRFMenuItem.AAXWarehouseTools</Link>
+    </Content>
+    <Content Include="AxMenuItemDisplay\AAXWHSItemIdentityParameters">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityParameters</Name>
+      <Link>Display Menu Items\AAXWHSItemIdentityParameters</Link>
+    </Content>
+    <Content Include="AxMenuItemDisplay\AAXWHSItemIdentityProfile">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityProfile</Name>
+      <Link>Display Menu Items\AAXWHSItemIdentityProfile</Link>
+    </Content>
+    <Content Include="AxMenuItemDisplay\AAXWHSItemIdentityMenuItemSetting">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityMenuItemSetting</Name>
+      <Link>Display Menu Items\AAXWHSItemIdentityMenuItemSetting</Link>
+    </Content>
+    <Content Include="AxMenuItemAction\AAXWHSItemIdentityTestResolution">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityTestResolution</Name>
+      <Link>Action Menu Items\AAXWHSItemIdentityTestResolution</Link>
+    </Content>
+    <Content Include="AxSecurityPrivilege\AAXWHSItemIdentityMaintain">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityMaintain</Name>
+      <Link>Security Privileges\AAXWHSItemIdentityMaintain</Link>
+    </Content>
+    <Content Include="AxSecurityPrivilege\AAXWHSItemIdentityMenuItemSettingEntityMaintain">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityMenuItemSettingEntityMaintain</Name>
+      <Link>Security Privileges\AAXWHSItemIdentityMenuItemSettingEntityMaintain</Link>
+    </Content>
+    <Content Include="AxSecurityPrivilege\AAXWHSItemIdentityParametersEntityMaintain">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityParametersEntityMaintain</Name>
+      <Link>Security Privileges\AAXWHSItemIdentityParametersEntityMaintain</Link>
+    </Content>
+    <Content Include="AxSecurityPrivilege\AAXWHSItemIdentityProfileEntityMaintain">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityProfileEntityMaintain</Name>
+      <Link>Security Privileges\AAXWHSItemIdentityProfileEntityMaintain</Link>
+    </Content>
+    <Content Include="AxSecurityPrivilege\AAXWHSItemIdentityProfileLineEntityMaintain">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityProfileLineEntityMaintain</Name>
+      <Link>Security Privileges\AAXWHSItemIdentityProfileLineEntityMaintain</Link>
+    </Content>
+    <Content Include="AxSecurityDuty\AAXWHSItemIdentityMaintain">
+      <SubType>Content</SubType>
+      <Name>AAXWHSItemIdentityMaintain</Name>
+      <Link>Security Duties\AAXWHSItemIdentityMaintain</Link>
+    </Content>
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
+  <Import Project="$(BuildTasksDirectory)\Microsoft.Dynamics.Framework.Tools.BuildTasks.17.0.targets" />
+</Project>

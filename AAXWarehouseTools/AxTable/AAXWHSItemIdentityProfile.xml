@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSItemIdentityProfile</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Defines an ordered chain of item identity sources for the mobile app display line. The
+/// <c>ProfileVersion</c> counter increments on every header or line change so cached
+/// resolutions can detect stale entries.
+/// </summary>
+public class AAXWHSItemIdentityProfile extends common
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>find</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds the profile with the specified profile id.
+    /// </summary>
+    /// <param name = "_profileId">The profile id.</param>
+    /// <param name = "_forUpdate">True to select the record for update.</param>
+    /// <returns>The profile record, or an empty buffer when none exists.</returns>
+    public static AAXWHSItemIdentityProfile find(AAXWHSItemIdentityProfileId _profileId, boolean _forUpdate = false)
+    {
+        AAXWHSItemIdentityProfile profile;
+
+        if (_profileId)
+        {
+            profile.selectForUpdate(_forUpdate);
+
+            select firstonly profile
+                where profile.ProfileId == _profileId;
+        }
+
+        return profile;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>exist</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Indicates whether a profile with the specified profile id exists.
+    /// </summary>
+    /// <param name = "_profileId">The profile id.</param>
+    /// <returns>True if a matching profile exists.</returns>
+    public static boolean exist(AAXWHSItemIdentityProfileId _profileId)
+    {
+        return _profileId != ''
+            && (select firstonly RecId from aaxWHSItemIdentityProfile
+                where aaxWHSItemIdentityProfile.ProfileId == _profileId).RecId != 0;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>bumpVersion</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Increments the version counter of the specified profile so cached resolutions built
+    /// from it become stale.
+    /// </summary>
+    /// <param name = "_profileId">The profile id.</param>
+    public static void bumpVersion(AAXWHSItemIdentityProfileId _profileId)
+    {
+        AAXWHSItemIdentityProfile profile;
+
+        ttsbegin;
+
+        select forupdate firstonly profile
+            where profile.ProfileId == _profileId;
+
+        if (profile)
+        {
+            profile.ProfileVersion++;
+
+            // Skip the bump in update()
+            profile.doUpdate();
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>initValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Initializes a new profile with version 1.
+    /// </summary>
+    public void initValue()
+    {
+        super();
+
+        this.ProfileVersion = 1;
+        this.Separator      = ' | ';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>update</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Updates the profile and increments its version.
+    /// </summary>
+    public void update()
+    {
+        this.ProfileVersion++;
+
+        super();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+	<DeveloperDocumentation>@AAXWarehouseTools:IdentityTableProfile</DeveloperDocumentation>
+	<FormRef>AAXWHSItemIdentityProfile</FormRef>
+	<Label>@AAXWarehouseTools:IdentityTableProfile</Label>
+	<TableGroup>Main</TableGroup>
+	<TitleField1>ProfileId</TitleField1>
+	<TitleField2>Description</TitleField2>
+	<AllowRowVersionChangeTracking>Yes</AllowRowVersionChangeTracking>
+	<CacheLookup>Found</CacheLookup>
+	<ClusteredIndex>ProfileIdx</ClusteredIndex>
+	<PrimaryIndex>ProfileIdx</PrimaryIndex>
+	<ReplacementKey>ProfileIdx</ReplacementKey>
+	<DeleteActions>
+		<AxTableDeleteAction>
+			<Name>AAXWHSItemIdentityMenuItemSetting</Name>
+			<DeleteAction>Restricted</DeleteAction>
+			<Relation></Relation>
+			<Table>AAXWHSItemIdentityMenuItemSetting</Table>
+		</AxTableDeleteAction>
+		<AxTableDeleteAction>
+			<Name>AAXWHSItemIdentityProfileLine</Name>
+			<DeleteAction>Cascade</DeleteAction>
+			<Relation></Relation>
+			<Table>AAXWHSItemIdentityProfileLine</Table>
+		</AxTableDeleteAction>
+	</DeleteActions>
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>ProfileId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>ProfileVersion</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>ProfileId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>ProfileId</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>AAXWHSItemIdentityProfileId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Description</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>Description</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt">
+			<Name>ProfileVersion</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>System Metadata</AssetClassification>
+			<Label>@AAXWarehouseTools:IdentityProfileVersion</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>ResolutionMode</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<Label>@AAXWarehouseTools:IdentityResolutionMode</Label>
+			<EnumType>AAXWHSItemIdentityResolutionMode</EnumType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Separator</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<Label>@AAXWarehouseTools:IdentitySeparator</Label>
+			<StringSize>10</StringSize>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>ProfileIdx</Name>
+			<AlternateKey>Yes</AlternateKey>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>ProfileId</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<Relations />
+	<StateMachines />
+</AxTable>

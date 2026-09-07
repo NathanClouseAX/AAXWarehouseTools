@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSFieldItemIdentity</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Registers the <c>AAXWHSItemIdentityValue</c> data type with the warehouse app field priority
+/// framework. The injected item identity control carries this data type, so the field places the
+/// identity line right after the standard item description.
+/// </summary>
+[WHSFieldEDT(extendedTypeStr(AAXWHSItemIdentityValue))]
+public class AAXWHSFieldItemIdentity extends WHSField
+{
+    private const WHSFieldName             Name        = "@AAXWarehouseTools:IdentityDefaultLabelValue";
+    private const WHSFieldDisplayPriority  Priority    = 30;
+    private const WHSFieldDisplayPriority  SubPriority = 20;
+    private const WHSFieldInputMode        InputMode   = WHSFieldInputMode::Scanning;
+    private const WHSFieldInputType        InputType   = WHSFieldInputType::Alpha;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>initValues</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Sets the default properties of the item identity field.
+    /// </summary>
+    protected void initValues()
+    {
+        this.defaultName        = Name;
+        this.defaultPriority    = Priority;
+        this.defaultSubPriority = SubPriority;
+        this.defaultInputMode   = InputMode;
+        this.defaultInputType   = InputType;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

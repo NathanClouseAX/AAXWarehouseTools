@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSItemIdentityMenuItemSetting</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Assigns an item identity profile to a Warehouse Management mobile app menu item. The
+/// injection service only adds the identity display line to menu items with an enabled
+/// setting record.
+/// </summary>
+public class AAXWHSItemIdentityMenuItemSetting extends common
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>findByMenuItem</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds the setting record for the specified mobile app menu item.
+    /// </summary>
+    /// <param name = "_name">The menu item name.</param>
+    /// <param name = "_forUpdate">True to select the record for update.</param>
+    /// <returns>The setting record, or an empty buffer when none exists.</returns>
+    public static AAXWHSItemIdentityMenuItemSetting findByMenuItem(WHSMenuItemName _name, boolean _forUpdate = false)
+    {
+        AAXWHSItemIdentityMenuItemSetting menuItemSetting;
+
+        if (_name)
+        {
+            menuItemSetting.selectForUpdate(_forUpdate);
+
+            select firstonly menuItemSetting
+                where menuItemSetting.MenuItemName == _name;
+        }
+
+        return menuItemSetting;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>partnerContextForMenuItem</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Derives the partner context of a mobile app menu item from its work execution mode.
+    /// Purchase order receiving modes yield a vendor context, work execution modes yield a
+    /// customer context, and everything else yields no partner context.
+    /// </summary>
+    /// <param name = "_name">The menu item name.</param>
+    /// <returns>The partner context of the menu item.</returns>
+    public static AAXWHSItemIdentityPartnerContext partnerContextForMenuItem(WHSMenuItemName _name)
+    {
+        WHSRFMenuItemTable menuItemTable = WHSRFMenuItemTable::find(_name);
+
+        if (!menuItemTable)
+        {
+            return AAXWHSItemIdentityPartnerContext::None;
+        }
+
+        switch (WHSRFMenuItemTable::getWHSWorkExecuteMode(menuItemTable))
+        {
+            case WHSWorkExecuteMode::PurchaseOrderLineReceiving:
+            case WHSWorkExecuteMode::PurchaseOrderLineReceivingAndLocate:
+            case WHSWorkExecuteMode::PurchaseOrderItemReceiving:
+            case WHSWorkExecuteMode::PurchaseOrderItemReceivingAndLocate:
+                return AAXWHSItemIdentityPartnerContext::Vendor;
+
+            case WHSWorkExecuteMode::UserDirected:
+            case WHSWorkExecuteMode::SystemDirected:
+            case WHSWorkExecuteMode::UserGrouping:
+            case WHSWorkExecuteMode::SystemGrouping:
+            case WHSWorkExecuteMode::PickPack:
+                return AAXWHSItemIdentityPartnerContext::Customer;
+        }
+
+        return AAXWHSItemIdentityPartnerContext::None;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>partnerContext</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Shows the derived partner context of the assigned menu item as a read-only column.
+    /// </summary>
+    /// <returns>The partner context of the menu item.</returns>
+    public display AAXWHSItemIdentityPartnerContext partnerContext()
+    {
+        return AAXWHSItemIdentityMenuItemSetting::partnerContextForMenuItem(this.MenuItemName);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>initValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Initializes a new setting record as enabled.
+    /// </summary>
+    public void initValue()
+    {
+        super();
+
+        this.Enabled = NoYes::Yes;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateWrite</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Validates the setting and warns when the profile has only partner-dependent sources but
+    /// the menu item derives no partner context.
+    /// </summary>
+    /// <returns>True if the record is valid; otherwise, false.</returns>
+    public boolean validateWrite()
+    {
+        boolean ret = super();
+
+        if (ret && AAXWHSItemIdentityMenuItemSetting::partnerContextForMenuItem(this.MenuItemName) == AAXWHSItemIdentityPartnerContext::None)
+        {
+            AAXWHSItemIdentityProfileLine anyLine;
+            AAXWHSItemIdentityProfileLine nonExternalLine;
+
+            select firstonly RecId from anyLine
+                where anyLine.ProfileId == this.ProfileId;
+
+            select firstonly RecId from nonExternalLine
+                where nonExternalLine.ProfileId == this.ProfileId
+                   && nonExternalLine.Source != AAXWHSItemIdentitySource::ExternalItemNumber;
+
+            // Warn only
+            if (anyLine.RecId != 0 && nonExternalLine.RecId == 0)
+            {
+                warning(strFmt("@AAXWarehouseTools:IdentitySetupWarnPartner", this.MenuItemName));
+            }
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+	<DeveloperDocumentation>@AAXWarehouseTools:IdentityTableMenuItemSetting</DeveloperDocumentation>
+	<FormRef>AAXWHSItemIdentityMenuItemSetting</FormRef>
+	<Label>@AAXWarehouseTools:IdentityTableMenuItemSetting</Label>
+	<TableGroup>Main</TableGroup>
+	<TitleField1>MenuItemName</TitleField1>
+	<TitleField2>ProfileId</TitleField2>
+	<AllowRowVersionChangeTracking>Yes</AllowRowVersionChangeTracking>
+	<CacheLookup>Found</CacheLookup>
+	<ClusteredIndex>MenuItemIdx</ClusteredIndex>
+	<PrimaryIndex>MenuItemIdx</PrimaryIndex>
+	<ReplacementKey>MenuItemIdx</ReplacementKey>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>MenuItemName</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Enabled</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>ProfileId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>LabelOverride</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>MenuItemName</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>ProfileId</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>MenuItemName</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>WHSMenuItemName</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>Enabled</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>NoYesId</ExtendedDataType>
+			<Label>@AAXWarehouseTools:IdentityEnabled</Label>
+			<EnumType>NoYes</EnumType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>ProfileId</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>AAXWHSItemIdentityProfileId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>LabelOverride</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<Label>@AAXWarehouseTools:IdentityLabelOverride</Label>
+			<StringSize>60</StringSize>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>MenuItemIdx</Name>
+			<AlternateKey>Yes</AlternateKey>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>MenuItemName</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<Relations>
+		<AxTableRelation>
+			<Name>AAXWHSItemIdentityProfile</Name>
+			<Cardinality>ZeroMore</Cardinality>
+			<EDTRelation>Yes</EDTRelation>
+			<RelatedTable>AAXWHSItemIdentityProfile</RelatedTable>
+			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
+			<RelationshipType>Association</RelationshipType>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>ProfileId</Name>
+					<SourceEDT>AAXWHSItemIdentityProfileId</SourceEDT>
+					<Field>ProfileId</Field>
+					<RelatedField>ProfileId</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+		</AxTableRelation>
+		<AxTableRelation>
+			<Name>WHSRFMenuItemTable</Name>
+			<Cardinality>ZeroMore</Cardinality>
+			<EDTRelation>Yes</EDTRelation>
+			<OnDelete>Cascade</OnDelete>
+			<RelatedTable>WHSRFMenuItemTable</RelatedTable>
+			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
+			<RelationshipType>Association</RelationshipType>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>MenuItemName</Name>
+					<SourceEDT>WHSMenuItemName</SourceEDT>
+					<Field>MenuItemName</Field>
+					<RelatedField>MenuItemName</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+		</AxTableRelation>
+	</Relations>
+	<StateMachines />
+</AxTable>

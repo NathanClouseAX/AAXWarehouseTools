@@ -8,8 +8,9 @@ AAX Warehouse Tools adds two label capabilities to Warehouse management:
 
 - **Generate a label preview on demand** — see exactly what a ZPL layout will produce, as a PNG image, without sending anything to a printer or to any external service.
 - **Capture labels printed from mobile/RF flows and attach them to Work** — when enabled, ZPL labels that are printed from warehouse mobile flows and that belong to a Work record are rendered to images and attached to that Work, even when no physical printer is configured.
+- **Show an item identity line on the warehouse app** — a configurable read-only line on picking and receiving screens that shows the identity the warehouse actually works with: the customer's or vendor's external item number, the variant's product name, a GTIN, an item barcode, or the search name.
 
-Both features render ZPL to images entirely in-process. The renderer is a single self-contained assembly (`AtomicAx.Zpl.Render.dll`) that ships in the model `bin` folder; there is nothing else to install.
+Both label features render ZPL to images entirely in-process. The renderer is a single self-contained assembly (`AtomicAx.Zpl.Render.dll`) that ships in the model `bin` folder; there is nothing else to install.
 
 ## Features
 
@@ -34,20 +35,26 @@ Rendering and attachment happen in near-real-time immediately after the label is
 
 Capture is designed not to stay on indefinitely: it automatically turns itself off after a configurable number of days, and captured attachments are purged after a configurable retention period.
 
+### Feature C — Item identity line on the warehouse app
+
+Warehouse Management mobile screens identify goods by the released product number. When the operative identity is something else — the variant, a trading partner's item number, a GTIN — workers cannot confirm they have the right goods without leaving the flow. Feature C injects **one configurable, read-only item identity line** into picking and receiving screens, resolved through an ordered chain of identity sources with partner context (the customer on sales picking, the vendor on purchase receiving). Placement and prominence use the standard **Warehouse app field priority** and promoted-fields mechanisms.
+
+The feature is dormant until configured, adds nothing to standard tables, and can never block a warehouse transaction — a resolution failure simply means the line is absent. See the [Item identity setup guide](docs/ItemIdentitySetup.md), the [Item identity user guide](docs/ItemIdentityUserGuide.md), the [smoke test and diagnostics](docs/ItemIdentitySmokeTest.md), and the [validation scenarios](docs/ItemIdentityScenarios.md).
+
 ## Prerequisites
 
 - Microsoft Dynamics 365 Finance & Operations with the **Warehouse management** module enabled.
 - Access to deploy a model into the environment and to run a database synchronization (a standard developer or admin task in a non-production environment, or a deployable package in production).
 - System administrator (or equivalent) rights to configure Warehouse management parameters, Document routing, batch tasks, and security roles.
 
-No printer is required for either feature.
+No printer is required for any of these features.
 
 ## Installation and database synchronization
 
 1. **Deploy the `AAXWarehouseTools` model.** The ZPL renderer ships as a single self-contained assembly, `AtomicAx.Zpl.Render.dll`, which is already present in the model `bin` folder. No separate native-library deployment is required.
-2. **Synchronize the database.** This adds the Warehouse parameters fields used by the label-capture feature and the label-capture staging table that buffers labels between capture and rendering.
+2. **Synchronize the database.** This adds the Warehouse parameters fields used by the label-capture feature, the label-capture staging table that buffers labels between capture and rendering, and the item identity configuration tables.
 
-After the model is deployed and the database is synchronized, both features are available; the capture feature still needs to be enabled and configured (below).
+After the model is deployed and the database is synchronized, all features are available; label capture and item identity still need to be enabled and configured (below).
 
 ## Configuration
 
@@ -83,6 +90,10 @@ Two periodic tasks support the capture feature. Schedule them under **Warehouse 
 - **Render captured label previews** — the batch fallback that renders any captured labels not already rendered in-line and attaches them to their Work records. Scheduling this is recommended so no capture is missed.
 - **Purge label preview attachments** — the retention clean-up task that removes captured label-preview attachments older than the configured **Label preview retention days**.
 
+### Item identity display (Feature C)
+
+Configuration lives under **Warehouse management > Setup > Mobile device**: enable the feature in **Item identity parameters**, define an ordered source chain in **Item identity profiles**, assign profiles to menu items in **Item identity menu item settings**, and place the line with the standard **Warehouse app field priority** setup. The [Item identity setup guide](docs/ItemIdentitySetup.md) walks through every step, including the recommended starting profile and how to move configuration between environments with data management.
+
 ### Security
 
 Assign the **Maintain warehouse label preview** duty to the roles that need this functionality. The duty bundles two privileges:
@@ -90,7 +101,9 @@ Assign the **Maintain warehouse label preview** duty to the roles that need this
 - **Generate label preview** — grants access to the on-demand preview button (Feature A).
 - **Administer label preview capture** — grants access to the capture toggle and the render/purge batch tasks (Feature B).
 
-Assign the duty (or the individual privileges) to your warehouse worker, supervisor, or administrator roles as appropriate.
+For Feature C, assign the **Maintain item identity configuration** duty to the roles that configure the feature; it covers the three setup forms, the Test resolution diagnostic, and data management access to the item identity entities. Warehouse workers need no additional access — the identity line renders under their existing mobile-flow permissions.
+
+Assign the duties (or the individual privileges) to your warehouse worker, supervisor, or administrator roles as appropriate.
 
 ## Usage
 
@@ -113,6 +126,18 @@ Assign the duty (or the individual privileges) to your warehouse worker, supervi
 3. (Recommended) Confirm the **Render captured label previews** task is scheduled as the batch fallback, and **Purge label preview attachments** for retention.
 4. Run a warehouse mobile flow that prints a label tied to a Work record (for example, a flow that prints a work or container label).
 5. Open the related **Work** record and view its attachments (the paperclip / Document handling). The rendered label image appears there as the **Label preview** document type, typically within moments of the label being built; if it is not there yet, it will be attached on the next render batch pass.
+
+### Feature C — Show an item identity line on the warehouse app
+
+1. Turn the feature on in **Item identity parameters**, create a profile in **Item identity profiles**, and assign it to your picking and receiving menu items in **Item identity menu item settings** (all under **Warehouse management > Setup > Mobile device**).
+2. Open **Warehouse app field priority** once and place the **Item identity** field where you want it — typically directly under the Item field.
+3. Run a configured flow on the mobile app; the identity line appears with the item information. Use the **Test resolution** action on the profile to replay any resolution from the rich client, source by source.
+
+The [setup guide](docs/ItemIdentitySetup.md) covers every option; the [user guide](docs/ItemIdentityUserGuide.md) covers what workers see and troubleshooting. If the line does not appear, run the [smoke test](docs/ItemIdentitySmokeTest.md) — it isolates deployment, configuration, injection and resolution problems in about twenty minutes.
+
+## Building from source
+
+The repository includes an Azure DevOps pipeline (`azure-pipelines.yml`) that builds the model from GitHub on a Microsoft-hosted agent and publishes a deployable package — no build VM required. The one-time Azure DevOps setup (build tasks extension, package feed, GitHub connection) is described in the [build pipeline guide](docs/BuildPipeline.md).
 
 ## How it works and data privacy
 

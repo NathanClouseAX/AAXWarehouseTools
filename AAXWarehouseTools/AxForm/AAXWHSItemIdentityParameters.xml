@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
+	<Name>AAXWHSItemIdentityParameters</Name>
+	<SourceCode>
+		<Methods xmlns="">
+			<Method>
+				<Name>classDeclaration</Name>
+				<Source><![CDATA[
+/// <summary>
+/// Maintains the item identity display parameters held in the singleton
+/// <c>AAXWHSItemIdentityParameters</c> record.
+/// </summary>
+[Form]
+public class AAXWHSItemIdentityParameters extends FormRun
+{
+}
+]]></Source>
+			</Method>
+			<Method>
+				<Name>init</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Ensures the singleton parameters record exists before the form query runs.
+    /// </summary>
+    public void init()
+    {
+        AAXWHSItemIdentityParameters::find();
+
+        super();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+		<DataSources xmlns="" />
+		<DataControls xmlns="" />
+		<Members xmlns="" />
+	</SourceCode>
+	<DataSources>
+		<AxFormDataSource xmlns="">
+			<Name>AAXWHSItemIdentityParameters</Name>
+			<Table>AAXWHSItemIdentityParameters</Table>
+			<Fields>
+				<AxFormDataSourceField>
+					<DataField>CacheTtlMinutes</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>DataAreaId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>DefaultLabel</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>Enabled</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>ExtContentDefault</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>FallbackBehavior</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>FallbackText</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>Key</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>Partition</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>RecId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>TableId</DataField>
+				</AxFormDataSourceField>
+			</Fields>
+			<ReferencedDataSources />
+			<AllowCreate>No</AllowCreate>
+			<AllowDelete>No</AllowDelete>
+			<InsertAtEnd>No</InsertAtEnd>
+			<InsertIfEmpty>No</InsertIfEmpty>
+			<DataSourceLinks />
+			<DerivedDataSources />
+		</AxFormDataSource>
+	</DataSources>
+	<Design>
+		<Caption xmlns="">@AAXWarehouseTools:IdentityParametersForm</Caption>
+		<HeightMode xmlns="">SizeToContent</HeightMode>
+		<Pattern xmlns="">SimpleDetails-ToolbarFields</Pattern>
+		<PatternVersion xmlns="">1.3</PatternVersion>
+		<ShowDeleteButton xmlns="">No</ShowDeleteButton>
+		<ShowNewButton xmlns="">No</ShowNewButton>
+		<WidthMode xmlns="">SizeToAvailable</WidthMode>
+		<Controls xmlns="">
+			<AxFormControl xmlns=""
+				i:type="AxFormActionPaneControl">
+				<Name>ActionPaneControl</Name>
+				<Type>ActionPane</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls />
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>ContentGroup</Name>
+				<Pattern>FieldsFieldGroups</Pattern>
+				<PatternVersion>1.1</PatternVersion>
+				<Type>Group</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormGroupControl">
+						<Name>GeneralGroup</Name>
+						<Type>Group</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormCheckBoxControl">
+								<Name>AAXWHSItemIdentityParameters_Enabled</Name>
+								<HelpText>@AAXWarehouseTools:IdentityEnabledHelp</HelpText>
+								<Type>CheckBox</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>Enabled</DataField>
+								<DataSource>AAXWHSItemIdentityParameters</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>AAXWHSItemIdentityParameters_DefaultLabel</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>DefaultLabel</DataField>
+								<DataSource>AAXWHSItemIdentityParameters</DataSource>
+							</AxFormControl>
+						</Controls>
+						<Caption>@AAXWarehouseTools:IdentityGeneralGroup</Caption>
+						<DataSource>AAXWHSItemIdentityParameters</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormGroupControl">
+						<Name>FallbackGroup</Name>
+						<Type>Group</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormComboBoxControl">
+								<Name>AAXWHSItemIdentityParameters_FallbackBehavior</Name>
+								<Type>ComboBox</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>FallbackBehavior</DataField>
+								<DataSource>AAXWHSItemIdentityParameters</DataSource>
+								<Items />
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>AAXWHSItemIdentityParameters_FallbackText</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>FallbackText</DataField>
+								<DataSource>AAXWHSItemIdentityParameters</DataSource>
+							</AxFormControl>
+						</Controls>
+						<Caption>@AAXWarehouseTools:IdentityFallbackGroup</Caption>
+						<DataSource>AAXWHSItemIdentityParameters</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormGroupControl">
+						<Name>DisplayGroup</Name>
+						<Type>Group</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormComboBoxControl">
+								<Name>AAXWHSItemIdentityParameters_ExtContentDefault</Name>
+								<Type>ComboBox</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>ExtContentDefault</DataField>
+								<DataSource>AAXWHSItemIdentityParameters</DataSource>
+								<Items />
+							</AxFormControl>
+						</Controls>
+						<Caption>@AAXWarehouseTools:IdentityDisplayGroup</Caption>
+						<DataSource>AAXWHSItemIdentityParameters</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormGroupControl">
+						<Name>CacheGroup</Name>
+						<Type>Group</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormIntegerControl">
+								<Name>AAXWHSItemIdentityParameters_CacheTtlMinutes</Name>
+								<Type>Integer</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>CacheTtlMinutes</DataField>
+								<DataSource>AAXWHSItemIdentityParameters</DataSource>
+							</AxFormControl>
+						</Controls>
+						<Caption>@AAXWarehouseTools:IdentityCacheGroup</Caption>
+						<DataSource>AAXWHSItemIdentityParameters</DataSource>
+					</AxFormControl>
+				</Controls>
+				<ColumnsMode>Fill</ColumnsMode>
+			</AxFormControl>
+		</Controls>
+	</Design>
+	<Parts />
+</AxForm>

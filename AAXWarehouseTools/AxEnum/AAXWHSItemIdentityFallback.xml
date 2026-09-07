@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXWHSItemIdentityFallback</Name>
+	<Label>@AAXWarehouseTools:IdentityFallbackBehavior</Label>
+	<EnumValues>
+		<AxEnumValue>
+			<Name>Hide</Name>
+			<Label>@AAXWarehouseTools:IdentityFallbackHide</Label>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>ItemNumber</Name>
+			<Label>@AAXWarehouseTools:IdentityFallbackItemNumber</Label>
+			<Value>1</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>FixedText</Name>
+			<Label>@AAXWarehouseTools:IdentityFallbackFixedText</Label>
+			<Value>2</Value>
+		</AxEnumValue>
+	</EnumValues>
+</AxEnum>

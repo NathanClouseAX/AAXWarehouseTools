@@ -1,0 +1,424 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
+	<Name>AAXWHSItemIdentityProfile</Name>
+	<SourceCode>
+		<Methods xmlns="">
+			<Method>
+				<Name>classDeclaration</Name>
+				<Source><![CDATA[
+/// <summary>
+/// Maintains <c>AAXWHSItemIdentityProfile</c> headers and their ordered
+/// <c>AAXWHSItemIdentityProfileLine</c> source chains.
+/// </summary>
+[Form]
+public class AAXWHSItemIdentityProfile extends FormRun
+{
+}
+]]></Source>
+			</Method>
+		</Methods>
+		<DataSources xmlns="">
+			<DataSource>
+				<Name>AAXWHSItemIdentityProfileLine</Name>
+				<Methods>
+					<Method>
+						<Name>initValue</Name>
+						<Source><![CDATA[
+        /// <summary>
+        /// Defaults the sequence of a new line from the parent profile.
+        /// </summary>
+        public void initValue()
+        {
+            super();
+
+            if (!AAXWHSItemIdentityProfileLine.LineNum)
+            {
+                AAXWHSItemIdentityProfileLine.LineNum = AAXWHSItemIdentityProfileLine::nextLineNum(AAXWHSItemIdentityProfile.ProfileId);
+            }
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</DataSource>
+		</DataSources>
+		<DataControls xmlns="" />
+		<Members xmlns="" />
+	</SourceCode>
+	<DataSources>
+		<AxFormDataSource xmlns="">
+			<Name>AAXWHSItemIdentityProfile</Name>
+			<Table>AAXWHSItemIdentityProfile</Table>
+			<Fields>
+				<AxFormDataSourceField>
+					<DataField>DataAreaId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>Description</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>Partition</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>ProfileId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>ProfileVersion</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>RecId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>ResolutionMode</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>Separator</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>TableId</DataField>
+				</AxFormDataSourceField>
+			</Fields>
+			<ReferencedDataSources />
+			<InsertAtEnd>No</InsertAtEnd>
+			<InsertIfEmpty>No</InsertIfEmpty>
+			<DataSourceLinks />
+			<DerivedDataSources />
+		</AxFormDataSource>
+		<AxFormDataSource xmlns="">
+			<Name>AAXWHSItemIdentityProfileLine</Name>
+			<Table>AAXWHSItemIdentityProfileLine</Table>
+			<Fields>
+				<AxFormDataSourceField>
+					<DataField>AppendDimensionSummary</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>DataAreaId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>ExtContent</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>LineNum</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>Partition</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>ProfileId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>RecId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>Source</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>TableId</DataField>
+				</AxFormDataSourceField>
+			</Fields>
+			<ReferencedDataSources />
+			<JoinSource>AAXWHSItemIdentityProfile</JoinSource>
+			<InsertAtEnd>No</InsertAtEnd>
+			<InsertIfEmpty>No</InsertIfEmpty>
+			<DataSourceLinks />
+			<DerivedDataSources />
+		</AxFormDataSource>
+	</DataSources>
+	<Design>
+		<Caption xmlns="">@AAXWarehouseTools:IdentityProfilesForm</Caption>
+		<DataSource xmlns="">AAXWHSItemIdentityProfile</DataSource>
+		<Pattern xmlns="">SimpleListDetails</Pattern>
+		<PatternVersion xmlns="">1.3</PatternVersion>
+		<Style xmlns="">SimpleListDetails</Style>
+		<Controls xmlns="">
+			<AxFormControl xmlns=""
+				i:type="AxFormActionPaneControl">
+				<Name>FormActionPaneControl</Name>
+				<Type>ActionPane</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormButtonGroupControl">
+						<Name>ProfileButtonGroup</Name>
+						<Type>ButtonGroup</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormMenuFunctionButtonControl">
+								<Name>AAXWHSItemIdentityTestResolutionButton</Name>
+								<Type>MenuFunctionButton</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<ButtonDisplay>TextOnly</ButtonDisplay>
+								<DataSource>AAXWHSItemIdentityProfile</DataSource>
+								<MenuItemName>AAXWHSItemIdentityTestResolution</MenuItemName>
+								<MenuItemType>Action</MenuItemType>
+								<NeedsRecord>Yes</NeedsRecord>
+							</AxFormControl>
+						</Controls>
+					</AxFormControl>
+				</Controls>
+				<DataSource>AAXWHSItemIdentityProfile</DataSource>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>LeftGroup</Name>
+				<AutoDeclaration>Yes</AutoDeclaration>
+				<HeightMode>SizeToAvailable</HeightMode>
+				<Type>Group</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl>
+						<Name>QuickFilterControl</Name>
+						<WidthMode>SizeToAvailable</WidthMode>
+						<FormControlExtension>
+							<Name>QuickFilterControl</Name>
+							<ExtensionComponents />
+							<ExtensionProperties>
+								<AxFormControlExtensionProperty>
+									<Name>targetControlName</Name>
+									<Type>String</Type>
+									<Value>SimpleListGrid</Value>
+								</AxFormControlExtensionProperty>
+								<AxFormControlExtensionProperty>
+									<Name>placeholderText</Name>
+									<Type>String</Type>
+								</AxFormControlExtensionProperty>
+								<AxFormControlExtensionProperty>
+									<Name>defaultColumnName</Name>
+									<Type>String</Type>
+									<Value>List_ProfileId</Value>
+								</AxFormControlExtensionProperty>
+							</ExtensionProperties>
+						</FormControlExtension>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormGridControl">
+						<Name>SimpleListGrid</Name>
+						<AllowEdit>No</AllowEdit>
+						<Type>Grid</Type>
+						<WidthMode>SizeToContent</WidthMode>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>List_ProfileId</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>ProfileId</DataField>
+								<DataSource>AAXWHSItemIdentityProfile</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>List_Description</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>Description</DataField>
+								<DataSource>AAXWHSItemIdentityProfile</DataSource>
+							</AxFormControl>
+						</Controls>
+						<DataSource>AAXWHSItemIdentityProfile</DataSource>
+						<MultiSelect>No</MultiSelect>
+						<ShowRowLabels>No</ShowRowLabels>
+						<Style>List</Style>
+					</AxFormControl>
+				</Controls>
+				<FrameType>None</FrameType>
+				<Style>SidePanel</Style>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>DetailHeader</Name>
+				<Pattern>FieldsFieldGroups</Pattern>
+				<PatternVersion>1.1</PatternVersion>
+				<Type>Group</Type>
+				<WidthMode>SizeToAvailable</WidthMode>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>AAXWHSItemIdentityProfile_ProfileId</Name>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>ProfileId</DataField>
+						<DataSource>AAXWHSItemIdentityProfile</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>AAXWHSItemIdentityProfile_Description</Name>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>Description</DataField>
+						<DataSource>AAXWHSItemIdentityProfile</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormIntegerControl">
+						<Name>AAXWHSItemIdentityProfile_ProfileVersion</Name>
+						<AllowEdit>No</AllowEdit>
+						<Type>Integer</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>ProfileVersion</DataField>
+						<DataSource>AAXWHSItemIdentityProfile</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormComboBoxControl">
+						<Name>AAXWHSItemIdentityProfile_ResolutionMode</Name>
+						<Type>ComboBox</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>ResolutionMode</DataField>
+						<DataSource>AAXWHSItemIdentityProfile</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>AAXWHSItemIdentityProfile_Separator</Name>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>Separator</DataField>
+						<DataSource>AAXWHSItemIdentityProfile</DataSource>
+					</AxFormControl>
+				</Controls>
+				<ColumnsMode>Fill</ColumnsMode>
+				<DataSource>AAXWHSItemIdentityProfile</DataSource>
+				<FrameType>None</FrameType>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormTabControl">
+				<Name>DetailsTab</Name>
+				<Type>Tab</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormTabPageControl">
+						<Name>LinesTabPage</Name>
+						<Pattern>ToolbarList</Pattern>
+						<PatternVersion>1.2</PatternVersion>
+						<Type>TabPage</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormActionPaneControl">
+								<Name>ActionPaneDetails</Name>
+								<Type>ActionPane</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Controls>
+									<AxFormControl xmlns=""
+										i:type="AxFormActionPaneTabControl">
+										<Name>ActionPaneTabDetails</Name>
+										<Type>ActionPaneTab</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<Controls>
+											<AxFormControl xmlns=""
+												i:type="AxFormButtonGroupControl">
+												<Name>NewDeleteGroupLine</Name>
+												<Type>ButtonGroup</Type>
+												<FormControlExtension
+													i:nil="true" />
+												<Controls>
+													<AxFormControl xmlns=""
+														i:type="AxFormCommandButtonControl">
+														<Name>NewButtonDetails</Name>
+														<Type>CommandButton</Type>
+														<FormControlExtension
+															i:nil="true" />
+														<ButtonDisplay>TextWithImageLeft</ButtonDisplay>
+														<Command>New</Command>
+														<NormalImage>New</NormalImage>
+														<Text>@WAX4016</Text>
+													</AxFormControl>
+													<AxFormControl xmlns=""
+														i:type="AxFormCommandButtonControl">
+														<Name>DeleteButtonDetails</Name>
+														<Type>CommandButton</Type>
+														<FormControlExtension
+															i:nil="true" />
+														<ButtonDisplay>TextWithImageLeft</ButtonDisplay>
+														<Command>DeleteRecord</Command>
+														<NormalImage>Delete</NormalImage>
+														<SaveRecord>No</SaveRecord>
+														<Text>@WAX1624</Text>
+													</AxFormControl>
+												</Controls>
+												<Columns>2</Columns>
+												<DataSource>AAXWHSItemIdentityProfileLine</DataSource>
+											</AxFormControl>
+										</Controls>
+										<DataSource>AAXWHSItemIdentityProfileLine</DataSource>
+									</AxFormControl>
+								</Controls>
+								<DataSource>AAXWHSItemIdentityProfileLine</DataSource>
+								<Style>Strip</Style>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormGridControl">
+								<Name>GridDetails</Name>
+								<Type>Grid</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Controls>
+									<AxFormControl xmlns=""
+										i:type="AxFormRealControl">
+										<Name>AAXWHSItemIdentityProfileLine_LineNum</Name>
+										<Type>Real</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>LineNum</DataField>
+										<DataSource>AAXWHSItemIdentityProfileLine</DataSource>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormComboBoxControl">
+										<Name>AAXWHSItemIdentityProfileLine_Source</Name>
+										<Type>ComboBox</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>Source</DataField>
+										<DataSource>AAXWHSItemIdentityProfileLine</DataSource>
+										<Items />
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormComboBoxControl">
+										<Name>AAXWHSItemIdentityProfileLine_ExtContent</Name>
+										<Type>ComboBox</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>ExtContent</DataField>
+										<DataSource>AAXWHSItemIdentityProfileLine</DataSource>
+										<Items />
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormCheckBoxControl">
+										<Name>AAXWHSItemIdentityProfileLine_AppendDimensionSummary</Name>
+										<Type>CheckBox</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>AppendDimensionSummary</DataField>
+										<DataSource>AAXWHSItemIdentityProfileLine</DataSource>
+									</AxFormControl>
+								</Controls>
+								<DataSource>AAXWHSItemIdentityProfileLine</DataSource>
+							</AxFormControl>
+						</Controls>
+						<Caption>@AAXWarehouseTools:IdentityProfileLinesGroup</Caption>
+					</AxFormControl>
+				</Controls>
+				<Style>FastTabs</Style>
+			</AxFormControl>
+		</Controls>
+	</Design>
+	<Parts />
+</AxForm>

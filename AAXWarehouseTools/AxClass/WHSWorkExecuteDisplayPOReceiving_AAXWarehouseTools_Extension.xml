@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>WHSWorkExecuteDisplayPOReceiving_AAXWarehouseTools_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Extension of the <c>WHSWorkExecuteDisplayPOReceiving</c> class for the AAXWarehouseTools model.
+/// Appends the configured item identity line to the receiving pages built by <c>displayForm</c>
+/// when the menu item has identity display enabled.
+/// </summary>
+[ExtensionOf(classStr(WHSWorkExecuteDisplayPOReceiving))]
+public final class WHSWorkExecuteDisplayPOReceiving_AAXWarehouseTools_Extension
+{
+    #WHSRF
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>displayForm</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Extends <c>displayForm</c> to append the item identity line for the item being received
+    /// after the base implementation has built the page. The base implementation is called with
+    /// <c>next</c>.
+    /// </summary>
+    /// <param name = "_con">Container containing the form state before the controls are added.</param>
+    /// <param name = "_buttonClicked">The button clicked on the mobile device.</param>
+    /// <returns>Container containing the form state after the controls are added.</returns>
+    public container displayForm(container _con, str _buttonClicked)
+    {
+        container ret = next displayForm(_con, _buttonClicked);
+
+        return this.aaxAppendItemIdentityForReceiving(ret);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>aaxAppendItemIdentityForReceiving</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Appends the item identity line for the item being received when the pass carries an item
+    /// and the line is not yet on the page. Purchase lines resolve for the order's invoice vendor.
+    /// </summary>
+    /// <param name = "_displayCon">Container containing the built form state.</param>
+    /// <returns>Container containing the form state with the identity line appended when resolved.</returns>
+    private container aaxAppendItemIdentityForReceiving(container _displayCon)
+    {
+        container ret = _displayCon;
+
+        try
+        {
+            ItemId itemId = pass.parmItemId();
+
+            if (itemId
+                && !this.buildControlExistsInContainer(ret, AAXWHSItemIdentityInjectionService::ControlName))
+            {
+                AAXWHSItemIdentityPartnerContext partnerContext = AAXWHSItemIdentityPartnerContext::None;
+                CustVendAC                       partnerAccount;
+                WHSReceiptOrderLine              orderLine = this.receivingOrderLine(pass, false);
+
+                // Purchase lines resolve for the invoice vendor
+                if (orderLine.TableId == tableNum(PurchLine) && orderLine.OrderNumber)
+                {
+                    partnerContext = AAXWHSItemIdentityPartnerContext::Vendor;
+                    partnerAccount = PurchTable::find(orderLine.OrderNumber).InvoiceAccount;
+                }
+
+                container identityLine = AAXWHSItemIdentityInjectionService::identityLineForMenuItem(
+                    pass.parmMenuItem(), itemId, orderLine.InventDimId, partnerContext, partnerAccount);
+
+                if (identityLine != conNull())
+                {
+                    // Read-only line typed with the identity EDT
+                    ret += [this.buildControl(#RFText, AAXWHSItemIdentityInjectionService::ControlName, conPeek(identityLine, 1), 1, conPeek(identityLine, 2), extendedTypeNum(AAXWHSItemIdentityValue), '', 0, false)];
+                }
+            }
+        }
+        catch
+        {
+            // Leave the page unchanged on failure
+            ret = _displayCon;
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

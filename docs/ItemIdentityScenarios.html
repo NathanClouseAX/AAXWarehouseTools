@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AAX Warehouse Tools — Item Identity Display Validation Scenarios</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="aax-warehouse-tools-item-identity-display-validation-scenarios">AAX Warehouse Tools — Item Identity Display Validation Scenarios</h1>
+<p>Fifteen scenario reviews covering the item identity feature end to end. Run them in order on a synchronized environment with the Warehouse Management mobile app connected; scenarios 1–4 build the master data the later ones reuse. Each scenario states its purpose, setup, steps, and expected outcome — record Pass/Fail and observations inline.</p>
+<p><strong>Base data used throughout</strong> (adjust names to your environment):</p>
+<ul>
+<li>A released product master <code>SHIRT</code> with the Color and Size dimensions active, variants including <code>Black/M</code>, and per-variant product name translations in at least two languages.</li>
+<li>A plain released product <code>A0001</code> with no product dimensions, a search name, and no external item numbers.</li>
+<li>Customer <code>C-100</code> (used on the test sales orders) with an external item description for <code>SHIRT</code> <code>Black/M</code> (external number <code>L102</code>), and a second customer <code>C-200</code> with no external records.</li>
+<li>Vendor <code>V-100</code> (used on the test purchase orders) with an external item number for <code>SHIRT</code> <code>Black/M</code>.</li>
+<li>Mobile device menu items: one user-directed <strong>work execution</strong> item (sales picking), one <strong>purchase order line receiving</strong> item, one <strong>purchase order item receiving</strong> item, one <strong>movement</strong> item.</li>
+<li>A profile <code>MAIN</code> with lines: 1 External item number, 2 Variant product name, 3 Item number.</li>
+</ul>
+<hr />
+<h2 id="sales-picking-variant-name">1. Sales picking — variant name</h2>
+<p><strong>Purpose</strong>: the variant's translated product name shows on the pick and put screens.</p>
+<p><strong>Setup</strong>: profile <code>VARIANT</code> with the single line <em>Variant product name</em>; assign it to the work execution menu item; parameters enabled, fallback <em>Hide</em>; a released sales order for <code>SHIRT</code> <code>Black/M</code> to customer <code>C-200</code>, waved to work.</p>
+<p><strong>Steps</strong>:</p>
+<ol type="a">
+<li>Execute the picking work on the device through the pick confirmation and the target license plate/put screens.</li>
+<li>Change the worker's user language to the second translation language and repeat.</li>
+<li>Delete the variant-level translation for that language (keep the product master's) and repeat.</li>
+</ol>
+<p><strong>Expected</strong>: (a) both screens show the identity line with the variant's product name; (b) the name appears in the session language; (c) the product master's translation appears instead. The line never appears as an editable field and never blocks confirmation.</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="sales-picking-external-item-number-and-its-precedence">2. Sales picking — external item number and its precedence</h2>
+<p><strong>Purpose</strong>: the customer's number resolves with the standard precedence.</p>
+<p><strong>Setup</strong>: profile <code>MAIN</code> on the work execution menu item; sales order for <code>SHIRT</code> <code>Black/M</code> to customer <code>C-100</code>, waved to work.</p>
+<p><strong>Steps</strong>:</p>
+<ol type="a">
+<li>Pick the work; observe the line.</li>
+<li>Set the parameter <strong>External item content</strong> to <em>Description</em>, then <em>Identifier and description</em>; touch the profile (any edit) to refresh the cache between changes; re-render the screen each time.</li>
+<li>Add an item-group-level external record (customer item group on <code>C-100</code>) with a different number, alongside the account-level record; re-test. Then remove the account-level record and re-test.</li>
+<li>Add an item-level external record (no dimensions) with a different number alongside the exact-variant record; re-test. Then remove the exact-variant record and re-test.</li>
+</ol>
+<p><strong>Expected</strong>: (a) <code>L102</code>; (b) the description, then <code>L102 - &lt;description&gt;</code>; (c) the account-level record wins while present, the group record after; (d) the exact-variant record wins while present, the item-level record after.</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="purchase-receiving-vendor-context">3. Purchase receiving — vendor context</h2>
+<p><strong>Purpose</strong>: both PO receiving flows resolve with the vendor from the order.</p>
+<p><strong>Setup</strong>: profile <code>MAIN</code> on both PO receiving menu items; a purchase order for <code>SHIRT</code> <code>Black/M</code> from vendor <code>V-100</code>; a second PO from a vendor with no external records.</p>
+<p><strong>Steps</strong>: receive the first PO via <strong>PO line receiving</strong>, then via <strong>PO item receiving</strong>; observe the identity line on the quantity/confirmation screens. Repeat with the second PO.</p>
+<p><strong>Expected</strong>: the first PO shows <code>V-100</code>'s external number on both flows; the second shows the variant name (line 2 of the profile) — never another vendor's number.</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="chain-order-first-hit-wins">4. Chain order — first hit wins</h2>
+<p><strong>Purpose</strong>: profile sequence decides the winner.</p>
+<p><strong>Setup</strong>: scenario 2's data (external record exists for <code>C-100</code>).</p>
+<p><strong>Steps</strong>: on profile <code>MAIN</code>, swap lines 1 and 2 (Variant product name first); re-pick the same work; then swap back.</p>
+<p><strong>Expected</strong>: with the variant name first, the line shows the variant name even though the external record exists; restored order shows <code>L102</code> again. Each profile edit takes effect on the next screen render (version bump — no cache wait).</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="fallback-behavior">5. Fallback behavior</h2>
+<p><strong>Purpose</strong>: all three fallbacks behave as configured when the whole chain misses.</p>
+<p><strong>Setup</strong>: profile <code>EXTONLY</code> with the single line <em>External item number</em>, assigned to the work execution menu item; sales work for customer <code>C-200</code> (no external records).</p>
+<p><strong>Steps</strong>: pick the work three times, once per parameter fallback: <em>Hide</em>, <em>Item number</em>, <em>Fixed text</em> (with a text set). Touch the profile between changes to skip the cache.</p>
+<p><strong>Expected</strong>: <em>Hide</em> — no identity line at all and the screen is otherwise identical to standard; <em>Item number</em> — the released product number; <em>Fixed text</em> — the configured text.</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="no-partner-guard-at-setup">6. No-partner guard at setup</h2>
+<p><strong>Purpose</strong>: the setup warning fires for a dead-end combination without blocking the save.</p>
+<p><strong>Setup</strong>: profile <code>EXTONLY</code> from scenario 5.</p>
+<p><strong>Steps</strong>: create a menu item setting for the <strong>movement</strong> menu item with profile <code>EXTONLY</code>; save.</p>
+<p><strong>Expected</strong>: a warning states the profile only contains partner-dependent sources while the menu item derives no partner context; the row saves anyway. At runtime the movement flow follows the fallback (and shows nothing extra on screens the feature does not cover).</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="label-defaulting-and-override">7. Label defaulting and override</h2>
+<p><strong>Purpose</strong>: caption precedence — override, then parameter default, then shipped default.</p>
+<p><strong>Setup</strong>: scenario 1's assignment.</p>
+<p><strong>Steps</strong>: render with (a) no override and the parameter <strong>Default label</strong> at its shipped value, (b) a changed parameter default, (c) a <strong>Label override</strong> on the menu item setting.</p>
+<p><strong>Expected</strong>: (a) <em>Item identity</em>; (b) the parameter text on this and every configured menu item without an override; (c) the override text on this menu item only.</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="field-priority-and-promotion">8. Field priority and promotion</h2>
+<p><strong>Purpose</strong>: placement and prominence are pure standard configuration.</p>
+<p><strong>Setup</strong>: any working scenario, e.g. scenario 1.</p>
+<p><strong>Steps</strong>:</p>
+<ol type="a">
+<li>Open <strong>Warehouse app field priority</strong> once; confirm the <strong>Item identity</strong> field is listed.</li>
+<li>With no priority assigned to it, render the screen and note where the line lands.</li>
+<li>Assign it to the priority group right below the Item field; re-render.</li>
+<li>Promote the field for the pick step via step instructions/promoted fields; re-render.</li>
+</ol>
+<p><strong>Expected</strong>: (a) the field self-registers on first open; (b) the line renders in the default/secondary info area; (c) it renders directly under the item; (d) it renders promoted per the standard feature.</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="non-intrusion">9. Non-intrusion</h2>
+<p><strong>Purpose</strong>: disabled or unconfigured means byte-identical standard behavior.</p>
+<p><strong>Steps</strong>:</p>
+<ol type="a">
+<li>Turn <strong>Enable item identity display</strong> off; run a full pick and a full PO line receive on configured menu items.</li>
+<li>Turn it back on; run the same flows on an unconfigured menu item.</li>
+<li>Inspect the four AAX tables and confirm no standard table carries AAX data.</li>
+</ol>
+<p><strong>Expected</strong>: (a) and (b) show no identity line and no behavior change of any kind — every confirmation, validation, and posting is standard; (c) configuration lives only in the AAX tables.</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="exception-isolation">10. Exception isolation</h2>
+<p><strong>Purpose</strong>: a resolution failure can never surface to the worker.</p>
+<p><strong>Setup</strong>: scenario 1's assignment; then corrupt the configuration deliberately — e.g. delete profile <code>VARIANT</code> while its menu item setting still references it (delete the lines first if the profile delete is restricted, leaving an empty profile; an empty profile is itself a valid &quot;always miss&quot; case, so also test with the setting pointing at a deleted/renamed profile id via DMF import if available).</p>
+<p><strong>Steps</strong>: execute the picking work.</p>
+<p><strong>Expected</strong>: the flow renders and completes normally — at worst the identity line is absent. No error message, no infolog on the device, no blocked step.</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="caching-and-invalidation">11. Caching and invalidation</h2>
+<p><strong>Purpose</strong>: values are cached for the configured duration; profile edits invalidate immediately.</p>
+<p><strong>Setup</strong>: scenario 2's data; <strong>Cache duration</strong> 30.</p>
+<p><strong>Steps</strong>:</p>
+<ol type="a">
+<li>Pick to render the line once. Change the customer's external number in the master data; re-render within the cache window.</li>
+<li>Edit the profile (any change); re-render.</li>
+<li>Set <strong>Cache duration</strong> to 0; change the external number again; re-render.</li>
+</ol>
+<p><strong>Expected</strong>: (a) the old value still shows (cached); (b) the new value shows immediately (version bump); (c) with caching off, master-data changes show on the next render.</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="test-resolution-parity">12. Test resolution parity</h2>
+<p><strong>Purpose</strong>: the diagnostic shows exactly what the device shows.</p>
+<p><strong>Setup</strong>: scenario 2's data.</p>
+<p><strong>Steps</strong>: run <strong>Test resolution</strong> from profile <code>MAIN</code> with the same item, the variant's product dimension number, partner context <em>Customer</em>, account <code>C-100</code>. Compare with the device.</p>
+<p><strong>Expected</strong>: the trace lists each source in order with hit/miss and reasons; the winning source and value equal the device's line for the same inputs. Repeat with <code>C-200</code>: the external source reports its miss and the variant name wins — again matching the device.</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="performance-at-scale">13. Performance at scale</h2>
+<p><strong>Purpose</strong>: no perceptible step delay on variant-heavy data.</p>
+<p><strong>Setup</strong>: an item population in the thousands of variants (a 10,000+ variant item if your test data has one), profile <code>MAIN</code>, caching at the default.</p>
+<p><strong>Steps</strong>: run repeated picking against varied variants; compare step response times with the menu item's setting row disabled versus enabled (toggling the row is a zero-deployment A/B switch).</p>
+<p><strong>Expected</strong>: no worker-perceptible difference; the first resolution per variant is a handful of indexed lookups, warm renders hit the cache.</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="configuration-round-trip-via-data-management">14. Configuration round-trip via data management</h2>
+<p><strong>Purpose</strong>: the four entities move the whole setup between environments.</p>
+<p><strong>Steps</strong>: export <strong>Item identity parameters / profiles / profile lines / menu item settings</strong> from the source environment; import into a clean target <strong>with profiles sequenced before profile lines and menu item settings</strong>; run scenario 2's pick on the target.</p>
+<p><strong>Expected</strong>: identical resolution behavior on the target; profile versions re-stamp safely (caches simply start cold).</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="security">15. Security</h2>
+<p><strong>Purpose</strong>: setup is gated by the duty; workers need nothing new.</p>
+<p><strong>Steps</strong>:</p>
+<ol type="a">
+<li>As a user without the <strong>Maintain item identity configuration</strong> duty, try to open the three setup forms and Test resolution.</li>
+<li>As a warehouse worker with unchanged standard roles, execute configured flows.</li>
+<li>Grant the duty to the first user; retry (a).</li>
+</ol>
+<p><strong>Expected</strong>: (a) access denied; (b) flows work and the identity line shows — no elevation needed for display; (c) full setup access, nothing beyond it.</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="concatenate-mode">16. Concatenate mode</h2>
+<p><strong>Purpose</strong>: a concatenating profile shows every resolving source, joined by the separator.</p>
+<p><strong>Setup</strong>: profile <code>MAIN</code> from the base data (External item number, Variant product name, Item number) with <strong>Resolution mode</strong> = <em>Concatenate</em> and the shipped separator; sales work for <code>SHIRT</code> <code>Black/M</code> to customer <code>C-100</code>.</p>
+<p><strong>Steps</strong>:</p>
+<ol type="a">
+<li>Pick the work; observe the line.</li>
+<li>Change the separator to <code>/</code> and re-render (the profile edit refreshes the cache).</li>
+<li>Repeat the pick for customer <code>C-200</code> (no external record).</li>
+<li>Run <strong>Test resolution</strong> for the same inputs.</li>
+</ol>
+<p><strong>Expected</strong>: (a) <code>L102 | &lt;variant name&gt; | SHIRT</code>; (b) the same values joined with <code>/</code>; (c) the external source is simply absent: <code>&lt;variant name&gt; | SHIRT</code>; (d) the trace shows one <em>resolved</em> line per contributing source and reports the first contributor as the winning source, with the full concatenated value.</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<h2 id="sequence-defaulting-and-duplicate-source-warning">17. Sequence defaulting and duplicate-source warning</h2>
+<p><strong>Purpose</strong>: new lines number themselves; repeating a source warns without blocking.</p>
+<p><strong>Steps</strong>:</p>
+<ol type="a">
+<li>On a new profile, add a line without touching <strong>Sequence</strong>; add two more.</li>
+<li>Delete the middle line and add another.</li>
+<li>Set the new line's <strong>Source</strong> to one already used on another line; save.</li>
+</ol>
+<p><strong>Expected</strong>: (a) sequences 10, 20, 30 assigned automatically; (b) the new line gets 40 (highest plus ten — gaps are not reused); (c) a warning names the source and the sequence that already uses it, and the line still saves.</p>
+<p><strong>Result</strong>: ☐ Pass ☐ Fail — notes:</p>
+<hr />
+<h2 id="review-summary">Review summary</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Scenario</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Sales picking — variant name</td>
+<td></td>
+</tr>
+<tr>
+<td>2</td>
+<td>External item number precedence</td>
+<td></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Purchase receiving — vendor context</td>
+<td></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Chain order</td>
+<td></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Fallback behavior</td>
+<td></td>
+</tr>
+<tr>
+<td>6</td>
+<td>No-partner guard</td>
+<td></td>
+</tr>
+<tr>
+<td>7</td>
+<td>Label defaulting and override</td>
+<td></td>
+</tr>
+<tr>
+<td>8</td>
+<td>Field priority and promotion</td>
+<td></td>
+</tr>
+<tr>
+<td>9</td>
+<td>Non-intrusion</td>
+<td></td>
+</tr>
+<tr>
+<td>10</td>
+<td>Exception isolation</td>
+<td></td>
+</tr>
+<tr>
+<td>11</td>
+<td>Caching and invalidation</td>
+<td></td>
+</tr>
+<tr>
+<td>12</td>
+<td>Test resolution parity</td>
+<td></td>
+</tr>
+<tr>
+<td>13</td>
+<td>Performance at scale</td>
+<td></td>
+</tr>
+<tr>
+<td>14</td>
+<td>Configuration round-trip</td>
+<td></td>
+</tr>
+<tr>
+<td>15</td>
+<td>Security</td>
+<td></td>
+</tr>
+<tr>
+<td>16</td>
+<td>Concatenate mode</td>
+<td></td>
+</tr>
+<tr>
+<td>17</td>
+<td>Sequence defaulting and duplicate-source warning</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Reviewed by: _______________  Date: _______________  Build: _______________</p>
+
+</body>
+</html>

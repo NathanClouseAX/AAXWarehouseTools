@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AAX Warehouse Tools</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="aax-warehouse-tools">AAX Warehouse Tools</h1>
+<p>On-demand ZPL label preview and printer-free mobile-flow label capture for Microsoft Dynamics 365 Finance &amp; Operations (Warehouse management) — all rendering happens inside the AOS, with no label data leaving your environment.</p>
+<h2 id="overview">Overview</h2>
+<p>AAX Warehouse Tools adds two label capabilities to Warehouse management:</p>
+<ul>
+<li><strong>Generate a label preview on demand</strong> — see exactly what a ZPL layout will produce, as a PNG image, without sending anything to a printer or to any external service.</li>
+<li><strong>Capture labels printed from mobile/RF flows and attach them to Work</strong> — when enabled, ZPL labels that are printed from warehouse mobile flows and that belong to a Work record are rendered to images and attached to that Work, even when no physical printer is configured.</li>
+<li><strong>Show an item identity line on the warehouse app</strong> — a configurable read-only line on picking and receiving screens that shows the identity the warehouse actually works with: the customer's or vendor's external item number, the variant's product name, a GTIN, an item barcode, or the search name.</li>
+</ul>
+<p>Both label features render ZPL to images entirely in-process. The renderer is a single self-contained assembly (<code>AtomicAx.Zpl.Render.dll</code>) that ships in the model <code>bin</code> folder; there is nothing else to install.</p>
+<h2 id="features">Features</h2>
+<h3 id="feature-a-on-demand-label-preview">Feature A — On-demand label preview</h3>
+<p>A <strong>Generate label preview</strong> action button is added to the action pane of the <strong>Label layout</strong> and <strong>Document routing layout</strong> forms. Selecting it opens the <strong>Label preview</strong> dialog, which:</p>
+<ul>
+<li>Renders the layout's ZPL to one PNG image per label (<code>^XA … ^XZ</code> block).</li>
+<li>Resolves <code>$tokens$</code> and template blocks the same way they are resolved at print time, using a live seed record when one is available and falling back to generated <strong>sample data</strong> when it is not. A badge indicates whether the preview used a <strong>Live record</strong> or <strong>Sample data</strong>.</li>
+<li>Lets you choose the seed record from a <strong>Data source</strong> group and re-render with <strong>Refresh preview</strong>.</li>
+<li>Lets you <strong>edit the source ZPL</strong> (with its <code>$tokens$</code> / template blocks) in an editable panel, preview the edits without saving, and <strong>Save to layout</strong> to write the edited ZPL back to the active layout version. A read-only panel shows the translated (token-substituted) ZPL that is actually rendered.</li>
+<li>Supports an optional <strong>size override</strong> — turn on <strong>Override label size</strong> and set <strong>Width (in)</strong>, <strong>Height (in)</strong>, and <strong>DPI</strong> to force the render size instead of the size the label declares with <code>^PW</code> / <code>^LL</code>.</li>
+<li>Supports <strong>Rotate 90°</strong>, <strong>Previous label</strong> / <strong>Next label</strong> paging for multi-label jobs (with a &quot;Label <em>n</em> of <em>m</em>&quot; caption), <strong>Copy ZPL</strong>, and <strong>Download PNG</strong>.</li>
+</ul>
+<p>This feature applies to label layouts whose definition type is <strong>ZPL</strong> (including layouts that use template blocks). Layouts whose definition type is <strong>Variables</strong> or <strong>VariablesScript</strong> are not previewable and the dialog reports this with a clear message.</p>
+<h3 id="feature-b-mobile-flow-label-capture-to-work-attachment">Feature B — Mobile-flow label capture to Work attachment</h3>
+<p>When <strong>Print label preview to work attachment</strong> is enabled, ZPL labels that are printed from warehouse mobile flows and that have a related Work record are captured at the document-routing print path, rendered to images, and attached to that Work record. Because the capture happens at the print path rather than at a printer, it works even when <strong>no printer is configured</strong> for the routing.</p>
+<p>Rendering and attachment happen in near-real-time immediately after the label is built. A scheduled batch task acts as a fallback so that any label not rendered in-line is still picked up. The finished image appears on the Work record's attachments (the standard paperclip / Document handling), as document type <strong>Label preview</strong>.</p>
+<p>Capture is designed not to stay on indefinitely: it automatically turns itself off after a configurable number of days, and captured attachments are purged after a configurable retention period.</p>
+<h3 id="feature-c-item-identity-line-on-the-warehouse-app">Feature C — Item identity line on the warehouse app</h3>
+<p>Warehouse Management mobile screens identify goods by the released product number. When the operative identity is something else — the variant, a trading partner's item number, a GTIN — workers cannot confirm they have the right goods without leaving the flow. Feature C injects <strong>one configurable, read-only item identity line</strong> into picking and receiving screens, resolved through an ordered chain of identity sources with partner context (the customer on sales picking, the vendor on purchase receiving). Placement and prominence use the standard <strong>Warehouse app field priority</strong> and promoted-fields mechanisms.</p>
+<p>The feature is dormant until configured, adds nothing to standard tables, and can never block a warehouse transaction — a resolution failure simply means the line is absent. See the <a href="docs/ItemIdentitySetup.html">Item identity setup guide</a>, the <a href="docs/ItemIdentityUserGuide.html">Item identity user guide</a>, the <a href="docs/ItemIdentitySmokeTest.html">smoke test and diagnostics</a>, and the <a href="docs/ItemIdentityScenarios.html">validation scenarios</a>.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>Microsoft Dynamics 365 Finance &amp; Operations with the <strong>Warehouse management</strong> module enabled.</li>
+<li>Access to deploy a model into the environment and to run a database synchronization (a standard developer or admin task in a non-production environment, or a deployable package in production).</li>
+<li>System administrator (or equivalent) rights to configure Warehouse management parameters, Document routing, batch tasks, and security roles.</li>
+</ul>
+<p>No printer is required for any of these features.</p>
+<h2 id="installation-and-database-synchronization">Installation and database synchronization</h2>
+<ol>
+<li><strong>Deploy the <code>AAXWarehouseTools</code> model.</strong> The ZPL renderer ships as a single self-contained assembly, <code>AtomicAx.Zpl.Render.dll</code>, which is already present in the model <code>bin</code> folder. No separate native-library deployment is required.</li>
+<li><strong>Synchronize the database.</strong> This adds the Warehouse parameters fields used by the label-capture feature, the label-capture staging table that buffers labels between capture and rendering, and the item identity configuration tables.</li>
+</ol>
+<p>After the model is deployed and the database is synchronized, all features are available; label capture and item identity still need to be enabled and configured (below).</p>
+<h2 id="configuration">Configuration</h2>
+<h3 id="warehouse-management-parameters">Warehouse management parameters</h3>
+<p>Open <strong>Warehouse management &gt; Setup &gt; Warehouse management parameters</strong>, go to the <strong>Work</strong> tab, and find the <strong>Label preview to attachment</strong> group.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Print label preview to work attachment</strong></td>
+<td>Off</td>
+<td>Master toggle for mobile-flow label capture. When on, ZPL labels printed from mobile flows that have a related Work record are rendered and attached to that Work. Applies only to ZPL labels that have a related Work record.</td>
+</tr>
+<tr>
+<td><strong>Label preview attachment turns off</strong></td>
+<td>—</td>
+<td>Read-only timestamp showing when capture will automatically disable itself.</td>
+</tr>
+<tr>
+<td><strong>Auto-off days</strong></td>
+<td>14</td>
+<td>Number of days after the toggle is enabled before capture automatically turns off.</td>
+</tr>
+<tr>
+<td><strong>Label preview retention days</strong></td>
+<td>14</td>
+<td>Age, in days, after which captured label-preview attachments are purged by the purge task.</td>
+</tr>
+<tr>
+<td><strong>Default print density (DPI)</strong></td>
+<td>203</td>
+<td>Render density used as a fallback when a captured label does not declare its own size.</td>
+</tr>
+<tr>
+<td><strong>Default label width (in)</strong></td>
+<td>4</td>
+<td>Render width, in inches, used as a fallback when a label does not declare a width (<code>^PW</code>).</td>
+</tr>
+<tr>
+<td><strong>Default label height (in)</strong></td>
+<td>6</td>
+<td>Render height, in inches, used as a fallback when a label does not declare a length (<code>^LL</code>).</td>
+</tr>
+</tbody>
+</table>
+<p>The <strong>Default print density (DPI)</strong>, <strong>Default label width (in)</strong>, and <strong>Default label height (in)</strong> values are used only when a label does not declare its own dimensions. A label that specifies <code>^PW</code> / <code>^LL</code> renders at its declared size.</p>
+<h3 id="document-routing-required-for-capture">Document routing (required for capture)</h3>
+<p>Mobile-flow capture only produces a label when a routing rule maps the work transaction to a label layout. Configure this under <strong>Warehouse management &gt; Setup &gt; Document routing</strong>:</p>
+<ol>
+<li>Create or review the <strong>Document routing</strong> rule and lines that map the relevant work transaction type to the label layout you want captured.</li>
+<li>The <strong>printer name may be left blank</strong> — no physical printer is needed for capture.</li>
+</ol>
+<p>If no routing rule and line map the transaction to a layout, no label is produced and nothing is captured.</p>
+<h3 id="batch-tasks-recommended">Batch tasks (recommended)</h3>
+<p>Two periodic tasks support the capture feature. Schedule them under <strong>Warehouse management &gt; Periodic tasks</strong>:</p>
+<ul>
+<li><strong>Render captured label previews</strong> — the batch fallback that renders any captured labels not already rendered in-line and attaches them to their Work records. Scheduling this is recommended so no capture is missed.</li>
+<li><strong>Purge label preview attachments</strong> — the retention clean-up task that removes captured label-preview attachments older than the configured <strong>Label preview retention days</strong>.</li>
+</ul>
+<h3 id="item-identity-display-feature-c">Item identity display (Feature C)</h3>
+<p>Configuration lives under <strong>Warehouse management &gt; Setup &gt; Mobile device</strong>: enable the feature in <strong>Item identity parameters</strong>, define an ordered source chain in <strong>Item identity profiles</strong>, assign profiles to menu items in <strong>Item identity menu item settings</strong>, and place the line with the standard <strong>Warehouse app field priority</strong> setup. The <a href="docs/ItemIdentitySetup.html">Item identity setup guide</a> walks through every step, including the recommended starting profile and how to move configuration between environments with data management.</p>
+<h3 id="security">Security</h3>
+<p>Assign the <strong>Maintain warehouse label preview</strong> duty to the roles that need this functionality. The duty bundles two privileges:</p>
+<ul>
+<li><strong>Generate label preview</strong> — grants access to the on-demand preview button (Feature A).</li>
+<li><strong>Administer label preview capture</strong> — grants access to the capture toggle and the render/purge batch tasks (Feature B).</li>
+</ul>
+<p>For Feature C, assign the <strong>Maintain item identity configuration</strong> duty to the roles that configure the feature; it covers the three setup forms, the Test resolution diagnostic, and data management access to the item identity entities. Warehouse workers need no additional access — the identity line renders under their existing mobile-flow permissions.</p>
+<p>Assign the duties (or the individual privileges) to your warehouse worker, supervisor, or administrator roles as appropriate.</p>
+<h2 id="usage">Usage</h2>
+<h3 id="feature-a-generate-a-label-preview">Feature A — Generate a label preview</h3>
+<ol>
+<li>Open a layout: <strong>Label layout</strong> or <strong>Document routing layout</strong> (under Warehouse management setup).</li>
+<li>Select a layout that has an active version (if it has no active version, the dialog will ask you to activate one first).</li>
+<li>On the action pane, select <strong>Generate label preview</strong>. The <strong>Label preview</strong> dialog opens and renders the layout.</li>
+<li>Optionally:
+<ul>
+<li>In the <strong>Data source</strong> group, pick a different <strong>Record</strong> and select <strong>Refresh preview</strong> to render against live data; the badge shows whether <strong>Live record</strong> or <strong>Sample data</strong> was used.</li>
+<li>Edit the ZPL in the <strong>Source ZPL (editable)</strong> panel, select <strong>Preview edits</strong> to render without saving, then <strong>Save to layout</strong> to write it back to the active version. The <strong>Translated ZPL (rendered result)</strong> panel shows what the source renders to.</li>
+<li>In the <strong>Label size</strong> group, turn on <strong>Override label size</strong> and set <strong>Width (in)</strong>, <strong>Height (in)</strong>, and <strong>DPI</strong> to force a render size.</li>
+<li>Use <strong>Rotate 90°</strong> to rotate the current page, and <strong>Previous label</strong> / <strong>Next label</strong> to page through a multi-label job.</li>
+<li>Use <strong>Copy ZPL</strong> to copy the final ZPL, or <strong>Download PNG</strong> to save the rendered image.</li>
+</ul>
+</li>
+</ol>
+<h3 id="feature-b-capture-mobile-flow-labels-to-work-attachments">Feature B — Capture mobile-flow labels to Work attachments</h3>
+<ol>
+<li>Enable capture: in <strong>Warehouse management parameters &gt; Work &gt; Label preview to attachment</strong>, turn on <strong>Print label preview to work attachment</strong>, and review the defaults (auto-off days, retention days, fallback DPI/width/height).</li>
+<li>Confirm <strong>Document routing</strong> maps the relevant work transaction type to a label layout (the printer name may be blank).</li>
+<li>(Recommended) Confirm the <strong>Render captured label previews</strong> task is scheduled as the batch fallback, and <strong>Purge label preview attachments</strong> for retention.</li>
+<li>Run a warehouse mobile flow that prints a label tied to a Work record (for example, a flow that prints a work or container label).</li>
+<li>Open the related <strong>Work</strong> record and view its attachments (the paperclip / Document handling). The rendered label image appears there as the <strong>Label preview</strong> document type, typically within moments of the label being built; if it is not there yet, it will be attached on the next render batch pass.</li>
+</ol>
+<h3 id="feature-c-show-an-item-identity-line-on-the-warehouse-app">Feature C — Show an item identity line on the warehouse app</h3>
+<ol>
+<li>Turn the feature on in <strong>Item identity parameters</strong>, create a profile in <strong>Item identity profiles</strong>, and assign it to your picking and receiving menu items in <strong>Item identity menu item settings</strong> (all under <strong>Warehouse management &gt; Setup &gt; Mobile device</strong>).</li>
+<li>Open <strong>Warehouse app field priority</strong> once and place the <strong>Item identity</strong> field where you want it — typically directly under the Item field.</li>
+<li>Run a configured flow on the mobile app; the identity line appears with the item information. Use the <strong>Test resolution</strong> action on the profile to replay any resolution from the rich client, source by source.</li>
+</ol>
+<p>The <a href="docs/ItemIdentitySetup.html">setup guide</a> covers every option; the <a href="docs/ItemIdentityUserGuide.html">user guide</a> covers what workers see and troubleshooting. If the line does not appear, run the <a href="docs/ItemIdentitySmokeTest.html">smoke test</a> — it isolates deployment, configuration, injection and resolution problems in about twenty minutes.</p>
+<h2 id="building-from-source">Building from source</h2>
+<p>The repository includes an Azure DevOps pipeline (<code>azure-pipelines.yml</code>) that builds the model from GitHub on a Microsoft-hosted agent and publishes a deployable package — no build VM required. The one-time Azure DevOps setup (build tasks extension, package feed, GitHub connection) is described in the <a href="docs/BuildPipeline.html">build pipeline guide</a>.</p>
+<h2 id="how-it-works-and-data-privacy">How it works and data privacy</h2>
+<ul>
+<li><strong>100% in-process rendering.</strong> ZPL is resolved, token-substituted, and rendered to PNG entirely within the AOS process. No label content, ZPL, or image is sent to any external service, and the features make no outbound network calls for rendering.</li>
+<li><strong>Single bundled assembly.</strong> The renderer is delivered as one self-contained assembly, <code>AtomicAx.Zpl.Render.dll</code>, in the model <code>bin</code> folder. All of its managed dependencies are merged into that one file and the required native libraries are embedded in it, so there is no separate native-library deployment and no version conflict with other components in the AOS.</li>
+<li><strong>Capture stays in your environment.</strong> Captured labels are buffered in a staging table inside your database and attached to the related Work record through standard Document handling. Capture is bounded by the auto-off and retention settings so data does not accumulate indefinitely.</li>
+</ul>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<p><strong>Mobile-flow capture produces nothing.</strong> Check, in order:</p>
+<ul>
+<li><strong>Print label preview to work attachment</strong> is turned <strong>on</strong> in Warehouse management parameters, and has not auto-disabled (see the <strong>Label preview attachment turns off</strong> timestamp; re-enable it if the auto-off period has elapsed).</li>
+<li><strong>Document routing</strong> has a rule and line that map the work transaction type to a label layout. Without this mapping, no label is produced, so there is nothing to capture.</li>
+<li>The label being printed is a <strong>ZPL</strong> label that has a <strong>related Work record</strong>. Labels with no Work record are not captured.</li>
+</ul>
+<p><strong>A captured attachment has not appeared yet.</strong> Rendering happens in near-real-time after the label is built, with a scheduled batch as a fallback. If the image is not on the Work record immediately, confirm the <strong>Render captured label previews</strong> task is scheduled and allow it to run.</p>
+<p><strong>A label renders smaller or larger than expected, or a layout that declares no size renders at 4×6.</strong> When a label does not declare its own dimensions (<code>^PW</code> / <code>^LL</code>), the render falls back to the parameter defaults — <strong>Default print density (DPI)</strong>, <strong>Default label width (in)</strong>, and <strong>Default label height (in)</strong> for capture, or 4×6 inches in the preview dialog if no size is otherwise specified. Set the parameter defaults to match your stock, or use <strong>Override label size</strong> in the preview dialog.</p>
+<p><strong>A layout cannot be previewed.</strong> The preview supports the <strong>ZPL</strong> definition type (including template blocks). Layouts whose definition type is <strong>Variables</strong> or <strong>VariablesScript</strong> are not previewable; the dialog reports this. If a layout has no active version, activate one first. If a template layout has no data source, add one to the layout so its template can be expanded.</p>
+<h2 id="third-party-components">Third-party components</h2>
+<p>This solution redistributes third-party components inside the model <code>bin</code> folder, all under terms that permit commercial redistribution. See <a href="THIRD-PARTY-NOTICES.html"><code>THIRD-PARTY-NOTICES.md</code></a> for the full list of components and their terms.</p>
+
+</body>
+</html>
