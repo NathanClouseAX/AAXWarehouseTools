@@ -137,7 +137,7 @@ The [setup guide](docs/ItemIdentitySetup.md) covers every option; the [user guid
 
 ## Building from source
 
-The repository includes an Azure DevOps pipeline (`azure-pipelines.yml`) that builds the model from GitHub on a Microsoft-hosted agent and publishes a deployable package — no build VM required. The one-time Azure DevOps setup (build tasks extension, package feed, GitHub connection) is described in the [build pipeline guide](docs/BuildPipeline.md).
+The repository includes an Azure DevOps pipeline (`azure-pipelines.yml`) that builds the model from GitHub on a Microsoft-hosted agent and publishes deployable packages for both Lifecycle Services and Power Platform admin center environments — no build VM required. The one-time Azure DevOps setup (build tasks extension, package feed, GitHub connection) is described in the [build pipeline guide](docs/BuildPipeline.md).
 
 ## How it works and data privacy
 

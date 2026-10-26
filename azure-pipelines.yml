@@ -1,105 +1,134 @@
 # Azure DevOps build for the AAXWarehouseTools model.
 #
-# Runs on a Microsoft-hosted Windows agent with no Finance and Operations installation:
-# the compiler and reference packages are restored from an Azure Artifacts feed (see
-# pipeline/packages.config and pipeline/nuget.config), the ZPL renderer is built first so the
-# X++ compile can resolve it, the model is compiled, and a deployable package is published.
-# Setup steps for the Azure DevOps side are in docs/BuildPipeline.md.
+# Runs on a Microsoft-hosted agent with no Finance and Operations installation: the X++ build
+# packages are restored from the Azure Artifacts feed in pipeline/nuget.config, the ZPL renderer
+# is built into the model bin folder, the model is compiled, and the deployable packages are
+# published. Azure DevOps setup is described in docs/BuildPipeline.md.
+
+name: $(Date:yy.MM.dd)$(Rev:.r)
 
 trigger:
   branches:
     include:
       - main
+  paths:
+    exclude:
+      - docs/*
+      - '*.md'
+      - '*.html'
 
 pr:
   branches:
     include:
       - main
+  paths:
+    exclude:
+      - docs/*
+      - '*.md'
+      - '*.html'
 
 pool:
-  vmImage: windows-latest
+  vmImage: windows-2022
 
 variables:
   ModelName: AAXWarehouseTools
-  # The repository root is the model folder; it is checked out one level below Metadata so the
-  # build tools see the usual <Metadata>\<Model>\Descriptor layout.
-  MetadataPath: $(Build.SourcesDirectory)\Metadata
-  ModelPath: $(Build.SourcesDirectory)\Metadata\AAXWarehouseTools
-  NugetConfigsPath: $(Build.SourcesDirectory)\Metadata\AAXWarehouseTools\pipeline
+  # The repository root is the model folder, so it is checked out below a Metadata folder to give
+  # the X++ build its <Metadata>\<Model> layout. Paths derive from Pipeline.Workspace because a
+  # single checkout with a custom path repoints Build.SourcesDirectory at the checkout folder.
+  MetadataPath: $(Pipeline.Workspace)\s\Metadata
+  ModelPath: $(Pipeline.Workspace)\s\Metadata\AAXWarehouseTools
+  NugetConfigsPath: $(Pipeline.Workspace)\s\Metadata\AAXWarehouseTools\pipeline
   NugetsPath: $(Pipeline.Workspace)\NuGets
   ToolsPackage: Microsoft.Dynamics.AX.Platform.CompilerPackage
   PlatPackage: Microsoft.Dynamics.AX.Platform.DevALM.BuildXpp
-  AppPackage: Microsoft.Dynamics.AX.Application.DevALM.BuildXpp
+  App1Package: Microsoft.Dynamics.AX.Application1.DevALM.BuildXpp
+  App2Package: Microsoft.Dynamics.AX.Application2.DevALM.BuildXpp
   AppSuitePackage: Microsoft.Dynamics.AX.ApplicationSuite.DevALM.BuildXpp
-  ModelVersion: 1.0.$(Build.BuildId).0
+  ArtifactName: drop
 
 steps:
   - checkout: self
     path: s/Metadata/AAXWarehouseTools
     clean: true
 
-  - task: NuGetToolInstaller@1
-    displayName: Install NuGet
+  - task: Cache@2
+    displayName: Cache build packages
+    inputs:
+      key: 'nuget | "$(Agent.OS)" | $(NugetConfigsPath)\packages.config'
+      path: $(NugetsPath)
+      cacheHitVar: NUGET_CACHE_RESTORED
 
   - task: NuGetAuthenticate@1
     displayName: Authenticate to Azure Artifacts
 
   - task: NuGetCommand@2
-    displayName: Restore build reference packages
+    displayName: Install build packages
+    condition: ne(variables.NUGET_CACHE_RESTORED, 'true')
+    retryCountOnTaskFailure: 2
     inputs:
       command: custom
-      arguments: restore "$(NugetConfigsPath)\packages.config" -PackagesDirectory "$(NugetsPath)" -ConfigFile "$(NugetConfigsPath)\nuget.config" -ExcludeVersion
+      arguments: >-
+        install -NonInteractive
+        "$(NugetConfigsPath)\packages.config"
+        -ConfigFile "$(NugetConfigsPath)\nuget.config"
+        -Verbosity Detailed
+        -ExcludeVersion
+        -OutputDirectory "$(NugetsPath)"
 
-  - task: XppUpdateModelVersion@1
-    displayName: Stamp model version
+  - task: XppUpdateModelVersion@0
+    displayName: Update model version
     inputs:
       XppSourcePath: $(MetadataPath)
-      XppDescriptorSearch: $(ModelName)\Descriptor\*.xml
-      XppLayer: USR
-      VersionNumber: $(ModelVersion)
+      VersionNumber: $(Build.BuildNumber)
 
+  # The renderer project's post-build step places the merged assembly in the model bin folder,
+  # which the X++ build copies into the compiled model.
   - task: VSBuild@1
     displayName: Build ZPL renderer
     inputs:
       solution: $(ModelPath)\Projects\AAXWarehouseTools\AtomicAx.Zpl.Render\AtomicAx.Zpl.Render.csproj
-      msbuildArgs: -restore -p:TargetFramework=net472 -p:AAXModelBin="$(ModelPath)\bin\"
+      vsVersion: '17.0'
       configuration: Release
-      platform: Any CPU
+      msbuildArgs: '-restore -p:TargetFramework=net472'
 
+  # ReferencePath includes the compiled model bin folder so the compiler resolves the model's own
+  # assemblies (the renderer and the project's referenced assemblies).
   - task: VSBuild@1
     displayName: Build X++ model
     inputs:
       solution: $(ModelPath)\Projects\AAXWarehouseTools\AAXWarehouseTools\AAXWarehouseTools.rnrproj
+      vsVersion: '17.0'
       msbuildArgs: >-
         /p:BuildTasksDirectory="$(NugetsPath)\$(ToolsPackage)\DevAlm"
         /p:MetadataDirectory="$(MetadataPath)"
         /p:FrameworkDirectory="$(NugetsPath)\$(ToolsPackage)"
-        /p:ReferenceFolder="$(NugetsPath)\$(PlatPackage)\ref\net40;$(NugetsPath)\$(AppPackage)\ref\net40;$(NugetsPath)\$(AppSuitePackage)\ref\net40;$(MetadataPath);$(Build.BinariesDirectory)"
-        /p:ReferencePath="$(NugetsPath)\$(ToolsPackage);$(ModelPath)\bin;$(ModelPath)\ExternalReferences"
+        /p:ReferenceFolder="$(NugetsPath)\$(PlatPackage)\ref\net40;$(NugetsPath)\$(App1Package)\ref\net40;$(NugetsPath)\$(App2Package)\ref\net40;$(NugetsPath)\$(AppSuitePackage)\ref\net40;$(MetadataPath);$(Build.BinariesDirectory)"
+        /p:ReferencePath="$(NugetsPath)\$(ToolsPackage);$(Build.BinariesDirectory)\$(ModelName)\bin"
         /p:OutputDirectory="$(Build.BinariesDirectory)"
-      configuration: Debug
-      platform: AnyCPU
 
   - task: CopyFiles@2
-    displayName: Add custom assemblies to the model binaries
+    displayName: Collect compile logs
+    condition: succeededOrFailed()
     inputs:
       SourceFolder: $(ModelPath)
       Contents: |
-        bin\AtomicAx.Zpl.Render.dll
-        ExternalReferences\AAXWarehouseTools.Feature.FnO.dll
-      TargetFolder: $(Build.BinariesDirectory)\$(ModelName)\bin
-      flattenFolders: true
+        **\Dynamics.AX.*.xppc.*
+        **\Dynamics.AX.*.labelc.*
+        **\Dynamics.AX.*.reportsc.*
+      TargetFolder: $(Build.ArtifactStagingDirectory)\Logs
 
-  - task: XppCreatePackage@1
-    displayName: Create deployable package
+  - task: XppCreatePackage@2
+    displayName: Create deployable packages
     inputs:
       XppToolsPath: $(NugetsPath)\$(ToolsPackage)
       XppBinariesPath: $(Build.BinariesDirectory)
-      XppBinariesSearch: $(ModelName)
-      DeployablePackagePath: $(Build.ArtifactStagingDirectory)\AXDeployableRuntime_$(ModelVersion).zip
+      XppBinariesSearch: '*'
+      DeployablePackagePath: $(Build.ArtifactStagingDirectory)\AXDeployableRuntime_$(ModelName)_$(Build.BuildNumber).zip
+      CreateRegularPackage: true
+      CreateCloudPackage: true
 
-  - task: PublishBuildArtifacts@1
-    displayName: Publish deployable package
+  - task: PublishPipelineArtifact@1
+    displayName: Publish artifact
     inputs:
-      PathtoPublish: $(Build.ArtifactStagingDirectory)
-      ArtifactName: DeployablePackage
+      targetPath: $(Build.ArtifactStagingDirectory)
+      artifact: $(ArtifactName)

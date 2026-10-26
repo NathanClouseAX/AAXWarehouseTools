@@ -116,6 +116,9 @@ function Convert-Doc([string]$inPath, [string]$outPath) {
             "<style>`r`n" + $css + "`r`n</style>`r`n</head>`r`n<body>`r`n" +
             $body + "`r`n</body>`r`n</html>`r`n"
 
+    # Consistent CRLF so regenerated files match the working tree checkout
+    $html = $html -replace "`r?`n", "`r`n"
+
     $enc = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($outPath, $html, $enc)
     Write-Output ("{0} -> {1} ({2:n0} bytes)" -f (Split-Path $inPath -Leaf), (Split-Path $outPath -Leaf), (Get-Item $outPath).Length)

@@ -1,49 +1,48 @@
 # AAX Warehouse Tools — Build Pipeline
 
-The repository carries everything Azure DevOps needs to build the model from GitHub on a Microsoft-hosted agent and produce a deployable package — no build VM and no Finance and Operations installation on the agent.
+The repository carries everything Azure DevOps needs to build the model from GitHub on a Microsoft-hosted agent and produce deployable packages — no build VM and no Finance and Operations installation on the agent.
 
 ## What is in the repository
 
 | File | Purpose |
 |---|---|
-| `azure-pipelines.yml` | The pipeline: restore build packages, stamp the model version, build the ZPL renderer, compile the model, create and publish the deployable package. |
-| `pipeline/packages.config` | The four build reference packages and their versions. |
-| `pipeline/nuget.config` | The Azure Artifacts feed the packages are restored from. |
+| `azure-pipelines.yml` | The pipeline: restore the X++ build packages, stamp the model version, build the ZPL renderer, compile the model, create and publish the deployable packages. |
+| `pipeline/packages.config` | The X++ build packages and their versions. |
+| `pipeline/nuget.config` | The Azure Artifacts feed the build packages are restored from. |
 
 ## One-time setup in Azure DevOps
 
-1. **Install the build tasks.** From the Marketplace, add **Dynamics 365 Finance and Operations Tools** (by Microsoft) to the organization. It provides the *Update Model Version* and *Create Deployable Package* tasks the pipeline uses.
+1. **Build tasks.** The organization needs the **Dynamics 365 Finance and Operations Tools** extension from the Marketplace. It provides the *Update Model Version* (`XppUpdateModelVersion@0`) and *Create Deployable Package* (`XppCreatePackage@2`) tasks.
 
-2. **Create a feed and load the build packages.**
-   - In LCS, open the **Shared asset library > NuGet package** and download the four packages for the platform and application version you deploy to: *Compiler Tools*, *Platform Build Reference*, *Application Build Reference*, and *Application Suite Build Reference*.
-   - Create an Azure Artifacts feed (for example `D365BuildPackages`) and push the four `.nupkg` files to it (`nuget push -Source <feed URL> -ApiKey az <package>`).
-   - Edit `pipeline/nuget.config` with the feed URL, and `pipeline/packages.config` with the exact package versions you pushed. The versions checked in match the development environment the model was built on; every environment update means new packages and new versions here.
-   - Give the pipeline's build identity (*Project Collection Build Service*) **Reader** access on the feed.
+2. **Build packages feed.** `pipeline/nuget.config` points at an Azure Artifacts feed holding the six packages listed in `pipeline/packages.config` (the compiler tools, the platform build reference, and the split application build references). Every id and version in `packages.config` must exist in that feed.
+   - To use your own feed, download the packages for your target version from LCS (**Shared asset library > NuGet package**), push them to the feed, and update the feed URL in `nuget.config` and the versions in `packages.config`.
+   - The pipeline's build identity needs **Reader** access on the feed. When the pipeline lives in a different project than the feed, add that project's *Build Service* identity to the feed permissions, and turn off **Limit job authorization scope to current project for non-release pipelines** in the pipeline project's settings — otherwise restore fails with 401.
 
-3. **Connect GitHub.** Project Settings > Service connections > New service connection > **GitHub**. Prefer the *Azure Pipelines* GitHub App (installed on the repository or organization); a personal access token with `repo` scope works when apps are not allowed.
+3. **GitHub connection.** Project Settings > Service connections > New service connection > **GitHub**. Prefer the *Azure Pipelines* GitHub App; a personal access token with `repo` scope works when apps are not allowed.
 
-4. **Create the pipeline.** Pipelines > New pipeline > **GitHub** > select the repository > **Existing Azure Pipelines YAML file** > `azure-pipelines.yml`. Save and run. On the first run, authorize the pipeline to use the service connection and the feed when prompted.
+4. **Create the pipeline.** Pipelines > New pipeline > **GitHub** > select the repository > **Existing Azure Pipelines YAML file** > `/azure-pipelines.yml`. Run it; on the first run, approve the pipeline's access to the service connection when prompted.
 
-No pipeline variables are required. The version stamped on the model is `1.0.<build id>.0`; change `ModelVersion` in the YAML to follow your own scheme.
+No pipeline variables are required.
 
 ## What the pipeline does
 
-1. Checks the repository out under `Metadata\AAXWarehouseTools` so the build tools see the standard `<Metadata>\<Model>\Descriptor` layout — the repository root *is* the model folder.
-2. Restores the four build packages into the agent workspace, without version suffixes in the folder names.
-3. Stamps the model descriptor with the build version (layer `USR`, matching the descriptor).
-4. Builds the ZPL renderer for .NET Framework 4.7.2. The project's post-build steps merge its dependencies into one assembly and copy it into the model `bin` folder, which is where the X++ compile looks for it.
-5. Compiles the model with the X++ build tasks, passing the model `bin` and `ExternalReferences` folders as reference paths so the two custom assemblies resolve.
-6. Copies the two custom assemblies into the compiled model binaries and creates the deployable package.
-7. Publishes the package as the `DeployablePackage` artifact.
+1. Checks the repository out under `Metadata\AAXWarehouseTools`. The repository root is the model folder, so this gives the X++ build its usual `<Metadata>\<Model>` layout.
+2. Restores the build packages into the agent workspace, reusing a cached copy while `packages.config` is unchanged.
+3. Stamps the model descriptor with the build number (`yy.MM.dd.n`).
+4. Builds the ZPL renderer for .NET Framework 4.7.2. Its post-build step merges the dependencies into one assembly and places it in the model `bin` folder.
+5. Compiles the model. The X++ build copies the model `bin` folder and the project's referenced assemblies into the compiled model, so both custom assemblies travel with it.
+6. Creates two deployable packages and publishes them, with the compile logs, as the `drop` artifact:
+   - `AXDeployableRuntime_AAXWarehouseTools_<build>.zip` — for environments managed in Lifecycle Services.
+   - `CloudDeployablePackage` — for environments managed in the Power Platform admin center.
 
-The pipeline runs on pushes and pull requests to `main`.
+The pipeline runs on pushes and pull requests to `main`, skipping changes that only touch documentation. Manual runs can target any branch.
 
 ## Troubleshooting
 
 | Symptom | Cause and fix |
 |---|---|
-| Restore fails with *Unable to find version* | `pipeline/packages.config` versions do not match the packages in the feed. Align them with the pushed `.nupkg` versions. |
-| Restore fails with 401 | The build identity has no access to the feed, or the feed URL in `pipeline/nuget.config` points to another organization. |
-| X++ compile reports *type or namespace could not be found* for the renderer or the feature assembly | The reference paths in the X++ build step must include `<model>\bin` (renderer, produced by the previous step) and `<model>\ExternalReferences`. Check that the renderer build step succeeded. |
-| *Update Model Version* finds no descriptor | The checkout path changed; `XppDescriptorSearch` expects `AAXWarehouseTools\Descriptor\*.xml` below `MetadataPath`. |
-| The package is missing the renderer | The *Add custom assemblies* copy step must run before *Create deployable package*; the package only contains what is in the compiled binaries folder. |
+| *A task is missing … XppUpdateModelVersion* or *XppCreatePackage* | The Dynamics 365 Finance and Operations Tools extension is not installed in the organization, or the YAML references a task version the extension does not provide. |
+| *Unable to find version* during restore | A version in `pipeline/packages.config` is not in the feed. Align it with the pushed packages. |
+| 401 or 403 during restore | The build identity cannot read the feed — see step 2 above, including the job authorization scope setting. |
+| The compiler cannot find `AtomicAx.Zpl.Render` or `AAXWarehouseTools.Feature.FnO` | The renderer step must succeed before the X++ step, and the X++ step's `ReferencePath` must include the compiled model `bin` folder. |
+| *Update Model Version* reports no descriptor | The checkout path changed; the descriptor is expected at `Metadata\AAXWarehouseTools\Descriptor`. |
