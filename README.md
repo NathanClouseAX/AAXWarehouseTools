@@ -39,7 +39,7 @@ Capture is designed not to stay on indefinitely: it automatically turns itself o
 
 Warehouse Management mobile screens identify goods by the released product number. When the operative identity is something else — the variant, a trading partner's item number, a GTIN — workers cannot confirm they have the right goods without leaving the flow. Feature C injects **one configurable, read-only item identity line** into picking and receiving screens, resolved through an ordered chain of identity sources with partner context (the customer on sales picking, the vendor on purchase receiving). Placement and prominence use the standard **Warehouse app field priority** and promoted-fields mechanisms.
 
-The feature is dormant until configured, adds nothing to standard tables, and can never block a warehouse transaction — a resolution failure simply means the line is absent. See the [Item identity setup guide](docs/ItemIdentitySetup.md), the [Item identity user guide](docs/ItemIdentityUserGuide.md), the [smoke test and diagnostics](docs/ItemIdentitySmokeTest.md), and the [validation scenarios](docs/ItemIdentityScenarios.md).
+The feature is dormant until configured, adds nothing to standard tables, and can never block a warehouse transaction — a resolution failure simply means the line is absent. See the [Item identity setup guide](docs/ItemIdentitySetup.md), the [Item identity user guide](docs/ItemIdentityUserGuide.md), the [use case catalog](docs/ItemIdentityUseCases.md) (a step-by-step guide for each of the 18 supported scenarios, worked on Contoso USMF data), the [smoke test and diagnostics](docs/ItemIdentitySmokeTest.md), and the [validation scenarios](docs/ItemIdentityScenarios.md).
 
 ## Prerequisites
 

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Item Identity Scenario 03 — Telling Variants Apart</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="item-identity-scenario-03-telling-variants-apart">Item Identity Scenario 03 — Telling Variants Apart</h1>
+<p>Part of the <a href="../ItemIdentityUseCases.html">item identity use case catalog</a>. Worked on the Contoso <strong>USMF</strong> demo company.</p>
+<h2 id="when-to-use">When to use</h2>
+<p>Several variants of one product master sit close together, and the item number alone does not tell the picker which one to take. The identity line spells out the variant in words.</p>
+<h2 id="what-the-worker-sees">What the worker sees</h2>
+<pre><code>Item:            W0001
+Variant:         Wired Headset - Small / Red
+Qty:             1 ea
+</code></pre>
+<h2 id="supported-flows">Supported flows</h2>
+<p>Sales picking (all picking styles), purchase order item/line receiving, load item receiving. The variant source needs no trading partner, so it also works on work without a partner (<a href="15-WorkWithoutPartner.html">scenario 15</a>).</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>USMF value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Variant item</td>
+<td><strong>W0001</strong> <em>Wired Headset</em> — Color Black/Red × Size Small/Medium/Large, 10 each on hand in warehouse 24 (stock USMF data)</td>
+</tr>
+<tr>
+<td>Sales order (D8)</td>
+<td>Customer <strong>US-003</strong> <em>Forest Wholesales</em>, warehouse <strong>24</strong>, line W0001 <strong>Red/Small</strong> qty 1; released to warehouse</td>
+</tr>
+</tbody>
+</table>
+<p><strong>USMF caveat:</strong> every W0001 variant's product name is <em>Wired Headset</em> — the same as the master (also true for M0030, D0010 and D0013). The variant name alone therefore cannot distinguish variants; the <strong>dimension summary</strong> does.</p>
+<h2 id="configure">Configure</h2>
+<ol>
+<li><strong>Item identity parameters</strong>: enabled; <em>Fallback behavior</em> = Hide.</li>
+<li><strong>Item identity profiles</strong>: <code>VARIANT</code> — one line, 10 <em>Variant product name</em>, <strong>Append dimension summary = Yes</strong>.</li>
+<li><strong>Item identity menu item settings</strong>: <code>Sales Picking</code> → profile <code>VARIANT</code>, <em>Label override</em> = <code>Variant</code>.</li>
+</ol>
+<h2 id="try-it-on-usmf">Try it on USMF</h2>
+<p>Sign in as user <strong>24</strong>, open <strong>Sales Picking</strong>, pick D8. Then switch <em>Append dimension summary</em> off on the profile line and re-open the pick screen.</p>
+<h2 id="expected-results">Expected results</h2>
+<table>
+<thead>
+<tr>
+<th>Item / variant</th>
+<th>Append summary</th>
+<th>Worker sees</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>W0001 Red/Small</td>
+<td>Yes</td>
+<td><code>Wired Headset - Small / Red</code></td>
+</tr>
+<tr>
+<td>W0001 Red/Small</td>
+<td>No</td>
+<td><code>Wired Headset</code></td>
+</tr>
+<tr>
+<td>W0001 Black/Large</td>
+<td>Yes</td>
+<td><code>Wired Headset - Large / Black</code></td>
+</tr>
+<tr>
+<td>M0030 White/4 <em>(Test resolution)</em></td>
+<td>Yes</td>
+<td><code>Professional speaker cable - 4 / White</code></td>
+</tr>
+<tr>
+<td>D0010 Black <em>(Test resolution)</em></td>
+<td>Yes</td>
+<td><code>Active speaker - Black</code></td>
+</tr>
+<tr>
+<td>D0008 configuration Default <em>(Test resolution)</em></td>
+<td>Yes</td>
+<td><code>HighEndSpeaker 2 - Default</code> — the one USMF item whose variant has its own name</td>
+</tr>
+<tr>
+<td>A0001 (no product dimensions)</td>
+<td>—</td>
+<td>no line: the source is skipped (<em>no product dimensions</em>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-it-resolves">How it resolves</h2>
+<ul>
+<li>Name lookup: the distinct product variant's translation in the session language → the product master's translation in that language → the released product name (<a href="11-MultiLanguage.html">scenario 11</a>).</li>
+<li>The summary lists dimension <strong>values</strong> (codes, not translated names) in the order configuration, size, color, style, version, separated by <code>/</code>, after <code>-</code>.</li>
+<li>An item without product dimensions skips this source; add a later line (for example <em>Item number</em>) if the line should never be empty.</li>
+</ul>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Line shows only <code>Wired Headset</code></td>
+<td><em>Append dimension summary</em> is off on the profile line.</td>
+</tr>
+<tr>
+<td>Source reports <em>no product variant</em> in Test resolution</td>
+<td>The dimension combination is not a released variant of the item.</td>
+</tr>
+<tr>
+<td>Order of values looks reversed (<code>Small / Red</code>)</td>
+<td>By design: size comes before color.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="related">Related</h2>
+<p>Validation: <a href="../ItemIdentityScenarios.html">scenario pack</a> scenario 1.</p>
+
+</body>
+</html>

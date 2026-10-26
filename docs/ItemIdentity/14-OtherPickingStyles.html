@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Item Identity Scenario 14 — System-Directed, Cluster and Grouped Picking</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="item-identity-scenario-14-system-directed-cluster-and-grouped-picking">Item Identity Scenario 14 — System-Directed, Cluster and Grouped Picking</h1>
+<p>Part of the <a href="../ItemIdentityUseCases.html">item identity use case catalog</a>. Worked on the Contoso <strong>USMF</strong> demo company.</p>
+<h2 id="when-to-use">When to use</h2>
+<p>Your warehouse picks sales work with a style other than user-directed picking: system directed, cluster picking, or grouping (pick to container). The identity line works the same on all of them.</p>
+<h2 id="what-the-worker-sees">What the worker sees</h2>
+<pre><code>Cluster Pick
+Item:            W0001
+Color / Size:    Black / Large
+Item identity:   CR-4471-BL
+</code></pre>
+<h2 id="supported-flows">Supported flows</h2>
+<table>
+<thead>
+<tr>
+<th>USMF menu item</th>
+<th>Directed by</th>
+<th>Work classes</th>
+<th>Partner context column</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sales Picking</td>
+<td>User directed</td>
+<td>SO Pick, Sales</td>
+<td>Customer</td>
+</tr>
+<tr>
+<td>Sales Picking - System</td>
+<td>System directed</td>
+<td>SO Pick, Sales</td>
+<td>Customer</td>
+</tr>
+<tr>
+<td>Cluster Pick</td>
+<td>Cluster picking</td>
+<td>Sales</td>
+<td>Customer</td>
+</tr>
+<tr>
+<td>Cluster Pick Create</td>
+<td>Cluster picking</td>
+<td>Sales</td>
+<td>Customer</td>
+</tr>
+<tr>
+<td>Pick to Container</td>
+<td>System grouping</td>
+<td>Sales</td>
+<td>Customer</td>
+</tr>
+<tr>
+<td>Sales Loading</td>
+<td>User grouping</td>
+<td>Sales, SO Load</td>
+<td>Customer</td>
+</tr>
+</tbody>
+</table>
+<p>The line appears on every <strong>pick</strong> and <strong>put</strong> screen these menu items render. Pick and pack menu items behave the same.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<p>D1 and a released sales order like D6 (US-001, warehouse 24, W0001 Black/Large) for each style you test — cluster picking needs work that is not already in progress on another menu item.</p>
+<h2 id="configure">Configure</h2>
+<p><strong>Item identity menu item settings</strong>: one row per menu item above, each with profile <code>PARTNER</code>. The <em>Partner context</em> column shows <strong>Customer</strong> for each, because each lists a sales work class.</p>
+<h2 id="try-it-on-usmf">Try it on USMF</h2>
+<p>Sign in as user <strong>24</strong> and run the work with each menu item. For <strong>Cluster Pick</strong>, build the cluster from the D6-like work, then pick.</p>
+<h2 id="expected-results">Expected results</h2>
+<table>
+<thead>
+<tr>
+<th>Menu item</th>
+<th>Worker sees for US-001, W0001 Black/Large</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sales Picking - System</td>
+<td><code>CR-4471-BL</code></td>
+</tr>
+<tr>
+<td>Cluster Pick</td>
+<td><code>CR-4471-BL</code></td>
+</tr>
+<tr>
+<td>Pick to Container</td>
+<td><code>CR-4471-BL</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-it-resolves">How it resolves</h2>
+<p>All of these execute work through the standard pick and put screen builders, which is where the line is added. Each work line resolves with its own item, variant and — for sales work — its own order's customer, so a cluster mixing orders for different customers shows each customer's own number.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Line missing on one style only</td>
+<td>That menu item has no settings row of its own — settings are per menu item, not per flow.</td>
+</tr>
+<tr>
+<td>No customer number on a mixed menu item</td>
+<td>The work actually picked is not sales work (see <a href="15-WorkWithoutPartner.html">scenario 15</a>).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="related">Related</h2>
+<p>Validation: <a href="../ItemIdentityScenarios.html">scenario pack</a> scenario 20 (a)–(b).</p>
+
+</body>
+</html>

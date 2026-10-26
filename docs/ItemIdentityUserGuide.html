@@ -37,13 +37,14 @@ img { max-width: 100%; }
 <p>This guide is for the people who see the feature day to day: warehouse workers on the mobile app, and the power users who keep the configuration healthy. For first-time configuration, start with the <a href="ItemIdentitySetup.html">setup guide</a>.</p>
 <h2 id="what-you-see-on-the-device">1. What you see on the device</h2>
 <p>On configured screens, one extra read-only line appears with the other item information:</p>
-<pre><code>Item:            A0001
-Item identity:   L102
-Qty:             12 ea
+<pre><code>Item:            W0001
+Item identity:   CR-4471-BL
+Qty:             2 ea
 </code></pre>
+<p>(Contoso USMF: customer US-001 picking a black, large <em>Wired Headset</em>. The <a href="ItemIdentityUseCases.html">use case catalog</a> has every supported use case worked on USMF data.)</p>
 <ul>
 <li>The <strong>caption</strong> (<em>Item identity</em> by default) is set by your administrator and can differ per menu item — sites often rename it to what it shows, such as <em>Customer item no.</em> or <em>Variant</em>.</li>
-<li>The <strong>value</strong> is the first identity that resolves from the configured chain — typically the trading partner's item number or the variant's product name. With the dimension-summary option on, the variant values are appended: <code>L102 - Black / M</code>.</li>
+<li>The <strong>value</strong> is the first identity that resolves from the configured chain — typically the trading partner's item number or the variant's product name. With the dimension-summary option on, the variant's dimension values are appended (size before color): <code>Wired Headset - Large / Black</code>.</li>
 <li>The line is <strong>display only</strong>. You cannot type into it, it is never a scan target, and it never stops you from completing a step.</li>
 </ul>
 <h2 id="where-it-appears">2. Where it appears</h2>
@@ -75,10 +76,10 @@ Qty:             12 ea
 </table>
 <p>Only menu items your administrator has configured show the line. Two workers on the same flow can see different captions (label override) but the same value.</p>
 <h2 id="what-the-value-can-be">3. What the value can be</h2>
-<p>The administrator defines an ordered chain. Normally the first source with a value wins; a profile can instead be set to <em>concatenate</em>, in which case every source that has a value appears, joined by a separator (for example <code>L102 | Golf Shirt - Black / M</code>). The sources are:</p>
+<p>The administrator defines an ordered chain. Normally the first source with a value wins; a profile can instead be set to <em>concatenate</em>, in which case every source that has a value appears, joined by a separator (for example <code>CR-4471-BL | Wired Headset - Large / Black | W0001</code>). The sources are:</p>
 <ol>
 <li><strong>External item number</strong> — what <em>this</em> customer or vendor calls the item. Different partners see their own numbers.</li>
-<li><strong>Variant product name</strong> — the variant's name in your session language (&quot;Golf Shirt - Midnight Black / M&quot; instead of a bare code).</li>
+<li><strong>Variant product name</strong> — the variant's name in your session language. Where all variants share one name (as in Contoso USMF, where every W0001 variant is <em>Wired Headset</em>), the administrator adds the dimension summary so you see <code>Wired Headset - Small / Red</code>.</li>
 <li><strong>GTIN</strong> — the variant's registered GTIN.</li>
 <li><strong>Item barcode</strong> — a registered barcode for the variant.</li>
 <li><strong>Search name</strong> — the released product's search name.</li>
@@ -100,9 +101,10 @@ Qty:             12 ea
 <li>Run. The log lists every source in chain order:</li>
 </ol>
 <pre><code>External item number - no value (no external item record)
-Variant product name - resolved: Golf Shirt - Midnight Black / M
-Winning source: Variant product name. Value: Golf Shirt - Midnight Black / M
+Variant product name - resolved: Wired Headset - Small / Red
+Winning source: Variant product name. Value: Wired Headset - Small / Red
 </code></pre>
+<p>(USMF: item W0001, the Red/Small variant's product dimension number, context <em>Customer</em>, account US-003 — a customer with no external item descriptions.)</p>
 <p>The device shows exactly this winning value for the same inputs. Test resolution always resolves fresh (no cache), so it also answers &quot;why does the device still show the old value&quot; — see the next section.</p>
 <h2 id="troubleshooting">6. Troubleshooting</h2>
 <table>

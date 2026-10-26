@@ -22,7 +22,7 @@ Run these in order. Each has a pass condition; do not continue past a failed che
 
 ## 2. Smoke configuration
 
-Configure in the legal entity from P5.
+Configure in the legal entity from P5. The values below use the Contoso **USMF** demo company — mobile user **24** in warehouse **24** (*Site 2 - Warehouse Management*), whose menus carry **Sales Picking** (user directed picking work) and **Purchase Receive** (purchase order item receiving). On another company, substitute your own menu item names from P6.
 
 **Item identity parameters**
 
@@ -45,8 +45,8 @@ Configure in the legal entity from P5.
 
 | Mobile device menu item | Enabled | Profile | Label override |
 |---|---|---|---|
-| *(exact picking menu item name)* | Yes | SMOKE | (blank) |
-| *(exact PO line receiving menu item name)* | Yes | SMOKE | (blank) |
+| Sales Picking *(USMF; else your picking menu item name)* | Yes | SMOKE | (blank) |
+| Purchase Receive *(USMF; else your PO receiving menu item name)* | Yes | SMOKE | (blank) |
 
 Do **not** configure field priority yet. Without a priority row the line renders in the default (details) area, which is enough to prove injection.
 
@@ -54,16 +54,16 @@ Do **not** configure field priority yet. Without a priority row the line renders
 
 ### Test A — Sales picking
 
-1. Release a sales order for any item to the warehouse and wave it so picking work exists (any item — variants are not needed for the smoke test).
-2. On the device, open the picking menu item from P6 and start the work.
+1. Release a sales order for any item to the warehouse and wave it so picking work exists (any item — variants are not needed for the smoke test). USMF: customer **US-001**, site 2, warehouse **24**, item **A0001** quantity 1, then **Release to warehouse**.
+2. On the device, log on as user **24**, open the picking menu item from P6 (**Sales Picking**) and start the work.
 3. Reach the **pick confirmation** page (item and quantity shown).
 
 **Expected**: the page shows a read-only line **Item identity: `<item number>`**. On the Warehouse Management mobile app it renders among the item's detail fields — scroll or expand the item card if the screen is short. Continue to the **put** page: the line appears there too.
 
-### Test B — Purchase order line receiving
+### Test B — Purchase order receiving
 
-1. Create and confirm a purchase order for any item.
-2. On the device, open the PO line receiving menu item, scan the PO, then identify the item.
+1. Create and confirm a purchase order for any item. USMF: vendor **US-104**, warehouse **24**, item **A0001** quantity 5.
+2. On the device, open the PO receiving menu item (**Purchase Receive**), scan the PO, then identify the item.
 3. Reach the **quantity/confirmation** page.
 
 **Expected**: the same **Item identity: `<item number>`** line among the item detail fields.
@@ -71,13 +71,13 @@ Do **not** configure field priority yet. Without a priority row the line renders
 ### Test C — Test resolution (rich client, no device)
 
 1. **Item identity profiles** > select `SMOKE` > **Test resolution**.
-2. Item = the item from Test A; leave Product dimension number blank; Partner context = None; Profile = SMOKE. Run.
+2. Item = the item from Test A (USMF: `A0001`); leave Product dimension number blank; Partner context = None; Profile = SMOKE. Run.
 
 **Expected** infolog:
 
 ```
-Item number - resolved: <item number>
-Winning source: Item number. Value: <item number>
+Item number - resolved: A0001
+Winning source: Item number. Value: A0001
 ```
 
 ## 4. Reading the results
@@ -119,7 +119,7 @@ This is the fallback doing its job: the intended source missed. Reproduce with *
 | Miss reason | Meaning | Fix |
 |---|---|---|
 | `no partner context` | External item number needs a customer or vendor; this flow supplies none | Expected on non-sales work and on movement-type flows. On sales picking, confirm the work belongs to a sales order. |
-| `no partner account` | The order behind the work/receipt has no invoice account resolved | Check the sales/purchase order's invoice account. |
+| `no partner account` | The order behind the work/receipt has no customer or vendor account resolved | Check the sales order's customer account or the purchase order's vendor account. |
 | `no external item record` | No external item description for *that* account (or its item group) and *those* product dimensions, nor an item-level one | Create the external item description on the customer/vendor, with the variant's dimensions or with blank dimensions. |
 | `no product dimensions` | Variant product name skipped: the item is not a variant | Expected for plain items — the next source runs. |
 | `no product variant` | Dimensions present but no released variant matches | Check the released product variants of the item. |
@@ -130,7 +130,7 @@ If Test resolution resolves correctly but the device still shows the old/other v
 
 ## 6. From smoke to the real profile
 
-Once Tests A and B pass, switch the setting rows to the intended profile (for example External item number → Variant product name → Item number) and re-run Test A with a variant item and a customer that has an external item description. Use Test resolution with the same inputs first — its winning value is exactly what the device will show. Then set **Cache duration** back to its production value (30) and configure **Warehouse app field priority** for placement.
+Once Tests A and B pass, switch the setting rows to the intended profile (for example External item number → Variant product name with dimension summary → Item number) and re-run Test A with a variant item and a customer that has an external item description — on USMF, item **W0001** Black/Large for customer **US-001** after creating the sample records in the [use case catalog](ItemIdentityUseCases.md#sample-data-to-create). Use Test resolution with the same inputs first — its winning value is exactly what the device will show. Then set **Cache duration** back to its production value (30) and configure **Warehouse app field priority** for placement.
 
 ## 7. What to include in a failure report
 

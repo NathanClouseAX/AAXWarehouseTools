@@ -10,6 +10,8 @@ The feature is entirely configuration-driven and dormant until configured. With 
 - After deployment, restart the AOS once so the new label texts load.
 - Your user has the **Maintain item identity configuration** duty (see [Security](#7-security)) or system administrator rights.
 
+> **Looking for worked examples?** The [use case catalog](ItemIdentityUseCases.md) indexes a step-by-step guide for each of the 18 supported scenarios, worked on the Contoso USMF demo company, with the sample data to create and the exact values the device shows.
+
 > **First deployment or "nothing shows"?** Follow the [smoke test and diagnostics](ItemIdentitySmokeTest.md) — a fixed configuration that proves the line renders before you design real profiles, with a diagnostic ladder for each failure layer. Note that all configuration is **per legal entity**: configure in the company the device session runs in.
 
 ## 2. Setup at a glance
@@ -43,8 +45,8 @@ New lines get their **Sequence** automatically (the highest existing sequence pl
 
 | Source | Returns | Notes |
 |---|---|---|
-| **External item number** | The trading partner's item number for this item and variant | Resolved with partner context: the customer on sales picking, the vendor on purchase receiving. Follows the standard precedence — an account-specific record beats an item-group record, and an exact variant match beats an item-level record. Skipped entirely on flows without a partner. |
-| **Variant product name** | The distinct product variant's product name, translated to the worker's language | Falls back to the product master's translation, then the released product name. Skipped when the item has no product dimensions (the master name would duplicate the item line). |
+| **External item number** | The trading partner's item number for this item and variant | Resolved with partner context: the customer on sales picking, the vendor on purchase receiving — in both cases the order's own account (the sales order's customer account, the purchase order's vendor account), as standard order entry uses. Precedence: exact variant for the account, exact variant for the account's item group, item level (blank dimensions) for the account, item level for the group. Skipped entirely on flows without a partner. |
+| **Variant product name** | The distinct product variant's product name, translated to the worker's language | Falls back to the product master's translation, then the released product name. Skipped when the item has no product dimensions. Many catalogs (including Contoso USMF) give every variant the master's name — combine this source with **Append dimension summary** so variants are distinguishable. |
 | **GTIN** | The GTIN registered for the item and variant | A unit-blank registration is preferred over unit-specific ones. |
 | **Item barcode** | A barcode registered for the item and variant | A scanning-enabled barcode is preferred. |
 | **Search name** | The released product's search name | Skipped when empty. |
@@ -53,7 +55,7 @@ New lines get their **Sequence** automatically (the highest existing sequence pl
 Per line you can also set:
 
 - **External item content** — override the parameter default for this profile's external item number line.
-- **Append dimension summary** — suffix the active product dimension values to the resolved value, for example `L102 - Black / M`.
+- **Append dimension summary** — suffix the product dimension values to the resolved value, in configuration, size, color, style, version order, for example `Wired Headset - Large / Black`. The values are dimension codes, not translated names.
 
 **Profile version** is stamped automatically: any edit to the profile or its lines bumps it, which immediately invalidates cached values for that profile. You never maintain it by hand.
 
@@ -62,7 +64,7 @@ Per line you can also set:
 | Sequence | Source |
 |---|---|
 | 1 | External item number |
-| 2 | Variant product name |
+| 2 | Variant product name, with **Append dimension summary** |
 | 3 | Item number |
 
 The partner-specific number is the most operative identity when it exists; variant-only sites still get the variant name because the external lookup simply misses; the item number guarantees the line is never empty. Pair it with Fallback behavior *Hide* if you prefer the line to disappear instead when nothing better than the item number exists — then drop line 3.
@@ -77,16 +79,18 @@ Assign profiles to mobile device menu items either from **Item identity menu ite
 | **Enabled** | Turns the line on or off for this menu item without deleting the row. |
 | **Profile** | The resolution profile to use. |
 | **Label override** | Menu-item-specific caption; blank uses the parameter default. |
-| **Partner context** | Read-only, derived from the menu item's flow: **Vendor** for purchase order line/item receiving, **Customer** for work execution (picking), **None** otherwise. |
+| **Partner context** | Read-only, derived from the menu item: **Vendor** for purchase order line/item receiving and load item receiving (and their *and locate* variants), **Customer** for work menu items whose work classes include sales work (sales picking, cluster picking, pick to container, …), **None** otherwise — including work menu items that only execute purchase, transfer, production or replenishment work. |
 
 If you assign a profile whose only source is *External item number* to a menu item with no partner context, the form warns you — that combination can never resolve and the line will always follow the fallback. The save still goes through.
+
+A work menu item that mixes sales and non-sales work classes shows *Customer*; its non-sales work still resolves without a partner.
 
 ### Where the line can appear
 
 The line is injected into these screens when their menu item has an enabled setting:
 
-- **Work execution** (user directed, system directed, cluster picking, grouping, pick and pack, work list) — the **pick** and **put** screens, including the screens that carry the target license plate prompt. Partner context is the **customer** from the sales order's invoice account when the work is sales work; other work types resolve without a partner (the external item number source is skipped, everything else works).
-- **Purchase order line receiving** and **purchase order item receiving** (including the *and locate* variants) — the item/quantity confirmation screens, with the **vendor** from the purchase order's invoice account.
+- **Work execution** (user directed, system directed, cluster picking, grouping, pick and pack) — the **pick** and **put** screens, including the screens that carry the target license plate prompt. Partner context is the sales order's **customer** when the work is sales work; other work types resolve without a partner (the external item number source is skipped, everything else works).
+- **Purchase order line receiving** and **purchase order item receiving** (including the *and locate* variants) — the item/quantity confirmation screens, with the purchase order's **vendor**.
 - **Load item receiving** — with the vendor when the load line traces to a purchase order.
 
 Configuring any other menu item type (movement, counting, inquiries, …) has no effect in this version.
@@ -133,4 +137,4 @@ On **Item identity profiles**, the **Test resolution** action resolves a sample 
 
 - **Non-intrusive**: feature off or menu item unconfigured means unchanged standard screens; no standard table gets AAX data.
 - **Never blocks the flow**: the line is read-only, is ignored by input-completeness logic, and every resolution error is swallowed — the worst case is an absent line.
-- **Caching**: resolved values are cached per item, variant, partner, profile version, and language for the configured duration. Editing a profile takes effect immediately (the version bump invalidates the cache); master-data changes (a new GTIN, a new external item number) appear when the cache entry expires — or immediately after you touch the profile.
+- **Caching**: resolved values are cached per item, variant, partner, profile version, and language for the configured duration — not per warehouse, location, or license plate, which never affect the value. Editing a profile takes effect immediately (the version bump invalidates the cache); master-data changes (a new GTIN, a new external item number) appear when the cache entry expires — or immediately after you touch the profile.

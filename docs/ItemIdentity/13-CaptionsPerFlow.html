@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Item Identity Scenario 13 — Different Captions per Flow</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="item-identity-scenario-13-different-captions-per-flow">Item Identity Scenario 13 — Different Captions per Flow</h1>
+<p>Part of the <a href="../ItemIdentityUseCases.html">item identity use case catalog</a>. Worked on the Contoso <strong>USMF</strong> demo company.</p>
+<h2 id="when-to-use">When to use</h2>
+<p>The same profile serves several flows, but the caption should say what the value is in that flow — <em>Customer item</em> when picking, <em>Vendor item</em> when receiving.</p>
+<h2 id="what-the-worker-sees">What the worker sees</h2>
+<pre><code>Sales Picking:      Customer item:   CR-4471-BL
+Purchase Receive:   Vendor item:     FAB-HS200-BK-L
+Cluster Pick:       Item identity:   CR-4471-BL
+</code></pre>
+<h2 id="supported-flows">Supported flows</h2>
+<p>All supported flows.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<p>D1, D3, D6 and D9 from the <a href="../ItemIdentityUseCases.html#sample-data-to-create">sample data</a>.</p>
+<h2 id="configure">Configure</h2>
+<ol>
+<li><p><strong>Item identity parameters</strong> &gt; <em>Default label</em> = <code>Item identity</code> (shipped value).</p>
+</li>
+<li><p><strong>Item identity menu item settings</strong>, all with profile <code>PARTNER</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Mobile device menu item</th>
+<th>Label override</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Sales Picking</code></td>
+<td><code>Customer item</code></td>
+</tr>
+<tr>
+<td><code>Purchase Receive</code></td>
+<td><code>Vendor item</code></td>
+</tr>
+<tr>
+<td><code>Cluster Pick</code></td>
+<td><em>(blank)</em></td>
+</tr>
+</tbody>
+</table>
+</li>
+</ol>
+<h2 id="try-it-on-usmf">Try it on USMF</h2>
+<p>Pick D6 with <strong>Sales Picking</strong> and with <strong>Cluster Pick</strong>; receive D9 with <strong>Purchase Receive</strong>. Then change the parameter <em>Default label</em> to <code>Identity</code> and repeat on <strong>Cluster Pick</strong>.</p>
+<h2 id="expected-results">Expected results</h2>
+<table>
+<thead>
+<tr>
+<th>Menu item</th>
+<th>Caption</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sales Picking</td>
+<td><code>Customer item</code></td>
+</tr>
+<tr>
+<td>Purchase Receive</td>
+<td><code>Vendor item</code></td>
+</tr>
+<tr>
+<td>Cluster Pick</td>
+<td><code>Item identity</code>, then <code>Identity</code> after the parameter change</td>
+</tr>
+<tr>
+<td>Any configured item, parameter <em>Default label</em> blank</td>
+<td><code>Item identity</code> (shipped default)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-it-resolves">How it resolves</h2>
+<p>Caption precedence: the setting's <strong>Label override</strong> → the parameter's <strong>Default label</strong> → the shipped text <em>Item identity</em>. The caption does not affect the cache; changes show on the next screen.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One menu item shows an unexpected caption</td>
+<td>That row has a label override.</td>
+</tr>
+<tr>
+<td>Captions do not change language with the worker</td>
+<td>Captions are plain text, not labels — set the override in the language the crew reads.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="related">Related</h2>
+<p>Validation: <a href="../ItemIdentityScenarios.html">scenario pack</a> scenario 7.</p>
+
+</body>
+</html>

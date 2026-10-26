@@ -7,13 +7,15 @@ This guide is for the people who see the feature day to day: warehouse workers o
 On configured screens, one extra read-only line appears with the other item information:
 
 ```
-Item:            A0001
-Item identity:   L102
-Qty:             12 ea
+Item:            W0001
+Item identity:   CR-4471-BL
+Qty:             2 ea
 ```
 
+(Contoso USMF: customer US-001 picking a black, large *Wired Headset*. The [use case catalog](ItemIdentityUseCases.md) has every supported use case worked on USMF data.)
+
 - The **caption** (*Item identity* by default) is set by your administrator and can differ per menu item — sites often rename it to what it shows, such as *Customer item no.* or *Variant*.
-- The **value** is the first identity that resolves from the configured chain — typically the trading partner's item number or the variant's product name. With the dimension-summary option on, the variant values are appended: `L102 - Black / M`.
+- The **value** is the first identity that resolves from the configured chain — typically the trading partner's item number or the variant's product name. With the dimension-summary option on, the variant's dimension values are appended (size before color): `Wired Headset - Large / Black`.
 - The line is **display only**. You cannot type into it, it is never a scan target, and it never stops you from completing a step.
 
 ## 2. Where it appears
@@ -29,10 +31,10 @@ Only menu items your administrator has configured show the line. Two workers on 
 
 ## 3. What the value can be
 
-The administrator defines an ordered chain. Normally the first source with a value wins; a profile can instead be set to *concatenate*, in which case every source that has a value appears, joined by a separator (for example `L102 | Golf Shirt - Black / M`). The sources are:
+The administrator defines an ordered chain. Normally the first source with a value wins; a profile can instead be set to *concatenate*, in which case every source that has a value appears, joined by a separator (for example `CR-4471-BL | Wired Headset - Large / Black | W0001`). The sources are:
 
 1. **External item number** — what *this* customer or vendor calls the item. Different partners see their own numbers.
-2. **Variant product name** — the variant's name in your session language ("Golf Shirt - Midnight Black / M" instead of a bare code).
+2. **Variant product name** — the variant's name in your session language. Where all variants share one name (as in Contoso USMF, where every W0001 variant is *Wired Headset*), the administrator adds the dimension summary so you see `Wired Headset - Small / Red`.
 3. **GTIN** — the variant's registered GTIN.
 4. **Item barcode** — a registered barcode for the variant.
 5. **Search name** — the released product's search name.
@@ -58,9 +60,11 @@ Power users can replay the exact resolution from the rich client:
 
 ```
 External item number - no value (no external item record)
-Variant product name - resolved: Golf Shirt - Midnight Black / M
-Winning source: Variant product name. Value: Golf Shirt - Midnight Black / M
+Variant product name - resolved: Wired Headset - Small / Red
+Winning source: Variant product name. Value: Wired Headset - Small / Red
 ```
+
+(USMF: item W0001, the Red/Small variant's product dimension number, context *Customer*, account US-003 — a customer with no external item descriptions.)
 
 The device shows exactly this winning value for the same inputs. Test resolution always resolves fresh (no cache), so it also answers "why does the device still show the old value" — see the next section.
 

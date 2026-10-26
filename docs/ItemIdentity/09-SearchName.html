@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Item Identity Scenario 09 — Show the Search Name</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="item-identity-scenario-09-show-the-search-name">Item Identity Scenario 09 — Show the Search Name</h1>
+<p>Part of the <a href="../ItemIdentityUseCases.html">item identity use case catalog</a>. Worked on the Contoso <strong>USMF</strong> demo company.</p>
+<h2 id="when-to-use">When to use</h2>
+<p>The floor knows products by their short names, and the search name on the released product carries exactly that.</p>
+<h2 id="what-the-worker-sees">What the worker sees</h2>
+<pre><code>Item:            A0001
+Short name:      HDMI 6' Cables
+</code></pre>
+<h2 id="supported-flows">Supported flows</h2>
+<p>All supported flows. No partner is needed.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<p>Stock USMF data — no records to create:</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Search name</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A0001</td>
+<td><code>HDMI 6' Cables</code></td>
+</tr>
+<tr>
+<td>A0002</td>
+<td><code>HDMI 12' Cables</code></td>
+</tr>
+<tr>
+<td>W0001</td>
+<td><code>WiredHeadset</code></td>
+</tr>
+<tr>
+<td>SW0001</td>
+<td><code>WirelessHeadset</code></td>
+</tr>
+<tr>
+<td>M9212</td>
+<td><code>Speakerdriver</code></td>
+</tr>
+</tbody>
+</table>
+<p>Sales order D6 (US-001, warehouse 24: W0001 Black/Large and A0001), released.</p>
+<h2 id="configure">Configure</h2>
+<ol>
+<li><strong>Item identity profiles</strong>: <code>SEARCH</code> — 10 <em>Search name</em> (optionally 20 <em>Item number</em>).</li>
+<li><strong>Item identity menu item settings</strong>: <code>Sales Picking</code> → <code>SEARCH</code>, <em>Label override</em> = <code>Short name</code>.</li>
+</ol>
+<h2 id="try-it-on-usmf">Try it on USMF</h2>
+<p>Pick both lines of D6 with <strong>Sales Picking</strong> (user <strong>24</strong>).</p>
+<h2 id="expected-results">Expected results</h2>
+<table>
+<thead>
+<tr>
+<th>Pick</th>
+<th>Worker sees</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>W0001 (any variant)</td>
+<td><code>WiredHeadset</code></td>
+</tr>
+<tr>
+<td>A0001</td>
+<td><code>HDMI 6' Cables</code></td>
+</tr>
+<tr>
+<td>A0001 with its search name cleared</td>
+<td>no line (fallback <em>Hide</em>), or <code>A0001</code> with line 20</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-it-resolves">How it resolves</h2>
+<p>The released product's <strong>Search name</strong> field, unchanged. It is item-level: every variant of W0001 shows the same value — combine with the dimension summary on another line, or use <a href="03-VariantIdentification.html">scenario 03</a>, when variants matter.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No line</td>
+<td>Search name empty; Test resolution reports <em>empty search name</em>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="related">Related</h2>
+<p>Validation: <a href="../ItemIdentityScenarios.html">scenario pack</a> scenario 19.</p>
+
+</body>
+</html>

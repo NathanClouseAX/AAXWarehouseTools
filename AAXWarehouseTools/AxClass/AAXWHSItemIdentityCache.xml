@@ -4,8 +4,8 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// Process-wide cache of resolved item identity values, keyed by company, item, dimensions,
-/// partner, profile version, and language. Entries expire after the parameter TTL, and a TTL of
+/// Process-wide cache of resolved item identity values, keyed by company, item, product
+/// dimensions, partner, profile version, and language. Entries expire after the parameter TTL, and a TTL of
 /// zero bypasses the cache.
 /// </summary>
 internal final class AAXWHSItemIdentityCache
@@ -18,18 +18,24 @@ internal final class AAXWHSItemIdentityCache
 				<Name>cacheKey</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Builds the cache key for one request. The profile version keys every entry so a
-    /// configuration edit invalidates without an explicit flush.
+    /// Builds the cache key for one request. Only the product dimensions key the entry, so the
+    /// same variant shares one entry across sites, warehouses, locations, and license plates. The
+    /// profile version keys every entry so a configuration edit invalidates without an explicit flush.
     /// </summary>
     /// <param name = "_request">The resolution request.</param>
+    /// <param name = "_inventDim">The inventory dimensions of the request.</param>
     /// <param name = "_profileVersion">The version stamp of the requested profile.</param>
     /// <returns>The cache key container.</returns>
-    private static container cacheKey(AAXWHSItemIdentityRequest _request, int _profileVersion)
+    private static container cacheKey(AAXWHSItemIdentityRequest _request, InventDim _inventDim, int _profileVersion)
     {
         return [curExt(),
                 curExt2dataareaid(tableNum(AAXWHSItemIdentityProfile)),
                 _request.parmItemId(),
-                _request.parmInventDimId(),
+                _inventDim.ConfigId,
+                _inventDim.InventSizeId,
+                _inventDim.InventColorId,
+                _inventDim.InventStyleId,
+                _inventDim.InventVersionId,
                 _request.parmPartnerContext(),
                 _request.parmPartnerAccount(),
                 _request.parmProfileId(),
@@ -47,10 +53,11 @@ internal final class AAXWHSItemIdentityCache
     /// no entry exists, or the entry is older than the TTL.
     /// </summary>
     /// <param name = "_request">The resolution request.</param>
+    /// <param name = "_inventDim">The inventory dimensions of the request.</param>
     /// <param name = "_profileVersion">The version stamp of the requested profile.</param>
     /// <param name = "_ttlMinutes">The cache time to live in minutes; zero or less bypasses.</param>
     /// <returns>A [found, source, value, storedUtcDateTime] container, or <c>conNull</c> on a miss.</returns>
-    internal static container get(AAXWHSItemIdentityRequest _request, int _profileVersion, int _ttlMinutes)
+    internal static container get(AAXWHSItemIdentityRequest _request, InventDim _inventDim, int _profileVersion, int _ttlMinutes)
     {
         if (_ttlMinutes <= 0)
         {
@@ -58,7 +65,7 @@ internal final class AAXWHSItemIdentityCache
         }
 
         SysGlobalObjectCache cache = new SysGlobalObjectCache();
-        container value = cache.find(CacheScope, AAXWHSItemIdentityCache::cacheKey(_request, _profileVersion));
+        container value = cache.find(CacheScope, AAXWHSItemIdentityCache::cacheKey(_request, _inventDim, _profileVersion));
 
         if (value == conNull())
         {
@@ -86,10 +93,11 @@ internal final class AAXWHSItemIdentityCache
     /// nothing when the TTL disables caching.
     /// </summary>
     /// <param name = "_request">The resolution request.</param>
+    /// <param name = "_inventDim">The inventory dimensions of the request.</param>
     /// <param name = "_profileVersion">The version stamp of the requested profile.</param>
     /// <param name = "_ttlMinutes">The cache time to live in minutes; zero or less bypasses.</param>
     /// <param name = "_result">The resolution outcome to store.</param>
-    internal static void set(AAXWHSItemIdentityRequest _request, int _profileVersion, int _ttlMinutes, AAXWHSItemIdentityResult _result)
+    internal static void set(AAXWHSItemIdentityRequest _request, InventDim _inventDim, int _profileVersion, int _ttlMinutes, AAXWHSItemIdentityResult _result)
     {
         if (_ttlMinutes <= 0)
         {
@@ -100,7 +108,7 @@ internal final class AAXWHSItemIdentityCache
 
         cache.insert(
             CacheScope,
-            AAXWHSItemIdentityCache::cacheKey(_request, _profileVersion),
+            AAXWHSItemIdentityCache::cacheKey(_request, _inventDim, _profileVersion),
             [_result.parmFound(), _result.parmSource(), _result.parmValue(), DateTimeUtil::utcNow()]);
     }
 

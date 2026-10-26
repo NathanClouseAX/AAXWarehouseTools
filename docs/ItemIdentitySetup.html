@@ -43,6 +43,9 @@ img { max-width: 100%; }
 <li>Your user has the <strong>Maintain item identity configuration</strong> duty (see <a href="#7-security">Security</a>) or system administrator rights.</li>
 </ul>
 <blockquote>
+<p><strong>Looking for worked examples?</strong> The <a href="ItemIdentityUseCases.html">use case catalog</a> indexes a step-by-step guide for each of the 18 supported scenarios, worked on the Contoso USMF demo company, with the sample data to create and the exact values the device shows.</p>
+</blockquote>
+<blockquote>
 <p><strong>First deployment or &quot;nothing shows&quot;?</strong> Follow the <a href="ItemIdentitySmokeTest.html">smoke test and diagnostics</a> — a fixed configuration that proves the line renders before you design real profiles, with a diagnostic ladder for each failure layer. Note that all configuration is <strong>per legal entity</strong>: configure in the company the device session runs in.</p>
 </blockquote>
 <h2 id="setup-at-a-glance">2. Setup at a glance</h2>
@@ -107,12 +110,12 @@ img { max-width: 100%; }
 <tr>
 <td><strong>External item number</strong></td>
 <td>The trading partner's item number for this item and variant</td>
-<td>Resolved with partner context: the customer on sales picking, the vendor on purchase receiving. Follows the standard precedence — an account-specific record beats an item-group record, and an exact variant match beats an item-level record. Skipped entirely on flows without a partner.</td>
+<td>Resolved with partner context: the customer on sales picking, the vendor on purchase receiving — in both cases the order's own account (the sales order's customer account, the purchase order's vendor account), as standard order entry uses. Precedence: exact variant for the account, exact variant for the account's item group, item level (blank dimensions) for the account, item level for the group. Skipped entirely on flows without a partner.</td>
 </tr>
 <tr>
 <td><strong>Variant product name</strong></td>
 <td>The distinct product variant's product name, translated to the worker's language</td>
-<td>Falls back to the product master's translation, then the released product name. Skipped when the item has no product dimensions (the master name would duplicate the item line).</td>
+<td>Falls back to the product master's translation, then the released product name. Skipped when the item has no product dimensions. Many catalogs (including Contoso USMF) give every variant the master's name — combine this source with <strong>Append dimension summary</strong> so variants are distinguishable.</td>
 </tr>
 <tr>
 <td><strong>GTIN</strong></td>
@@ -139,7 +142,7 @@ img { max-width: 100%; }
 <p>Per line you can also set:</p>
 <ul>
 <li><strong>External item content</strong> — override the parameter default for this profile's external item number line.</li>
-<li><strong>Append dimension summary</strong> — suffix the active product dimension values to the resolved value, for example <code>L102 - Black / M</code>.</li>
+<li><strong>Append dimension summary</strong> — suffix the product dimension values to the resolved value, in configuration, size, color, style, version order, for example <code>Wired Headset - Large / Black</code>. The values are dimension codes, not translated names.</li>
 </ul>
 <p><strong>Profile version</strong> is stamped automatically: any edit to the profile or its lines bumps it, which immediately invalidates cached values for that profile. You never maintain it by hand.</p>
 <h3 id="recommended-starting-profile">Recommended starting profile</h3>
@@ -157,7 +160,7 @@ img { max-width: 100%; }
 </tr>
 <tr>
 <td>2</td>
-<td>Variant product name</td>
+<td>Variant product name, with <strong>Append dimension summary</strong></td>
 </tr>
 <tr>
 <td>3</td>
@@ -194,16 +197,17 @@ img { max-width: 100%; }
 </tr>
 <tr>
 <td><strong>Partner context</strong></td>
-<td>Read-only, derived from the menu item's flow: <strong>Vendor</strong> for purchase order line/item receiving, <strong>Customer</strong> for work execution (picking), <strong>None</strong> otherwise.</td>
+<td>Read-only, derived from the menu item: <strong>Vendor</strong> for purchase order line/item receiving and load item receiving (and their <em>and locate</em> variants), <strong>Customer</strong> for work menu items whose work classes include sales work (sales picking, cluster picking, pick to container, …), <strong>None</strong> otherwise — including work menu items that only execute purchase, transfer, production or replenishment work.</td>
 </tr>
 </tbody>
 </table>
 <p>If you assign a profile whose only source is <em>External item number</em> to a menu item with no partner context, the form warns you — that combination can never resolve and the line will always follow the fallback. The save still goes through.</p>
+<p>A work menu item that mixes sales and non-sales work classes shows <em>Customer</em>; its non-sales work still resolves without a partner.</p>
 <h3 id="where-the-line-can-appear">Where the line can appear</h3>
 <p>The line is injected into these screens when their menu item has an enabled setting:</p>
 <ul>
-<li><strong>Work execution</strong> (user directed, system directed, cluster picking, grouping, pick and pack, work list) — the <strong>pick</strong> and <strong>put</strong> screens, including the screens that carry the target license plate prompt. Partner context is the <strong>customer</strong> from the sales order's invoice account when the work is sales work; other work types resolve without a partner (the external item number source is skipped, everything else works).</li>
-<li><strong>Purchase order line receiving</strong> and <strong>purchase order item receiving</strong> (including the <em>and locate</em> variants) — the item/quantity confirmation screens, with the <strong>vendor</strong> from the purchase order's invoice account.</li>
+<li><strong>Work execution</strong> (user directed, system directed, cluster picking, grouping, pick and pack) — the <strong>pick</strong> and <strong>put</strong> screens, including the screens that carry the target license plate prompt. Partner context is the sales order's <strong>customer</strong> when the work is sales work; other work types resolve without a partner (the external item number source is skipped, everything else works).</li>
+<li><strong>Purchase order line receiving</strong> and <strong>purchase order item receiving</strong> (including the <em>and locate</em> variants) — the item/quantity confirmation screens, with the purchase order's <strong>vendor</strong>.</li>
 <li><strong>Load item receiving</strong> — with the vendor when the load line traces to a purchase order.</li>
 </ul>
 <p>Configuring any other menu item type (movement, counting, inquiries, …) has no effect in this version.</p>
@@ -277,7 +281,7 @@ img { max-width: 100%; }
 <ul>
 <li><strong>Non-intrusive</strong>: feature off or menu item unconfigured means unchanged standard screens; no standard table gets AAX data.</li>
 <li><strong>Never blocks the flow</strong>: the line is read-only, is ignored by input-completeness logic, and every resolution error is swallowed — the worst case is an absent line.</li>
-<li><strong>Caching</strong>: resolved values are cached per item, variant, partner, profile version, and language for the configured duration. Editing a profile takes effect immediately (the version bump invalidates the cache); master-data changes (a new GTIN, a new external item number) appear when the cache entry expires — or immediately after you touch the profile.</li>
+<li><strong>Caching</strong>: resolved values are cached per item, variant, partner, profile version, and language for the configured duration — not per warehouse, location, or license plate, which never affect the value. Editing a profile takes effect immediately (the version bump invalidates the cache); master-data changes (a new GTIN, a new external item number) appear when the cache entry expires — or immediately after you touch the profile.</li>
 </ul>
 
 </body>

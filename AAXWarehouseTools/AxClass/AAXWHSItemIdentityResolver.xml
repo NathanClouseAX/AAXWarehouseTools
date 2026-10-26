@@ -35,10 +35,11 @@ public final class AAXWHSItemIdentityResolver
         {
             AAXWHSItemIdentityParameters parameters = AAXWHSItemIdentityParameters::find();
             AAXWHSItemIdentityProfile    profile    = AAXWHSItemIdentityProfile::find(_request.parmProfileId());
+            InventDim                    inventDim  = InventDim::find(_request.parmInventDimId());
 
             if (_request.parmUseCache())
             {
-                container cached = AAXWHSItemIdentityCache::get(_request, profile.ProfileVersion, parameters.CacheTtlMinutes);
+                container cached = AAXWHSItemIdentityCache::get(_request, inventDim, profile.ProfileVersion, parameters.CacheTtlMinutes);
 
                 if (cached != conNull())
                 {
@@ -58,7 +59,6 @@ public final class AAXWHSItemIdentityResolver
                 }
             }
 
-            InventDim                     inventDim   = InventDim::find(_request.parmInventDimId());
             AAXWHSItemIdentityProfileId   profileId   = _request.parmProfileId();
             boolean                       concatenate = profile.ResolutionMode == AAXWHSItemIdentityResolutionMode::Concatenate;
             AAXWHSItemIdentityProfileLine profileLine;
@@ -100,7 +100,7 @@ public final class AAXWHSItemIdentityResolver
 
             if (_request.parmUseCache())
             {
-                AAXWHSItemIdentityCache::set(_request, profile.ProfileVersion, parameters.CacheTtlMinutes, result);
+                AAXWHSItemIdentityCache::set(_request, inventDim, profile.ProfileVersion, parameters.CacheTtlMinutes, result);
             }
         }
         catch
