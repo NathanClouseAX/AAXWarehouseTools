@@ -94,7 +94,7 @@ img { max-width: 100%; }
 </tbody>
 </table>
 <h2 id="smoke-configuration">2. Smoke configuration</h2>
-<p>Configure in the legal entity from P5.</p>
+<p>Configure in the legal entity from P5. The values below use the Contoso <strong>USMF</strong> demo company — mobile user <strong>24</strong> in warehouse <strong>24</strong> (<em>Site 2 - Warehouse Management</em>), whose menus carry <strong>Sales Picking</strong> (user directed picking work) and <strong>Purchase Receive</strong> (purchase order item receiving). On another company, substitute your own menu item names from P6.</p>
 <p><strong>Item identity parameters</strong></p>
 <table>
 <thead>
@@ -161,13 +161,13 @@ img { max-width: 100%; }
 </thead>
 <tbody>
 <tr>
-<td><em>(exact picking menu item name)</em></td>
+<td>Sales Picking <em>(USMF; else your picking menu item name)</em></td>
 <td>Yes</td>
 <td>SMOKE</td>
 <td>(blank)</td>
 </tr>
 <tr>
-<td><em>(exact PO line receiving menu item name)</em></td>
+<td>Purchase Receive <em>(USMF; else your PO receiving menu item name)</em></td>
 <td>Yes</td>
 <td>SMOKE</td>
 <td>(blank)</td>
@@ -178,26 +178,26 @@ img { max-width: 100%; }
 <h2 id="execute">3. Execute</h2>
 <h3 id="test-a-sales-picking">Test A — Sales picking</h3>
 <ol>
-<li>Release a sales order for any item to the warehouse and wave it so picking work exists (any item — variants are not needed for the smoke test).</li>
-<li>On the device, open the picking menu item from P6 and start the work.</li>
+<li>Release a sales order for any item to the warehouse and wave it so picking work exists (any item — variants are not needed for the smoke test). USMF: customer <strong>US-001</strong>, site 2, warehouse <strong>24</strong>, item <strong>A0001</strong> quantity 1, then <strong>Release to warehouse</strong>.</li>
+<li>On the device, log on as user <strong>24</strong>, open the picking menu item from P6 (<strong>Sales Picking</strong>) and start the work.</li>
 <li>Reach the <strong>pick confirmation</strong> page (item and quantity shown).</li>
 </ol>
 <p><strong>Expected</strong>: the page shows a read-only line <strong>Item identity: <code>&lt;item number&gt;</code></strong>. On the Warehouse Management mobile app it renders among the item's detail fields — scroll or expand the item card if the screen is short. Continue to the <strong>put</strong> page: the line appears there too.</p>
-<h3 id="test-b-purchase-order-line-receiving">Test B — Purchase order line receiving</h3>
+<h3 id="test-b-purchase-order-receiving">Test B — Purchase order receiving</h3>
 <ol>
-<li>Create and confirm a purchase order for any item.</li>
-<li>On the device, open the PO line receiving menu item, scan the PO, then identify the item.</li>
+<li>Create and confirm a purchase order for any item. USMF: vendor <strong>US-104</strong>, warehouse <strong>24</strong>, item <strong>A0001</strong> quantity 5.</li>
+<li>On the device, open the PO receiving menu item (<strong>Purchase Receive</strong>), scan the PO, then identify the item.</li>
 <li>Reach the <strong>quantity/confirmation</strong> page.</li>
 </ol>
 <p><strong>Expected</strong>: the same <strong>Item identity: <code>&lt;item number&gt;</code></strong> line among the item detail fields.</p>
 <h3 id="test-c-test-resolution-rich-client-no-device">Test C — Test resolution (rich client, no device)</h3>
 <ol>
 <li><strong>Item identity profiles</strong> &gt; select <code>SMOKE</code> &gt; <strong>Test resolution</strong>.</li>
-<li>Item = the item from Test A; leave Product dimension number blank; Partner context = None; Profile = SMOKE. Run.</li>
+<li>Item = the item from Test A (USMF: <code>A0001</code>); leave Product dimension number blank; Partner context = None; Profile = SMOKE. Run.</li>
 </ol>
 <p><strong>Expected</strong> infolog:</p>
-<pre><code>Item number - resolved: &lt;item number&gt;
-Winning source: Item number. Value: &lt;item number&gt;
+<pre><code>Item number - resolved: A0001
+Winning source: Item number. Value: A0001
 </code></pre>
 <h2 id="reading-the-results">4. Reading the results</h2>
 <table>
@@ -343,8 +343,8 @@ Winning source: Item number. Value: &lt;item number&gt;
 </tr>
 <tr>
 <td><code>no partner account</code></td>
-<td>The order behind the work/receipt has no invoice account resolved</td>
-<td>Check the sales/purchase order's invoice account.</td>
+<td>The order behind the work/receipt has no customer or vendor account resolved</td>
+<td>Check the sales order's customer account or the purchase order's vendor account.</td>
 </tr>
 <tr>
 <td><code>no external item record</code></td>
@@ -375,7 +375,7 @@ Winning source: Item number. Value: &lt;item number&gt;
 </table>
 <p>If Test resolution resolves correctly but the device still shows the old/other value, caching is the reason — with <strong>Cache duration</strong> at 0 for the test this cannot occur; in production, edit the profile to force a refresh.</p>
 <h2 id="from-smoke-to-the-real-profile">6. From smoke to the real profile</h2>
-<p>Once Tests A and B pass, switch the setting rows to the intended profile (for example External item number → Variant product name → Item number) and re-run Test A with a variant item and a customer that has an external item description. Use Test resolution with the same inputs first — its winning value is exactly what the device will show. Then set <strong>Cache duration</strong> back to its production value (30) and configure <strong>Warehouse app field priority</strong> for placement.</p>
+<p>Once Tests A and B pass, switch the setting rows to the intended profile (for example External item number → Variant product name with dimension summary → Item number) and re-run Test A with a variant item and a customer that has an external item description — on USMF, item <strong>W0001</strong> Black/Large for customer <strong>US-001</strong> after creating the sample records in the <a href="ItemIdentityUseCases.html#sample-data-to-create">use case catalog</a>. Use Test resolution with the same inputs first — its winning value is exactly what the device will show. Then set <strong>Cache duration</strong> back to its production value (30) and configure <strong>Warehouse app field priority</strong> for placement.</p>
 <h2 id="what-to-include-in-a-failure-report">7. What to include in a failure report</h2>
 <ul>
 <li>Environment URL, legal entity of the device session, and the deployed package/model version.</li>

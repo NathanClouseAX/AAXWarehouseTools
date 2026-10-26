@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Item Identity Scenario 05 — External Number Precedence: Variant, Item, Group</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="item-identity-scenario-05-external-number-precedence-variant-item-group">Item Identity Scenario 05 — External Number Precedence: Variant, Item, Group</h1>
+<p>Part of the <a href="../ItemIdentityUseCases.html">item identity use case catalog</a>. Worked on the Contoso <strong>USMF</strong> demo company.</p>
+<h2 id="when-to-use">When to use</h2>
+<p>You maintain external item numbers at different levels: a number per variant, one generic number per item that covers all variants, and numbers shared by a group of customers (or vendors) through an external item description group. You need to know which one the worker sees.</p>
+<h2 id="what-the-worker-sees">What the worker sees</h2>
+<p>One value — the winner of the standard four-level lookup:</p>
+<pre><code>Item identity:   CR-4471-BL     (exact variant, customer account)
+Item identity:   RTL-4471-BL    (exact variant, customer item group)
+Item identity:   CR-4471        (item level, customer account)
+</code></pre>
+<h2 id="supported-flows">Supported flows</h2>
+<p>Wherever a partner exists: sales picking (customer) and purchase order item/line and load receiving (vendor).</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>USMF value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1 — exact variant, account</td>
+<td>US-001, W0001 Black/Large → <code>CR-4471-BL</code></td>
+</tr>
+<tr>
+<td>D2 — item level, account</td>
+<td>US-001, W0001, <strong>no dimensions</strong> → <code>CR-4471</code></td>
+</tr>
+<tr>
+<td>D4 — exact variant, group</td>
+<td>External item description group <code>RETAIL</code> (<strong>Sales and marketing &gt; Setup &gt; Items &gt; External item description</strong>), record for group <code>RETAIL</code>, W0001 Black/Large → <code>RTL-4471-BL</code>. Set <em>Item - customer group</em> = <code>RETAIL</code> on customer <strong>US-002</strong>.</td>
+</tr>
+<tr>
+<td>Sales orders</td>
+<td>D6 (US-001, W0001 Black/Large) and D7 (US-002, W0001 Black/Large), warehouse 24, released</td>
+</tr>
+</tbody>
+</table>
+<p>In USMF no customer or vendor has an external item description group out of the box; vendor group <code>01</code> exists but is unassigned.</p>
+<h2 id="configure">Configure</h2>
+<ol>
+<li><strong>Item identity parameters</strong>: enabled; <em>Fallback behavior</em> = Hide; <em>Cache duration</em> = 0 while testing.</li>
+<li><strong>Item identity profiles</strong>: <code>EXTONLY</code> — one line, <em>External item number</em>.</li>
+<li><strong>Item identity menu item settings</strong>: <code>Sales Picking</code> → <code>EXTONLY</code>.</li>
+</ol>
+<h2 id="try-it-on-usmf">Try it on USMF</h2>
+<p>Pick D6 and D7 with <strong>Sales Picking</strong> (user <strong>24</strong>), changing the records between renders as listed below.</p>
+<h2 id="expected-results">Expected results</h2>
+<table>
+<thead>
+<tr>
+<th>Order</th>
+<th>Records present</th>
+<th>Worker sees</th>
+<th>Level that won</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D6 (US-001)</td>
+<td>D1, D2</td>
+<td><code>CR-4471-BL</code></td>
+<td>1 — exact variant, account</td>
+</tr>
+<tr>
+<td>D6, with <code>RETAIL</code> also set on US-001, D1 deleted</td>
+<td>D2, D4</td>
+<td><code>RTL-4471-BL</code></td>
+<td>2 — exact variant, group</td>
+</tr>
+<tr>
+<td>D6, <code>RETAIL</code> removed from US-001 again</td>
+<td>D2</td>
+<td><code>CR-4471</code></td>
+<td>3 — item level, account</td>
+</tr>
+<tr>
+<td>D7 (US-002)</td>
+<td>D4</td>
+<td><code>RTL-4471-BL</code></td>
+<td>2 — exact variant, group</td>
+</tr>
+<tr>
+<td>D7 after adding an account record for US-002</td>
+<td>account record, D4</td>
+<td>the account record</td>
+<td>1 beats 2</td>
+</tr>
+<tr>
+<td>D8 (US-003)</td>
+<td>none</td>
+<td>no line</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Recreate D1 when done.</p>
+<h2 id="how-it-resolves">How it resolves</h2>
+<p>The lookup is the standard one used by sales and purchase order entry:</p>
+<ol>
+<li>exact product dimensions, partner <strong>account</strong></li>
+<li>exact product dimensions, partner's <strong>external item description group</strong></li>
+<li>item level (blank dimensions), partner account</li>
+<li>item level, partner's group</li>
+</ol>
+<p>Only the product dimensions active for the item are compared. The partner account is the order's customer (sales) or vendor (purchase) account — not the invoice account.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Group record never wins</td>
+<td>The customer's <em>Item - customer group</em> is blank, or a level-1 record exists.</td>
+</tr>
+<tr>
+<td>Item-level record ignored</td>
+<td>A group record for the exact variant outranks it (level 2 beats level 3).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="related">Related</h2>
+<p>Validation: <a href="../ItemIdentityScenarios.html">scenario pack</a> scenario 2 (c)–(e).</p>
+
+</body>
+</html>

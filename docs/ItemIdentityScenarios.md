@@ -1,58 +1,66 @@
 # AAX Warehouse Tools — Item Identity Display Validation Scenarios
 
-Fifteen scenario reviews covering the item identity feature end to end. Run them in order on a synchronized environment with the Warehouse Management mobile app connected; scenarios 1–4 build the master data the later ones reuse. Each scenario states its purpose, setup, steps, and expected outcome — record Pass/Fail and observations inline.
+Twenty-two scenario reviews covering the item identity feature end to end, written against the Contoso **USMF** demo company. Run them in order on a synchronized environment with the Warehouse Management mobile app connected, logged on as mobile user **24** (warehouse 24). Each scenario states its purpose, setup, steps, and expected outcome — record Pass/Fail and observations inline. This pack is the sign-off script; for the explanation behind each behavior, see the per-scenario guides indexed in the [use case catalog](ItemIdentityUseCases.md).
 
-**Base data used throughout** (adjust names to your environment):
+**Base data used throughout** — stock USMF plus the sample records D1–D10 from the [use case catalog](ItemIdentityUseCases.md#sample-data-to-create). In short:
 
-- A released product master `SHIRT` with the Color and Size dimensions active, variants including `Black/M`, and per-variant product name translations in at least two languages.
-- A plain released product `A0001` with no product dimensions, a search name, and no external item numbers.
-- Customer `C-100` (used on the test sales orders) with an external item description for `SHIRT` `Black/M` (external number `L102`), and a second customer `C-200` with no external records.
-- Vendor `V-100` (used on the test purchase orders) with an external item number for `SHIRT` `Black/M`.
-- Mobile device menu items: one user-directed **work execution** item (sales picking), one **purchase order line receiving** item, one **purchase order item receiving** item, one **movement** item.
-- A profile `MAIN` with lines: 1 External item number, 2 Variant product name, 3 Item number.
+- Item **W0001** *Wired Headset* (Color Black/Red × Size Small/Medium/Large, 10 of each on hand in warehouse 24). Every variant's product name is *Wired Headset*, in English only.
+- Item **A0001** *HDMI 6' Cables* — no product dimensions, search name `HDMI 6' Cables`, stocked in warehouse 24.
+- Customer **US-001** *Contoso Retail San Diego* with external item descriptions for W0001: Black/Large `CR-4471-BL` (D1) and item level `CR-4471` (D2).
+- Customer **US-002** *Contoso Retail Los Angeles* in customer item group `RETAIL`, which has `RTL-4471-BL` for W0001 Black/Large (D4).
+- Customer **US-003** *Forest Wholesales* with no external records.
+- Vendor **US-101** *Fabrikam Electronics* with `FAB-HS200-BK-L` for W0001 Black/Large (D3); vendor **US-104** *Fabrikam Supplier* with none.
+- GTINs for the six W0001 variants and A0001 (D5).
+- Released sales orders D6 (US-001: W0001 Black/Large ×2, A0001 ×1), D7 (US-002: W0001 Black/Large), D8 (US-003: W0001 Red/Small); confirmed purchase orders D9 (US-101) and D10 (US-104), both W0001 Black/Large to warehouse 24.
+- Mobile device menu items: **Sales Picking** (user directed work), **Purchase Receive** (purchase order item receiving), **Movement**, **Cluster Pick**, **Purchase Put-away**, plus two you create: **PO Line Receive** (purchase order line receiving) and **Load Receive** (load item receiving).
+- Profile `MAIN`: 10 External item number · 20 Variant product name with **Append dimension summary** · 30 Item number.
+- Parameters: enabled, fallback **Hide**, external item content **Identifier**, cache **30** unless a scenario says otherwise.
 
 ---
 
-## 1. Sales picking — variant name
+## 1. Sales picking — variant name and language fallback
 
-**Purpose**: the variant's translated product name shows on the pick and put screens.
+**Purpose**: the variant's translated product name shows on the pick and put screens, with the documented language fallback.
 
-**Setup**: profile `VARIANT` with the single line *Variant product name*; assign it to the work execution menu item; parameters enabled, fallback *Hide*; a released sales order for `SHIRT` `Black/M` to customer `C-200`, waved to work.
+**Setup**: profile `VARIANT` with the single line *Variant product name* (Append dimension summary on); assign it to **Sales Picking**; cache 0.
 
 **Steps**:
-a. Execute the picking work on the device through the pick confirmation and the target license plate/put screens.
-b. Change the worker's user language to the second translation language and repeat.
-c. Delete the variant-level translation for that language (keep the product master's) and repeat.
+a. Pick D8 (US-003, W0001 Red/Small) through the pick screen and the put screen.
+b. Turn **Append dimension summary** off on the line; re-render.
+c. Turn it back on. Add a French (`fr`) translation `Casque filaire rouge S` to the W0001 Red/Small **variant**; set the mobile session user's language to `fr`; re-render.
+d. Delete the variant's French translation and add `Casque filaire` to the W0001 **product master**; re-render.
+e. Delete the master's French translation; re-render.
 
-**Expected**: (a) both screens show the identity line with the variant's product name; (b) the name appears in the session language; (c) the product master's translation appears instead. The line never appears as an editable field and never blocks confirmation.
+**Expected**: (a) both screens show `Wired Headset - Small / Red`; (b) `Wired Headset` — correct but indistinguishable from the other five variants, which is why USMF needs the summary; (c) `Casque filaire rouge S - Small / Red`; (d) `Casque filaire - Small / Red`; (e) `Wired Headset - Small / Red` (released product name). Dimension codes are never translated. The line is never editable and never blocks confirmation.
 
 **Result**: ☐ Pass ☐ Fail — notes:
 
 ## 2. Sales picking — external item number and its precedence
 
-**Purpose**: the customer's number resolves with the standard precedence.
+**Purpose**: the customer's number resolves with the standard four-level precedence.
 
-**Setup**: profile `MAIN` on the work execution menu item; sales order for `SHIRT` `Black/M` to customer `C-100`, waved to work.
+**Setup**: profile `MAIN` on **Sales Picking**; cache 0.
 
 **Steps**:
-a. Pick the work; observe the line.
-b. Set the parameter **External item content** to *Description*, then *Identifier and description*; touch the profile (any edit) to refresh the cache between changes; re-render the screen each time.
-c. Add an item-group-level external record (customer item group on `C-100`) with a different number, alongside the account-level record; re-test. Then remove the account-level record and re-test.
-d. Add an item-level external record (no dimensions) with a different number alongside the exact-variant record; re-test. Then remove the exact-variant record and re-test.
+a. Pick D6 (US-001, W0001 Black/Large); observe the line.
+b. Set the parameter **External item content** to *Description*, then *Identifier and description*; re-render each time. Set it back to *Identifier*.
+c. Assign customer item group `RETAIL` to US-001 as well. Re-render. Delete D1 (US-001's exact-variant record); re-render. Remove `RETAIL` from US-001 again; re-render.
+d. Pick D7 (US-002, group `RETAIL` only).
+e. Recreate D1. Create a sales order like D6 for US-001 but set its **Invoice account** to US-003; release and pick it.
 
-**Expected**: (a) `L102`; (b) the description, then `L102 - <description>`; (c) the account-level record wins while present, the group record after; (d) the exact-variant record wins while present, the item-level record after.
+**Expected**: (a) `CR-4471-BL`; (b) `Contoso Retail headset black L`, then `CR-4471-BL - Contoso Retail headset black L`; (c) `CR-4471-BL` (exact variant for the account wins), then `RTL-4471-BL` (exact variant for the group beats the account's item-level record), then `CR-4471` (item level for the account); (d) `RTL-4471-BL`; (e) `CR-4471-BL` — the order's customer account decides, not the invoice account, matching the external item number standard order entry puts on the sales line.
 
 **Result**: ☐ Pass ☐ Fail — notes:
 
 ## 3. Purchase receiving — vendor context
 
-**Purpose**: both PO receiving flows resolve with the vendor from the order.
+**Purpose**: both purchase order receiving flows resolve with the vendor from the order.
 
-**Setup**: profile `MAIN` on both PO receiving menu items; a purchase order for `SHIRT` `Black/M` from vendor `V-100`; a second PO from a vendor with no external records.
+**Setup**: profile `MAIN` on **Purchase Receive** and on **PO Line Receive**.
 
-**Steps**: receive the first PO via **PO line receiving**, then via **PO item receiving**; observe the identity line on the quantity/confirmation screens. Repeat with the second PO.
+**Steps**: receive part of D9 (US-101) with **Purchase Receive** (scan PO, item W0001, Black, Large) and the rest with **PO Line Receive**; observe the identity line on the quantity/confirmation screens. Repeat with D10 (US-104).
 
-**Expected**: the first PO shows `V-100`'s external number on both flows; the second shows the variant name (line 2 of the profile) — never another vendor's number.
+**Expected**: D9 shows `FAB-HS200-BK-L` on both flows; D10 shows `Wired Headset - Large / Black` (line 20 of the profile) — never another vendor's number.
 
 **Result**: ☐ Pass ☐ Fail — notes:
 
@@ -60,11 +68,11 @@ d. Add an item-level external record (no dimensions) with a different number alo
 
 **Purpose**: profile sequence decides the winner.
 
-**Setup**: scenario 2's data (external record exists for `C-100`).
+**Setup**: scenario 2's data (D1 exists for US-001).
 
-**Steps**: on profile `MAIN`, swap lines 1 and 2 (Variant product name first); re-pick the same work; then swap back.
+**Steps**: on profile `MAIN`, give the Variant product name line sequence 5 so it runs first; re-pick D6; then set it back to 20.
 
-**Expected**: with the variant name first, the line shows the variant name even though the external record exists; restored order shows `L102` again. Each profile edit takes effect on the next screen render (version bump — no cache wait).
+**Expected**: with the variant name first, the line shows `Wired Headset - Large / Black` even though `CR-4471-BL` exists; the restored order shows `CR-4471-BL` again. Each profile edit takes effect on the next screen render (version bump — no cache wait).
 
 **Result**: ☐ Pass ☐ Fail — notes:
 
@@ -72,23 +80,26 @@ d. Add an item-level external record (no dimensions) with a different number alo
 
 **Purpose**: all three fallbacks behave as configured when the whole chain misses.
 
-**Setup**: profile `EXTONLY` with the single line *External item number*, assigned to the work execution menu item; sales work for customer `C-200` (no external records).
+**Setup**: profile `EXTONLY` with the single line *External item number*, assigned to **Sales Picking**; pick D8 (US-003, no external records).
 
-**Steps**: pick the work three times, once per parameter fallback: *Hide*, *Item number*, *Fixed text* (with a text set). Touch the profile between changes to skip the cache.
+**Steps**: render the pick screen three times, once per parameter fallback: *Hide*, *Item number*, *Fixed text* with text `NO CUSTOMER NO.`. Touch the profile between changes to skip the cache.
 
-**Expected**: *Hide* — no identity line at all and the screen is otherwise identical to standard; *Item number* — the released product number; *Fixed text* — the configured text.
+**Expected**: *Hide* — no identity line at all and the screen is otherwise identical to standard; *Item number* — `W0001`; *Fixed text* — `NO CUSTOMER NO.`.
 
 **Result**: ☐ Pass ☐ Fail — notes:
 
 ## 6. No-partner guard at setup
 
-**Purpose**: the setup warning fires for a dead-end combination without blocking the save.
+**Purpose**: the setup warning fires for a dead-end combination without blocking the save, and the derived partner context matches what the device does.
 
 **Setup**: profile `EXTONLY` from scenario 5.
 
-**Steps**: create a menu item setting for the **movement** menu item with profile `EXTONLY`; save.
+**Steps**:
+a. Create a menu item setting for **Movement** with profile `EXTONLY`; save.
+b. Create settings with `EXTONLY` for **Cluster Pick** and **Load Receive**; save each.
+c. Create a setting with `EXTONLY` for **Purchase Put-away**; save.
 
-**Expected**: a warning states the profile only contains partner-dependent sources while the menu item derives no partner context; the row saves anyway. At runtime the movement flow follows the fallback (and shows nothing extra on screens the feature does not cover).
+**Expected**: (a) a warning states the profile only contains partner-dependent sources while the menu item derives no partner context; the row saves anyway; the movement flow shows nothing (unsupported flow). (b) no warning; the **Partner context** column shows *Customer* for **Cluster Pick** and *Vendor* for **Load Receive** — both supply that partner at runtime (scenarios 20 and 21). (c) the warning appears and the column shows *None* — purchase put-away work resolves without a partner (scenario 20). Delete these rows afterwards.
 
 **Result**: ☐ Pass ☐ Fail — notes:
 
@@ -98,9 +109,9 @@ d. Add an item-level external record (no dimensions) with a different number alo
 
 **Setup**: scenario 1's assignment.
 
-**Steps**: render with (a) no override and the parameter **Default label** at its shipped value, (b) a changed parameter default, (c) a **Label override** on the menu item setting.
+**Steps**: render with (a) no override and the parameter **Default label** at its shipped value, (b) the parameter default changed to *Identity*, (c) a **Label override** *Variant* on the **Sales Picking** setting.
 
-**Expected**: (a) *Item identity*; (b) the parameter text on this and every configured menu item without an override; (c) the override text on this menu item only.
+**Expected**: (a) *Item identity*; (b) *Identity* on this and every configured menu item without an override; (c) *Variant* on **Sales Picking** only.
 
 **Result**: ☐ Pass ☐ Fail — notes:
 
@@ -125,8 +136,8 @@ d. Promote the field for the pick step via step instructions/promoted fields; re
 **Purpose**: disabled or unconfigured means byte-identical standard behavior.
 
 **Steps**:
-a. Turn **Enable item identity display** off; run a full pick and a full PO line receive on configured menu items.
-b. Turn it back on; run the same flows on an unconfigured menu item.
+a. Turn **Enable item identity display** off; run a full pick of D6 and a full **Purchase Receive** of D9 on configured menu items.
+b. Turn it back on; run the same flows on an unconfigured menu item (for example **Sales Picking - System**).
 c. Inspect the four AAX tables and confirm no standard table carries AAX data.
 
 **Expected**: (a) and (b) show no identity line and no behavior change of any kind — every confirmation, validation, and posting is standard; (c) configuration lives only in the AAX tables.
@@ -137,9 +148,9 @@ c. Inspect the four AAX tables and confirm no standard table carries AAX data.
 
 **Purpose**: a resolution failure can never surface to the worker.
 
-**Setup**: scenario 1's assignment; then corrupt the configuration deliberately — e.g. delete profile `VARIANT` while its menu item setting still references it (delete the lines first if the profile delete is restricted, leaving an empty profile; an empty profile is itself a valid "always miss" case, so also test with the setting pointing at a deleted/renamed profile id via DMF import if available).
+**Setup**: scenario 1's assignment; then break the configuration deliberately — point the **Sales Picking** setting at a profile id that does not exist (via a data management import of the menu item settings entity), or delete all lines of profile `VARIANT` (an empty profile is a valid "always miss" case).
 
-**Steps**: execute the picking work.
+**Steps**: pick D8.
 
 **Expected**: the flow renders and completes normally — at worst the identity line is absent. No error message, no infolog on the device, no blocked step.
 
@@ -152,11 +163,11 @@ c. Inspect the four AAX tables and confirm no standard table carries AAX data.
 **Setup**: scenario 2's data; **Cache duration** 30.
 
 **Steps**:
-a. Pick to render the line once. Change the customer's external number in the master data; re-render within the cache window.
+a. Pick D6 to render `CR-4471-BL` once. Change D1's external item number to `CR-4471-BLK`; re-render within the cache window.
 b. Edit the profile (any change); re-render.
-c. Set **Cache duration** to 0; change the external number again; re-render.
+c. Set **Cache duration** to 0; change the number back to `CR-4471-BL`; re-render.
 
-**Expected**: (a) the old value still shows (cached); (b) the new value shows immediately (version bump); (c) with caching off, master-data changes show on the next render.
+**Expected**: (a) `CR-4471-BL` still shows (cached); (b) `CR-4471-BLK` shows immediately (version bump); (c) with caching off, `CR-4471-BL` shows on the next render. The cache is per AOS: on a multi-AOS environment another AOS may still serve its own copy until it expires.
 
 **Result**: ☐ Pass ☐ Fail — notes:
 
@@ -166,9 +177,9 @@ c. Set **Cache duration** to 0; change the external number again; re-render.
 
 **Setup**: scenario 2's data.
 
-**Steps**: run **Test resolution** from profile `MAIN` with the same item, the variant's product dimension number, partner context *Customer*, account `C-100`. Compare with the device.
+**Steps**: run **Test resolution** from profile `MAIN` with item `W0001`, the Black/Large variant's product dimension number, partner context *Customer*, account `US-001`. Compare with the device for D6. Repeat with account `US-003`.
 
-**Expected**: the trace lists each source in order with hit/miss and reasons; the winning source and value equal the device's line for the same inputs. Repeat with `C-200`: the external source reports its miss and the variant name wins — again matching the device.
+**Expected**: US-001: `External item number - resolved: CR-4471-BL`, winning source External item number. US-003: the external source reports *no external item record* and `Variant product name - resolved: Wired Headset - Large / Black` wins — matching the device in both cases.
 
 **Result**: ☐ Pass ☐ Fail — notes:
 
@@ -176,11 +187,11 @@ c. Set **Cache duration** to 0; change the external number again; re-render.
 
 **Purpose**: no perceptible step delay on variant-heavy data.
 
-**Setup**: an item population in the thousands of variants (a 10,000+ variant item if your test data has one), profile `MAIN`, caching at the default.
+**Setup**: USMF has no large variant population (W0001 with 6 and M0030 with 8 variants are the largest WHS-enabled masters); for a real scale test, generate a master with thousands of variants and on-hand, or run in a customer copy. Profile `MAIN`, caching at the default.
 
 **Steps**: run repeated picking against varied variants; compare step response times with the menu item's setting row disabled versus enabled (toggling the row is a zero-deployment A/B switch).
 
-**Expected**: no worker-perceptible difference; the first resolution per variant is a handful of indexed lookups, warm renders hit the cache.
+**Expected**: no worker-perceptible difference; the first resolution per variant is a handful of indexed lookups, warm renders hit the cache. Cached values are keyed per item, product dimensions (variant), partner, profile version and language, so the same variant picked from different warehouses, locations or license plates resolves once and is then served from the cache.
 
 **Result**: ☐ Pass ☐ Fail — notes:
 
@@ -188,7 +199,7 @@ c. Set **Cache duration** to 0; change the external number again; re-render.
 
 **Purpose**: the four entities move the whole setup between environments.
 
-**Steps**: export **Item identity parameters / profiles / profile lines / menu item settings** from the source environment; import into a clean target **with profiles sequenced before profile lines and menu item settings**; run scenario 2's pick on the target.
+**Steps**: export **Item identity parameters / profiles / profile lines / menu item settings** from USMF; import into a clean target (another USMF copy) **with profiles sequenced before profile lines and menu item settings**; create the D1 record there and run scenario 2(a) on the target.
 
 **Expected**: identical resolution behavior on the target; profile versions re-stamp safely (caches simply start cold).
 
@@ -200,7 +211,7 @@ c. Set **Cache duration** to 0; change the external number again; re-render.
 
 **Steps**:
 a. As a user without the **Maintain item identity configuration** duty, try to open the three setup forms and Test resolution.
-b. As a warehouse worker with unchanged standard roles, execute configured flows.
+b. As mobile user **24** with unchanged standard roles, execute configured flows.
 c. Grant the duty to the first user; retry (a).
 
 **Expected**: (a) access denied; (b) flows work and the identity line shows — no elevation needed for display; (c) full setup access, nothing beyond it.
@@ -211,15 +222,16 @@ c. Grant the duty to the first user; retry (a).
 
 **Purpose**: a concatenating profile shows every resolving source, joined by the separator.
 
-**Setup**: profile `MAIN` from the base data (External item number, Variant product name, Item number) with **Resolution mode** = *Concatenate* and the shipped separator; sales work for `SHIRT` `Black/M` to customer `C-100`.
+**Setup**: profile `MAIN` with **Resolution mode** = *Concatenate* and the shipped separator ` | `.
 
 **Steps**:
-a. Pick the work; observe the line.
+a. Pick D6 (US-001, W0001 Black/Large); observe the line.
 b. Change the separator to ` / ` and re-render (the profile edit refreshes the cache).
-c. Repeat the pick for customer `C-200` (no external record).
-d. Run **Test resolution** for the same inputs.
+c. Pick D8 (US-003, W0001 Red/Small).
+d. Pick the A0001 line of D6.
+e. Run **Test resolution** for the inputs of (a).
 
-**Expected**: (a) `L102 | <variant name> | SHIRT`; (b) the same values joined with ` / `; (c) the external source is simply absent: `<variant name> | SHIRT`; (d) the trace shows one *resolved* line per contributing source and reports the first contributor as the winning source, with the full concatenated value.
+**Expected**: (a) `CR-4471-BL | Wired Headset - Large / Black | W0001`; (b) `CR-4471-BL / Wired Headset - Large / Black / W0001` — note that ` / ` collides with the dimension summary's own separator, so pick a separator that does not; (c) `Wired Headset - Small / Red | W0001`; (d) `A0001`; (e) one *resolved* trace line per contributing source, the first contributor reported as the winning source, with the full concatenated value.
 
 **Result**: ☐ Pass ☐ Fail — notes:
 
@@ -236,13 +248,84 @@ c. Set the new line's **Source** to one already used on another line; save.
 
 **Result**: ☐ Pass ☐ Fail — notes:
 
+## 18. GTIN and item barcode sources
+
+**Purpose**: GTIN and barcode lookups match the variant, fall back to item level, and prefer the right registration.
+
+**Setup**: profile `GTIN` (10 GTIN · 20 Item number) on **Sales Picking**; cache 0. Profile `BARCODE` (10 Item barcode) for Test resolution.
+
+**Steps**:
+a. Pick D6: the W0001 Black/Large line, then the A0001 line.
+b. Add a second GTIN for W0001 Black/Large with a unit (for example the item's inventory unit) and a different number; re-render.
+c. Delete the Black/Large GTIN(s) and add an item-level (no dimensions) GTIN `0614141000210` for W0001; re-render.
+d. Test resolution with profile `BARCODE`, item `D0013`, once per size (S, M, L inventory dimensions).
+e. On one D0013 barcode, clear **Use for input** (scanning) and add a second, scanning-enabled barcode for the same size; repeat (d) for that size.
+
+**Expected**: (a) `0614141000104`, then `0614141000203`; (b) still `0614141000104` (unit-blank wins); (c) `0614141000210` (item-level fallback); (d) S `0012345678912`, M `0012345678929`, L `0012345678936`; (e) the scanning-enabled barcode wins.
+
+**Result**: ☐ Pass ☐ Fail — notes:
+
+## 19. Search name and item number sources
+
+**Purpose**: the plain released-product sources.
+
+**Setup**: profile `SEARCH` (10 Search name) on **Sales Picking**, fallback *Hide*.
+
+**Steps**:
+a. Pick D6 (both lines).
+b. Clear the search name of A0001 temporarily; re-render the A0001 line.
+c. Add line 20 *Item number* to `SEARCH`; re-render.
+
+**Expected**: (a) W0001 → `WiredHeadset`, A0001 → `HDMI 6' Cables`; (b) no line; (c) `A0001`. Restore A0001's search name.
+
+**Result**: ☐ Pass ☐ Fail — notes:
+
+## 20. Other picking styles and work without a partner
+
+**Purpose**: the line appears on every work-execution pick/put screen; only sales work supplies a partner.
+
+**Setup**: profile `MAIN` on **Sales Picking - System**, **Cluster Pick** and **Purchase Put-away**.
+
+**Steps**:
+a. Pick D6's work with **Sales Picking - System**.
+b. Create a new sales order like D6, release it, and pick it with **Cluster Pick**.
+c. Put away the license plate received from D9 in scenario 3 with **Purchase Put-away**.
+
+**Expected**: (a) and (b) `CR-4471-BL` on the pick and put screens; (c) `Wired Headset - Large / Black` — purchase work carries no partner, so the Fabrikam number is not shown (the external line reports *no partner context* in Test resolution with context *None*).
+
+**Result**: ☐ Pass ☐ Fail — notes:
+
+## 21. Load item receiving
+
+**Purpose**: load receiving resolves with the purchase order's vendor.
+
+**Setup**: profile `MAIN` on **Load Receive**; a new purchase order like D9 (US-101, W0001 Black/Large) with an inbound load created for it.
+
+**Steps**: receive the load with **Load Receive**; observe the quantity/confirmation screen.
+
+**Expected**: `FAB-HS200-BK-L`.
+
+**Result**: ☐ Pass ☐ Fail — notes:
+
+## 22. Unsupported flows stay standard
+
+**Purpose**: menu items outside the supported flows never show the line, even when configured.
+
+**Setup**: profile `SMOKE` (10 Item number — always resolves) assigned to **Movement**, **Transfer receive**, **RMA Receive** and **Spot Counting**.
+
+**Steps**: run each flow on a W0001 or A0001 item in warehouse 24.
+
+**Expected**: no identity line on any screen, and no behavior change. Delete the setting rows afterwards.
+
+**Result**: ☐ Pass ☐ Fail — notes:
+
 ---
 
 ## Review summary
 
 | # | Scenario | Result |
 |---|---|---|
-| 1 | Sales picking — variant name | |
+| 1 | Sales picking — variant name and language fallback | |
 | 2 | External item number precedence | |
 | 3 | Purchase receiving — vendor context | |
 | 4 | Chain order | |
@@ -259,5 +342,10 @@ c. Set the new line's **Source** to one already used on another line; save.
 | 15 | Security | |
 | 16 | Concatenate mode | |
 | 17 | Sequence defaulting and duplicate-source warning | |
+| 18 | GTIN and item barcode sources | |
+| 19 | Search name and item number sources | |
+| 20 | Other picking styles and work without a partner | |
+| 21 | Load item receiving | |
+| 22 | Unsupported flows stay standard | |
 
 Reviewed by: _______________  Date: _______________  Build: _______________

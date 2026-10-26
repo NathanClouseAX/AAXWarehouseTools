@@ -72,7 +72,7 @@ public final class WhsWorkExecuteDisplay_AAXWarehouseTools_Extension
 				<Source><![CDATA[
     /// <summary>
     /// Appends the item identity line for the current work line when it carries an item and the
-    /// line is not yet on the page. Sales work resolves for the order's invoice customer.
+    /// line is not yet on the page. Sales work resolves for the order customer.
     /// </summary>
     /// <param name = "_displayCon">Container containing the built form state.</param>
     /// <returns>Container containing the form state with the identity line appended when resolved.</returns>
@@ -88,11 +88,11 @@ public final class WhsWorkExecuteDisplay_AAXWarehouseTools_Extension
                 AAXWHSItemIdentityPartnerContext partnerContext = AAXWHSItemIdentityPartnerContext::None;
                 CustVendAC                       partnerAccount;
 
-                // Sales work resolves for the invoice customer
+                // Sales work resolves for the order customer
                 if (workTable.WorkTransType == WHSWorkTransType::Sales)
                 {
                     partnerContext = AAXWHSItemIdentityPartnerContext::Customer;
-                    partnerAccount = SalesTable::find(workTable.OrderNum).InvoiceAccount;
+                    partnerAccount = SalesTable::find(workTable.OrderNum).CustAccount;
                 }
 
                 container identityLine = AAXWHSItemIdentityInjectionService::identityLineForMenuItem(

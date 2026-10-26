@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Item Identity Scenario 11 — Workers in Another Language</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="item-identity-scenario-11-workers-in-another-language">Item Identity Scenario 11 — Workers in Another Language</h1>
+<p>Part of the <a href="../ItemIdentityUseCases.html">item identity use case catalog</a>. Worked on the Contoso <strong>USMF</strong> demo company.</p>
+<h2 id="when-to-use">When to use</h2>
+<p>Workers read the device in a language other than the company's product language, and product names should appear in their language.</p>
+<h2 id="what-the-worker-sees">What the worker sees</h2>
+<pre><code>Item:            W0001
+Variant:         Casque filaire rouge S - Small / Red
+</code></pre>
+<h2 id="supported-flows">Supported flows</h2>
+<p>All supported flows; applies to the <strong>Variant product name</strong> source only. External numbers, GTINs, barcodes, search names and item numbers are not translated.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<p>USMF's W0001 has <strong>English only</strong> translations. Add, for the test:</p>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>Where</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Variant translation</td>
+<td><strong>Product information management &gt; Products &gt; Product variants</strong> &gt; W0001 Red/Small &gt; <strong>Translations</strong></td>
+<td>Language <code>fr</code>, name <code>Casque filaire rouge S</code></td>
+</tr>
+<tr>
+<td>Master translation</td>
+<td><strong>Products</strong> &gt; W0001 &gt; <strong>Translations</strong></td>
+<td>Language <code>fr</code>, name <code>Casque filaire</code></td>
+</tr>
+<tr>
+<td>Session language</td>
+<td>The user the mobile app session signs in as: <strong>User options &gt; Preferences &gt; Language</strong></td>
+<td><code>fr</code></td>
+</tr>
+<tr>
+<td>Sales order D8</td>
+<td>US-003, warehouse 24, W0001 Red/Small; released</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="configure">Configure</h2>
+<ol>
+<li><strong>Item identity profiles</strong>: <code>VARIANT</code> — 10 <em>Variant product name</em>, Append dimension summary = Yes.</li>
+<li><strong>Item identity menu item settings</strong>: <code>Sales Picking</code> → <code>VARIANT</code>.</li>
+<li><em>Cache duration</em> = 0 while testing (the language is part of the cache key, but master-data edits are not).</li>
+</ol>
+<h2 id="try-it-on-usmf">Try it on USMF</h2>
+<p>Pick D8 with <strong>Sales Picking</strong>, removing translations between renders as below.</p>
+<h2 id="expected-results">Expected results</h2>
+<table>
+<thead>
+<tr>
+<th>Translations present</th>
+<th>Worker sees</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Variant <code>fr</code> + master <code>fr</code></td>
+<td><code>Casque filaire rouge S - Small / Red</code></td>
+</tr>
+<tr>
+<td>Master <code>fr</code> only</td>
+<td><code>Casque filaire - Small / Red</code></td>
+</tr>
+<tr>
+<td>Neither</td>
+<td><code>Wired Headset - Small / Red</code> (released product name)</td>
+</tr>
+<tr>
+<td>Session language <code>en-us</code></td>
+<td><code>Wired Headset - Small / Red</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-it-resolves">How it resolves</h2>
+<ol>
+<li>The distinct product variant's translation in the session language.</li>
+<li>The product master's translation in the session language.</li>
+<li>The released product name.</li>
+</ol>
+<p>Dimension values in the summary are codes (<code>Small</code>, <code>Red</code>) and are never translated. The caption (label override / default label) is plain text and is not translated either — use a label override per menu item if crews differ.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>English name although a translation exists</td>
+<td>The session's language — the mobile app session runs as a specific user; check that user's language, not the worker record.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="related">Related</h2>
+<p>Validation: <a href="../ItemIdentityScenarios.html">scenario pack</a> scenario 1 (c)–(e).</p>
+
+</body>
+</html>

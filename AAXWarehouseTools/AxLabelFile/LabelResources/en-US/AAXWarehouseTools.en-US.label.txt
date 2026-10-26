@@ -207,11 +207,11 @@ IdentityParametersForm=Item identity parameters
 IdentityPartnerContext=Partner context
  ;Partner family derived from the menu item's flow; customer for sales picking, vendor for purchase receiving.
 IdentityPartnerCustomer=Customer
- ;Partner context resolved from the sales order invoice account.
+ ;Partner context resolved from the sales order customer account.
 IdentityPartnerNone=None
  ;No partner context; partner-dependent sources are skipped.
 IdentityPartnerVendor=Vendor
- ;Partner context resolved from the purchase order invoice account.
+ ;Partner context resolved from the purchase order vendor account.
 IdentityPrivEntityMenuItemSetting=Maintain item identity menu item settings entity
  ;Security privilege granting data management access to the menu item settings entity.
 IdentityPrivEntityParameters=Maintain item identity parameters entity

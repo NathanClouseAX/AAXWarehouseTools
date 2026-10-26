@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Item Identity Scenario 01 — Customer Item Number on Sales Picking</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="item-identity-scenario-01-customer-item-number-on-sales-picking">Item Identity Scenario 01 — Customer Item Number on Sales Picking</h1>
+<p>Part of the <a href="../ItemIdentityUseCases.html">item identity use case catalog</a>. Worked on the Contoso <strong>USMF</strong> demo company.</p>
+<h2 id="when-to-use">When to use</h2>
+<p>A customer labels goods, shelves or orders with its own item numbers, and the picker must confirm the pick against the customer's number rather than your released product number. Typical for retail chains and private-label customers.</p>
+<h2 id="what-the-worker-sees">What the worker sees</h2>
+<pre><code>Item:            W0001
+Color / Size:    Black / Large
+Customer item:   CR-4471-BL
+Qty:             2 ea
+</code></pre>
+<p>The line appears on the <strong>pick</strong> screen and again on the <strong>put</strong> screen (including the target license plate prompt).</p>
+<h2 id="supported-flows">Supported flows</h2>
+<p>Every work menu item that executes <strong>sales</strong> work: user directed (USMF <strong>Sales Picking</strong>), system directed (<strong>Sales Picking - System</strong>), cluster picking (<strong>Cluster Pick</strong>), grouping (<strong>Pick to Container</strong>) and pick and pack. See <a href="14-OtherPickingStyles.html">scenario 14</a> for the other picking styles.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>USMF value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Customer external item description (D1)</td>
+<td>Customer <strong>US-001</strong> <em>Contoso Retail San Diego</em>, item <strong>W0001</strong>, Color <strong>Black</strong>, Size <strong>Large</strong> → external item number <code>CR-4471-BL</code>, description <code>Contoso Retail headset black L</code></td>
+</tr>
+<tr>
+<td>Sales order (D6)</td>
+<td>Customer <strong>US-001</strong>, site <strong>2</strong>, warehouse <strong>24</strong>, line W0001 Black/Large qty 2; <strong>Release to warehouse</strong> so picking work exists</td>
+</tr>
+<tr>
+<td>Mobile user</td>
+<td><strong>24</strong> (<em>WH 24</em>, default warehouse 24)</td>
+</tr>
+</tbody>
+</table>
+<p>Create D1 from <strong>Product information management &gt; Products &gt; Released products</strong> &gt; W0001 &gt; <strong>Sell</strong> &gt; <strong>External item descriptions</strong> (or from the customer record). Fill the product dimensions to make the number variant-specific.</p>
+<h2 id="configure">Configure</h2>
+<ol>
+<li><strong>Warehouse management &gt; Setup &gt; Mobile device &gt; Item identity parameters</strong>: <em>Enable item identity display</em> = Yes; <em>Fallback behavior</em> = Hide; <em>External item content</em> = Identifier; <em>Cache duration</em> = 0 while testing.</li>
+<li><strong>Item identity profiles</strong>: create <code>PARTNER</code> with lines 10 <em>External item number</em>, 20 <em>Variant product name</em> (Append dimension summary = Yes), 30 <em>Item number</em>. A profile with only the external line also works, but then customers without numbers get no line.</li>
+<li><strong>Item identity menu item settings</strong>: new row — <em>Mobile device menu item</em> = <code>Sales Picking</code>, <em>Enabled</em> = Yes, <em>Profile</em> = <code>PARTNER</code>, <em>Label override</em> = <code>Customer item</code>. The <em>Partner context</em> column shows <strong>Customer</strong>.</li>
+<li>Optional: <strong>Warehouse app field priority</strong> — place <em>Item identity</em> directly under the Item field.</li>
+</ol>
+<h2 id="try-it-on-usmf">Try it on USMF</h2>
+<ol>
+<li>Sign in to the Warehouse Management mobile app as user <strong>24</strong>.</li>
+<li>Open <strong>Sales Picking</strong> and enter the work id of D6 (or scan the work).</li>
+<li>Read the pick screen, confirm the pick, then read the put screen.</li>
+</ol>
+<h2 id="expected-results">Expected results</h2>
+<table>
+<thead>
+<tr>
+<th>Order</th>
+<th>Worker sees</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D6 — US-001, W0001 Black/Large</td>
+<td><code>CR-4471-BL</code></td>
+<td>Exact-variant record for the customer</td>
+</tr>
+<tr>
+<td>D6 — A0001 line (if added)</td>
+<td><code>A0001</code></td>
+<td>No record for A0001; plain item, so the variant line misses and line 30 resolves</td>
+</tr>
+<tr>
+<td>D8 — US-003, W0001 Red/Small</td>
+<td><code>Wired Headset - Small / Red</code></td>
+<td>US-003 has no records; line 20 resolves</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-it-resolves">How it resolves</h2>
+<ul>
+<li>The partner is the sales order's <strong>customer account</strong> (the same account standard order entry uses to put the external item number on the sales line). A separate invoice account on the order does not change it.</li>
+<li>Only sales work carries a customer; other work types skip the external source.</li>
+<li>The lookup follows the standard precedence — see <a href="05-ExternalNumberPrecedence.html">scenario 05</a>.</li>
+</ul>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Variant name shows instead of <code>CR-4471-BL</code></td>
+<td>The external record's product dimensions do not match the picked variant, or the record is on a different customer account than the order's customer. Run <a href="18-TestResolution.html">Test resolution</a> with account US-001.</td>
+</tr>
+<tr>
+<td>No line at all</td>
+<td>The setting row is keyed on the menu item <strong>name</strong> <code>Sales Picking</code>; the feature is enabled in <strong>USMF</strong> (configuration is per company). See the <a href="../ItemIdentitySmokeTest.html">smoke test</a>.</td>
+</tr>
+<tr>
+<td>Old number still shows after a change</td>
+<td>Cache — set the duration to 0 while testing, or edit the profile to invalidate.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="related">Related</h2>
+<p>Validation: <a href="../ItemIdentityScenarios.html">scenario pack</a> scenario 2. Vendor side: <a href="02-VendorItemNumberOnReceiving.html">scenario 02</a>.</p>
+
+</body>
+</html>

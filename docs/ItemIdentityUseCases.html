@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AAX Warehouse Tools — Item Identity Display Use Cases (USMF)</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="aax-warehouse-tools-item-identity-display-use-cases-usmf">AAX Warehouse Tools — Item Identity Display Use Cases (USMF)</h1>
+<p>Every supported scenario of the item identity line, worked against the Contoso <strong>USMF</strong> demo company so each one has real items, partners, warehouses and menu items to try. This page holds the shared sample data and configuration; each scenario has its own step-by-step guide (section 3). For the setup reference see the <a href="ItemIdentitySetup.html">setup guide</a>; for a scripted review pack see the <a href="ItemIdentityScenarios.html">validation scenarios</a>.</p>
+<h2 id="what-usmf-gives-you-and-what-to-add">1. What USMF gives you, and what to add</h2>
+<p>USMF is a good base for picking and receiving, but its identity master data is thin. Know this before you test, or most sources simply miss.</p>
+<h3 id="already-in-usmf">Already in USMF</h3>
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>Values</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Warehouse</td>
+<td><strong>24</strong> — <em>Site 2 - Warehouse Management</em> (site 2)</td>
+<td>The standard WHS demo warehouse. Mobile user <strong>24</strong> (<em>WH 24</em>) defaults to it. Warehouse <strong>63</strong> (<em>Site 6 - Demo wave containerization</em>, user <strong>63</strong>) also works.</td>
+</tr>
+<tr>
+<td>Variant item</td>
+<td><strong>W0001</strong> <em>Wired Headset</em> — Color × Size: Black/Red × Small/Medium/Large; 10 each on hand in warehouse 24</td>
+<td>The workhorse for variant use cases.</td>
+</tr>
+<tr>
+<td>Variant items without stock</td>
+<td><strong>M0030</strong> <em>Professional speaker cable</em> (Black/White × 2/4/6/8), <strong>D0010</strong> <em>Active speaker</em> (Black/White), <strong>D0013</strong> <em>SpecialSpeaker</em> (S/M/L), <strong>D0008</strong> <em>Licensed High End Speaker</em> (configuration <em>Default</em>)</td>
+<td>Use with <strong>Test resolution</strong> (no device needed), or add on-hand first.</td>
+</tr>
+<tr>
+<td>Plain items</td>
+<td><strong>A0001</strong> <em>HDMI 6' Cables</em> (search name <code>HDMI 6' Cables</code>), <strong>A0002</strong> <em>HDMI 12' Cables</em>, <strong>SW0001</strong> <em>Wireless Headset</em> (search name <code>WirelessHeadset</code>)</td>
+<td>A0001/A0002 are stocked in warehouses 24 and 63.</td>
+</tr>
+<tr>
+<td>Item barcodes</td>
+<td><strong>D0013</strong>: EAN-13 <code>0012345678912</code> (S), <code>0012345678929</code> (M), <code>0012345678936</code> (L), all scanning-enabled</td>
+<td>Present on this environment's USMF data; create them if your copy lacks them.</td>
+</tr>
+<tr>
+<td>Customers</td>
+<td><strong>US-001</strong> <em>Contoso Retail San Diego</em>, <strong>US-002</strong> <em>Contoso Retail Los Angeles</em>, <strong>US-003</strong> <em>Forest Wholesales</em>, <strong>US-027</strong> <em>Birch Company</em></td>
+<td>None has a customer item group or a separate invoice account.</td>
+</tr>
+<tr>
+<td>Vendors</td>
+<td><strong>US-101</strong> <em>Fabrikam Electronics</em>, <strong>US-104</strong> <em>Fabrikam Supplier</em></td>
+<td>None has a vendor item group.</td>
+</tr>
+<tr>
+<td>Mobile menu items</td>
+<td><strong>Sales Picking</strong> (user directed), <strong>Sales Picking - System</strong> (system directed), <strong>Cluster Pick</strong>, <strong>Pick to Container</strong>, <strong>Purchase Receive</strong> (purchase order <em>item</em> receiving), <strong>Purchase Put-away</strong>, <strong>Transfer pick</strong>, <strong>Movement</strong></td>
+<td>There is <strong>no</strong> purchase order <em>line</em> receiving and <strong>no</strong> load item receiving menu item — create them to test those flows (section 4).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="what-usmf-lacks-and-why-it-matters">What USMF lacks — and why it matters</h3>
+<ul>
+<li><strong>Variant names equal the master name.</strong> Every W0001 variant's product name is <em>Wired Headset</em> (the same holds for M0030, D0010 and D0013). The <em>Variant product name</em> source therefore resolves, but cannot tell Black/Large from Red/Small on its own — turn on <strong>Append dimension summary</strong> on that line. Only <strong>D0008</strong> has a distinct variant name (<em>HighEndSpeaker 2</em> versus master <em>Licensed High End Speaker</em>).</li>
+<li><strong>Translations are English only</strong> for these items. Multi-language use cases need a translation added (<a href="ItemIdentity/11-MultiLanguage.html">scenario 11</a>).</li>
+<li><strong>No GTINs</strong> are registered in USMF.</li>
+<li><strong>No external item descriptions</strong> ship for these customers and vendors.</li>
+</ul>
+<h3 id="sample-data-to-create">Sample data to create</h3>
+<p>Create these once in USMF; the use cases below refer to them. All external item descriptions are maintained on the released product (<strong>Product information management &gt; Released products &gt; W0001 &gt; Sell / Purchase &gt; External item description</strong>) or the customer/vendor.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Record</th>
+<th>Values</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1</td>
+<td>Customer external item description</td>
+<td>Customer <strong>US-001</strong>, item <strong>W0001</strong>, color <strong>Black</strong>, size <strong>Large</strong> → external item number <code>CR-4471-BL</code>, description <code>Contoso Retail headset black L</code></td>
+</tr>
+<tr>
+<td>D2</td>
+<td>Customer external item description (item level)</td>
+<td>Customer <strong>US-001</strong>, item <strong>W0001</strong>, no dimensions → <code>CR-4471</code>, description <code>Contoso Retail headset</code></td>
+</tr>
+<tr>
+<td>D3</td>
+<td>Vendor external item description</td>
+<td>Vendor <strong>US-101</strong>, item <strong>W0001</strong>, Black / Large → <code>FAB-HS200-BK-L</code>, description <code>Fabrikam HS-200 headset black large</code></td>
+</tr>
+<tr>
+<td>D4</td>
+<td>Customer item group</td>
+<td>Group <code>RETAIL</code> (<em>Contoso retail stores</em>); external item description for the <strong>group</strong> on W0001 Black / Large → <code>RTL-4471-BL</code>. Assign the group to <strong>US-002</strong> (customer &gt; <em>Sales order defaults</em> &gt; <em>Customer item group</em>).</td>
+</tr>
+<tr>
+<td>D5</td>
+<td>GTINs</td>
+<td>W0001 Black/Large <code>0614141000104</code>, Black/Medium <code>0614141000111</code>, Black/Small <code>0614141000128</code>, Red/Large <code>0614141000135</code>, Red/Medium <code>0614141000142</code>, Red/Small <code>0614141000159</code>; A0001 item level <code>0614141000203</code> (all unit blank)</td>
+</tr>
+<tr>
+<td>D6</td>
+<td>Sales order</td>
+<td>Customer <strong>US-001</strong>, site 2, warehouse <strong>24</strong>, line W0001 Black/Large qty 2 and A0001 qty 1. Release to warehouse so picking work exists.</td>
+</tr>
+<tr>
+<td>D7</td>
+<td>Sales order</td>
+<td>Customer <strong>US-002</strong>, warehouse 24, line W0001 Black/Large qty 1; released.</td>
+</tr>
+<tr>
+<td>D8</td>
+<td>Sales order</td>
+<td>Customer <strong>US-003</strong>, warehouse 24, line W0001 Red/Small qty 1; released.</td>
+</tr>
+<tr>
+<td>D9</td>
+<td>Purchase order</td>
+<td>Vendor <strong>US-101</strong>, warehouse 24, line W0001 Black/Large qty 5; confirmed.</td>
+</tr>
+<tr>
+<td>D10</td>
+<td>Purchase order</td>
+<td>Vendor <strong>US-104</strong>, warehouse 24, line W0001 Black/Large qty 5; confirmed.</td>
+</tr>
+</tbody>
+</table>
+<p>The GTINs use the GS1 example company prefix <code>0614141</code> with valid check digits — test values only.</p>
+<h2 id="configuration-used-below">2. Configuration used below</h2>
+<p><strong>Item identity parameters</strong> (USMF): enabled, default label <em>Item identity</em>, fallback <strong>Hide</strong>, external item content <strong>Identifier</strong>, cache <strong>0</strong> while testing (set it back to 30 afterwards).</p>
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>Mode</th>
+<th>Lines (sequence: source, options)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PARTNER</code></td>
+<td>First hit</td>
+<td>10 External item number · 20 Variant product name <em>(Append dimension summary)</em> · 30 Item number</td>
+</tr>
+<tr>
+<td><code>VARIANT</code></td>
+<td>First hit</td>
+<td>10 Variant product name <em>(Append dimension summary)</em></td>
+</tr>
+<tr>
+<td><code>EXTONLY</code></td>
+<td>First hit</td>
+<td>10 External item number</td>
+</tr>
+<tr>
+<td><code>GTIN</code></td>
+<td>First hit</td>
+<td>10 GTIN · 20 Item number</td>
+</tr>
+<tr>
+<td><code>BARCODE</code></td>
+<td>First hit</td>
+<td>10 Item barcode</td>
+</tr>
+<tr>
+<td><code>SEARCH</code></td>
+<td>First hit</td>
+<td>10 Search name</td>
+</tr>
+<tr>
+<td><code>COMBINED</code></td>
+<td>Concatenate (separator <code>|</code>)</td>
+<td>10 External item number · 20 Variant product name <em>(Append dimension summary)</em> · 30 Item number</td>
+</tr>
+</tbody>
+</table>
+<p>Assign profiles on <strong>Item identity menu item settings</strong>, keyed by the menu item <strong>name</strong> (in USMF the names and titles are identical, e.g. <code>Sales Picking</code>).</p>
+<h2 id="supported-scenarios">3. Supported scenarios</h2>
+<p>Each supported scenario has its own guide — when to use it, the USMF records it needs, configuration, steps on the device, the exact expected values, how it resolves, and troubleshooting.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Scenario</th>
+<th>Flows</th>
+<th>Worker sees on USMF</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>01</td>
+<td><a href="ItemIdentity/01-CustomerItemNumberOnPicking.html">Customer item number on sales picking</a></td>
+<td>Sales picking</td>
+<td><code>CR-4471-BL</code></td>
+</tr>
+<tr>
+<td>02</td>
+<td><a href="ItemIdentity/02-VendorItemNumberOnReceiving.html">Vendor item number on purchase receiving</a></td>
+<td>Purchase Receive</td>
+<td><code>FAB-HS200-BK-L</code></td>
+</tr>
+<tr>
+<td>03</td>
+<td><a href="ItemIdentity/03-VariantIdentification.html">Telling variants apart</a></td>
+<td>All</td>
+<td><code>Wired Headset - Small / Red</code></td>
+</tr>
+<tr>
+<td>04</td>
+<td><a href="ItemIdentity/04-PartnerNumberWithFallbackChain.html">Partner number when it exists, variant otherwise</a> — the recommended profile</td>
+<td>All</td>
+<td><code>CR-4471-BL</code> / <code>Wired Headset - Small / Red</code> / <code>A0001</code></td>
+</tr>
+<tr>
+<td>05</td>
+<td><a href="ItemIdentity/05-ExternalNumberPrecedence.html">External number precedence: variant, item, group</a></td>
+<td>Picking, receiving</td>
+<td><code>CR-4471-BL</code> / <code>RTL-4471-BL</code> / <code>CR-4471</code></td>
+</tr>
+<tr>
+<td>06</td>
+<td><a href="ItemIdentity/06-ExternalItemDescription.html">External description instead of (or with) the number</a></td>
+<td>Picking, receiving</td>
+<td><code>CR-4471-BL - Contoso Retail headset black L</code></td>
+</tr>
+<tr>
+<td>07</td>
+<td><a href="ItemIdentity/07-GTIN.html">Show the GTIN</a></td>
+<td>All</td>
+<td><code>0614141000104</code></td>
+</tr>
+<tr>
+<td>08</td>
+<td><a href="ItemIdentity/08-ItemBarcode.html">Show an item barcode</a></td>
+<td>All</td>
+<td><code>0012345678929</code></td>
+</tr>
+<tr>
+<td>09</td>
+<td><a href="ItemIdentity/09-SearchName.html">Show the search name</a></td>
+<td>All</td>
+<td><code>HDMI 6' Cables</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td><a href="ItemIdentity/10-ConcatenatedIdentity.html">Several identities at once (concatenate)</a></td>
+<td>All</td>
+<td><code>CR-4471-BL | Wired Headset - Large / Black | W0001</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td><a href="ItemIdentity/11-MultiLanguage.html">Workers in another language</a></td>
+<td>All</td>
+<td><code>Casque filaire rouge S - Small / Red</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td><a href="ItemIdentity/12-FallbackBehavior.html">What happens when nothing resolves (fallback)</a></td>
+<td>All</td>
+<td>no line / <code>W0001</code> / <code>NO CUSTOMER NO.</code></td>
+</tr>
+<tr>
+<td>13</td>
+<td><a href="ItemIdentity/13-CaptionsPerFlow.html">Different captions per flow</a></td>
+<td>All</td>
+<td><em>Customer item</em> / <em>Vendor item</em></td>
+</tr>
+<tr>
+<td>14</td>
+<td><a href="ItemIdentity/14-OtherPickingStyles.html">System-directed, cluster and grouped picking</a></td>
+<td>Sales Picking - System, Cluster Pick, Pick to Container</td>
+<td><code>CR-4471-BL</code></td>
+</tr>
+<tr>
+<td>15</td>
+<td><a href="ItemIdentity/15-WorkWithoutPartner.html">Put-away, transfer, production and replenishment work</a></td>
+<td>Purchase Put-away, Transfer pick, Production pick, Replenishment</td>
+<td><code>Wired Headset - Large / Black</code></td>
+</tr>
+<tr>
+<td>16</td>
+<td><a href="ItemIdentity/16-PurchaseOrderLineReceiving.html">Purchase order line receiving</a></td>
+<td>PO Line Receive <em>(create)</em></td>
+<td><code>FAB-HS200-BK-L</code></td>
+</tr>
+<tr>
+<td>17</td>
+<td><a href="ItemIdentity/17-LoadItemReceiving.html">Load item receiving</a></td>
+<td>Load Receive <em>(create)</em></td>
+<td><code>FAB-HS200-BK-L</code></td>
+</tr>
+<tr>
+<td>18</td>
+<td><a href="ItemIdentity/18-TestResolution.html">Check a value without a device (Test resolution)</a></td>
+<td>Rich client</td>
+<td>the device's value, with a per-source trace</td>
+</tr>
+</tbody>
+</table>
+<h2 id="where-the-line-does-not-appear">4. Where the line does not appear</h2>
+<table>
+<thead>
+<tr>
+<th>Flow (USMF menu item)</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Movement</strong>, <strong>Movement by template</strong>, adjustments, <strong>Status change</strong></td>
+<td>No line. A setting row is accepted but does nothing.</td>
+</tr>
+<tr>
+<td><strong>Cycle Count</strong>, <strong>Spot Counting</strong></td>
+<td>No line.</td>
+</tr>
+<tr>
+<td><strong>Transfer receive</strong>, <strong>Transfer receive LP</strong>, <strong>GIT receive</strong></td>
+<td>No line (transfer receiving is not covered).</td>
+</tr>
+<tr>
+<td><strong>RMA Receive</strong>, <strong>RMA and Putaway</strong></td>
+<td>No line (return receiving is not covered).</td>
+</tr>
+<tr>
+<td><strong>Kanban receipt</strong>, <strong>RAFand putaway</strong>, <strong>Report serial number</strong></td>
+<td>No line.</td>
+</tr>
+<tr>
+<td>Inquiries, license plate build/break, packing</td>
+<td>No line.</td>
+</tr>
+<tr>
+<td>Screens before the item is known (PO scan, work id scan, location scan)</td>
+<td>No line by design — it appears once the item is identified.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="quick-reference-expected-values-on-usmf">5. Quick reference — expected values on USMF</h2>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Menu item</th>
+<th>Order / item</th>
+<th>Profile</th>
+<th>Worker sees</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="ItemIdentity/01-CustomerItemNumberOnPicking.html">01</a></td>
+<td>Sales Picking</td>
+<td>D6 · W0001 Black/Large</td>
+<td>PARTNER</td>
+<td><code>CR-4471-BL</code></td>
+</tr>
+<tr>
+<td><a href="ItemIdentity/02-VendorItemNumberOnReceiving.html">02</a></td>
+<td>Purchase Receive</td>
+<td>D9 · W0001 Black/Large</td>
+<td>PARTNER</td>
+<td><code>FAB-HS200-BK-L</code></td>
+</tr>
+<tr>
+<td><a href="ItemIdentity/02-VendorItemNumberOnReceiving.html">02</a></td>
+<td>Purchase Receive</td>
+<td>D10 · W0001 Black/Large</td>
+<td>PARTNER</td>
+<td><code>Wired Headset - Large / Black</code></td>
+</tr>
+<tr>
+<td><a href="ItemIdentity/03-VariantIdentification.html">03</a></td>
+<td>Sales Picking</td>
+<td>D8 · W0001 Red/Small</td>
+<td>VARIANT</td>
+<td><code>Wired Headset - Small / Red</code></td>
+</tr>
+<tr>
+<td><a href="ItemIdentity/04-PartnerNumberWithFallbackChain.html">04</a></td>
+<td>Sales Picking</td>
+<td>D6 · A0001</td>
+<td>PARTNER</td>
+<td><code>A0001</code></td>
+</tr>
+<tr>
+<td><a href="ItemIdentity/05-ExternalNumberPrecedence.html">05</a></td>
+<td>Sales Picking</td>
+<td>D7 · W0001 Black/Large</td>
+<td>EXTONLY</td>
+<td><code>RTL-4471-BL</code></td>
+</tr>
+<tr>
+<td><a href="ItemIdentity/07-GTIN.html">07</a></td>
+<td>Sales Picking</td>
+<td>D6 · W0001 Black/Large</td>
+<td>GTIN</td>
+<td><code>0614141000104</code></td>
+</tr>
+<tr>
+<td><a href="ItemIdentity/09-SearchName.html">09</a></td>
+<td>Sales Picking</td>
+<td>D6 · A0001</td>
+<td>SEARCH</td>
+<td><code>HDMI 6' Cables</code></td>
+</tr>
+<tr>
+<td><a href="ItemIdentity/10-ConcatenatedIdentity.html">10</a></td>
+<td>Sales Picking</td>
+<td>D6 · W0001 Black/Large</td>
+<td>COMBINED</td>
+<td><code>CR-4471-BL | Wired Headset - Large / Black | W0001</code></td>
+</tr>
+<tr>
+<td><a href="ItemIdentity/15-WorkWithoutPartner.html">15</a></td>
+<td>Purchase Put-away</td>
+<td>D9 receipt</td>
+<td>PARTNER</td>
+<td><code>Wired Headset - Large / Black</code></td>
+</tr>
+</tbody>
+</table>
+
+</body>
+</html>

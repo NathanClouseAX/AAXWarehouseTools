@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Item Identity Scenario 15 — Put-Away, Transfer, Production and Replenishment Work</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="item-identity-scenario-15-put-away-transfer-production-and-replenishment-work">Item Identity Scenario 15 — Put-Away, Transfer, Production and Replenishment Work</h1>
+<p>Part of the <a href="../ItemIdentityUseCases.html">item identity use case catalog</a>. Worked on the Contoso <strong>USMF</strong> demo company.</p>
+<h2 id="when-to-use">When to use</h2>
+<p>You want the identity line on warehouse work that is not sales picking — purchase put-away after receipt, transfer order picking, production raw-material picking, replenishment. These flows have <strong>no trading partner</strong>, so the line shows partner-independent identities (variant, GTIN, barcode, search name, item number).</p>
+<h2 id="what-the-worker-sees">What the worker sees</h2>
+<pre><code>Purchase Put-away
+Item:            W0001
+Variant:         Wired Headset - Large / Black
+</code></pre>
+<h2 id="supported-flows">Supported flows</h2>
+<table>
+<thead>
+<tr>
+<th>USMF menu item</th>
+<th>Work transaction type</th>
+<th>Partner context column</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Purchase Put-away</td>
+<td>Purchase order</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Transfer pick</td>
+<td>Transfer issue</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Production pick</td>
+<td>Raw material picking</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Replenishment</td>
+<td>Replenishment</td>
+<td>None</td>
+</tr>
+</tbody>
+</table>
+<p>The line appears on their pick and put screens (user directed, system directed and grouping menu items).</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>USMF value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Received purchase order</td>
+<td>D9 (US-101, W0001 Black/Large) received with <strong>Purchase Receive</strong>, so put-away work exists</td>
+</tr>
+</tbody>
+</table>
+<h2 id="configure">Configure</h2>
+<ol>
+<li><strong>Item identity profiles</strong>: <code>VARIANT</code> — 10 <em>Variant product name</em>, Append dimension summary = Yes (or <code>PARTNER</code>, whose external line will simply be skipped).</li>
+<li><strong>Item identity menu item settings</strong>: <code>Purchase Put-away</code> → <code>VARIANT</code>, <em>Label override</em> = <code>Variant</code>.</li>
+</ol>
+<p>Assigning a profile whose only line is <em>External item number</em> to these menu items raises a warning on save (partner context <em>None</em>): that combination can never resolve.</p>
+<h2 id="try-it-on-usmf">Try it on USMF</h2>
+<p>Put away the license plate received from D9 with <strong>Purchase Put-away</strong> (user <strong>24</strong>).</p>
+<h2 id="expected-results">Expected results</h2>
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>Worker sees</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>VARIANT</td>
+<td><code>Wired Headset - Large / Black</code></td>
+</tr>
+<tr>
+<td>PARTNER</td>
+<td><code>Wired Headset - Large / Black</code> — not <code>FAB-HS200-BK-L</code>: purchase work carries no vendor</td>
+</tr>
+<tr>
+<td>EXTONLY</td>
+<td>fallback (no line with <em>Hide</em>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-it-resolves">How it resolves</h2>
+<p>The partner is taken from the work: only <strong>sales</strong> work provides a customer. Every other work type resolves without a partner, so <em>External item number</em> lines report <em>no partner context</em> and the chain moves on.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Expected the vendor's number on put-away</td>
+<td>Not available on work execution; show it at receipt instead (<a href="02-VendorItemNumberOnReceiving.html">scenario 02</a>).</td>
+</tr>
+<tr>
+<td>A menu item with both sales and non-sales work classes shows <em>Customer</em></td>
+<td>Correct for its sales work; its other work still resolves without a partner.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="related">Related</h2>
+<p>Validation: <a href="../ItemIdentityScenarios.html">scenario pack</a> scenarios 6 (c) and 20 (c).</p>
+
+</body>
+</html>

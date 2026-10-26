@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Item Identity Scenario 12 — What Happens When Nothing Resolves</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="item-identity-scenario-12-what-happens-when-nothing-resolves">Item Identity Scenario 12 — What Happens When Nothing Resolves</h1>
+<p>Part of the <a href="../ItemIdentityUseCases.html">item identity use case catalog</a>. Worked on the Contoso <strong>USMF</strong> demo company.</p>
+<h2 id="when-to-use">When to use</h2>
+<p>You must decide what the worker sees when no source in the profile returns a value: nothing, the item number, or a fixed message (for example to flag customers whose numbers are still missing).</p>
+<h2 id="what-the-worker-sees">What the worker sees</h2>
+<pre><code>Item identity:   NO CUSTOMER NO.      (Fixed text)
+Item identity:   W0001                (Item number)
+                                      (Hide — no line at all)
+</code></pre>
+<h2 id="supported-flows">Supported flows</h2>
+<p>All supported flows.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>USMF value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D8</td>
+<td>Sales order for <strong>US-003</strong> <em>Forest Wholesales</em> (no external item descriptions), warehouse 24, W0001 Red/Small; released</td>
+</tr>
+</tbody>
+</table>
+<h2 id="configure">Configure</h2>
+<ol>
+<li><strong>Item identity profiles</strong>: <code>EXTONLY</code> — one line, <em>External item number</em>.</li>
+<li><strong>Item identity menu item settings</strong>: <code>Sales Picking</code> → <code>EXTONLY</code>.</li>
+<li><strong>Item identity parameters</strong> &gt; <em>Fallback behavior</em>, one at a time: <strong>Hide</strong>, <strong>Item number</strong>, <strong>Fixed text</strong> with <em>Fallback text</em> = <code>NO CUSTOMER NO.</code>.</li>
+</ol>
+<h2 id="try-it-on-usmf">Try it on USMF</h2>
+<p>Pick D8 with <strong>Sales Picking</strong> after each fallback change. The fallback is applied after the cache, so a parameter change shows on the next render.</p>
+<h2 id="expected-results">Expected results</h2>
+<table>
+<thead>
+<tr>
+<th>Fallback behavior</th>
+<th>Worker sees</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hide</td>
+<td>no identity line; the screen is identical to standard</td>
+</tr>
+<tr>
+<td>Item number</td>
+<td><code>Item identity: W0001</code></td>
+</tr>
+<tr>
+<td>Fixed text</td>
+<td><code>Item identity: NO CUSTOMER NO.</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-it-resolves">How it resolves</h2>
+<ul>
+<li>The fallback runs only when <strong>every</strong> line misses (in both First hit and Concatenate mode).</li>
+<li>It is a parameter — one setting per company for all profiles. To have the item number as the last resort for one profile only, add an <em>Item number</em> line to that profile instead.</li>
+<li>A resolution error behaves like &quot;nothing resolved&quot; and never reaches the worker.</li>
+</ul>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fixed text shows but empty</td>
+<td><em>Fallback text</em> is blank.</td>
+</tr>
+<tr>
+<td>Line never disappears with <em>Hide</em></td>
+<td>The profile's last line always resolves (for example <em>Item number</em>).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="related">Related</h2>
+<p>Validation: <a href="../ItemIdentityScenarios.html">scenario pack</a> scenarios 5 and 10.</p>
+
+</body>
+</html>

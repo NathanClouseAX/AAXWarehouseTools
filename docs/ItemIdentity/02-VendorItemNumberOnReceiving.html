@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Item Identity Scenario 02 — Vendor Item Number on Purchase Receiving</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="item-identity-scenario-02-vendor-item-number-on-purchase-receiving">Item Identity Scenario 02 — Vendor Item Number on Purchase Receiving</h1>
+<p>Part of the <a href="../ItemIdentityUseCases.html">item identity use case catalog</a>. Worked on the Contoso <strong>USMF</strong> demo company.</p>
+<h2 id="when-to-use">When to use</h2>
+<p>The receiver checks incoming goods against the vendor's packing slip or carton labels, which carry the vendor's item numbers. Showing the vendor's number on the receiving screen removes the cross-reference lookup.</p>
+<h2 id="what-the-worker-sees">What the worker sees</h2>
+<pre><code>Item:            W0001
+Color / Size:    Black / Large
+Vendor item:     FAB-HS200-BK-L
+Qty:             5 ea
+</code></pre>
+<p>The line appears on the item and quantity/confirmation screens, once the item is identified. Screens before that (the purchase order number prompt) never carry it.</p>
+<h2 id="supported-flows">Supported flows</h2>
+<p><strong>Purchase order item receiving</strong> (USMF <strong>Purchase Receive</strong>) and its <em>and locate</em> variant. Purchase order line receiving and load item receiving work the same way — see <a href="16-PurchaseOrderLineReceiving.html">scenario 16</a> and <a href="17-LoadItemReceiving.html">scenario 17</a>.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>USMF value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vendor external item description (D3)</td>
+<td>Vendor <strong>US-101</strong> <em>Fabrikam Electronics</em>, item <strong>W0001</strong>, Black / Large → <code>FAB-HS200-BK-L</code>, description <code>Fabrikam HS-200 headset black large</code></td>
+</tr>
+<tr>
+<td>Purchase order (D9)</td>
+<td>Vendor <strong>US-101</strong>, warehouse <strong>24</strong>, line W0001 Black/Large qty 5; <strong>confirmed</strong></td>
+</tr>
+<tr>
+<td>Purchase order (D10)</td>
+<td>Vendor <strong>US-104</strong> <em>Fabrikam Supplier</em>, warehouse <strong>24</strong>, line W0001 Black/Large qty 5; confirmed (no external record — the negative case)</td>
+</tr>
+</tbody>
+</table>
+<p>Create D3 from <strong>Released products</strong> &gt; W0001 &gt; <strong>Purchase</strong> &gt; <strong>External item descriptions</strong> (or from the vendor record).</p>
+<h2 id="configure">Configure</h2>
+<ol>
+<li><strong>Item identity parameters</strong>: enabled; <em>Fallback behavior</em> = Hide; <em>Cache duration</em> = 0 while testing.</li>
+<li><strong>Item identity profiles</strong>: <code>PARTNER</code> — 10 <em>External item number</em>, 20 <em>Variant product name</em> (Append dimension summary), 30 <em>Item number</em>.</li>
+<li><strong>Item identity menu item settings</strong>: <em>Mobile device menu item</em> = <code>Purchase Receive</code>, <em>Enabled</em> = Yes, <em>Profile</em> = <code>PARTNER</code>, <em>Label override</em> = <code>Vendor item</code>. The <em>Partner context</em> column shows <strong>Vendor</strong>.</li>
+</ol>
+<h2 id="try-it-on-usmf">Try it on USMF</h2>
+<ol>
+<li>Sign in as user <strong>24</strong>; open <strong>Purchase Receive</strong>.</li>
+<li>Enter purchase order D9, then item W0001, color Black, size Large.</li>
+<li>Read the quantity/confirmation screen. Repeat with D10.</li>
+</ol>
+<h2 id="expected-results">Expected results</h2>
+<table>
+<thead>
+<tr>
+<th>Order</th>
+<th>Worker sees</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D9 — US-101</td>
+<td><code>FAB-HS200-BK-L</code></td>
+<td>Exact-variant record for the vendor</td>
+</tr>
+<tr>
+<td>D10 — US-104</td>
+<td><code>Wired Headset - Large / Black</code></td>
+<td>No record for US-104; line 20 resolves. Another vendor's number is never shown.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-it-resolves">How it resolves</h2>
+<ul>
+<li>The partner is the purchase order's <strong>vendor account</strong> (the order account), as standard purchase order entry uses.</li>
+<li>The receipt's product dimensions come from the purchase order line being received, so a variant-specific external record matches.</li>
+<li>Precedence for vendor records is the same as for customers: account before vendor item group, exact variant before item level (<a href="05-ExternalNumberPrecedence.html">scenario 05</a>).</li>
+</ul>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Line shows the variant name for D9</td>
+<td>The external record's dimensions or vendor account do not match. <a href="18-TestResolution.html">Test resolution</a> with context <em>Vendor</em>, account US-101.</td>
+</tr>
+<tr>
+<td>Vendor number missing on <strong>Purchase Put-away</strong></td>
+<td>By design: put-away is work execution on purchase work, which carries no vendor, so the external source is skipped and the next line resolves — see <a href="15-WorkWithoutPartner.html">scenario 15</a>.</td>
+</tr>
+<tr>
+<td>No line on <strong>Transfer receive</strong> or <strong>RMA Receive</strong></td>
+<td>Not supported flows.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="related">Related</h2>
+<p>Validation: <a href="../ItemIdentityScenarios.html">scenario pack</a> scenario 3.</p>
+
+</body>
+</html>

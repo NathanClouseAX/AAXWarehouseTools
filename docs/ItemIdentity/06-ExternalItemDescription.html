@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Item Identity Scenario 06 — External Description Instead of (or With) the Number</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="item-identity-scenario-06-external-description-instead-of-or-with-the-number">Item Identity Scenario 06 — External Description Instead of (or With) the Number</h1>
+<p>Part of the <a href="../ItemIdentityUseCases.html">item identity use case catalog</a>. Worked on the Contoso <strong>USMF</strong> demo company.</p>
+<h2 id="when-to-use">When to use</h2>
+<p>A partner's numbers are cryptic, but its short descriptions are what the floor recognises — or you want both side by side.</p>
+<h2 id="what-the-worker-sees">What the worker sees</h2>
+<pre><code>Customer item:   Contoso Retail headset black L                  (Description)
+Customer item:   CR-4471-BL - Contoso Retail headset black L     (Identifier and description)
+</code></pre>
+<h2 id="supported-flows">Supported flows</h2>
+<p>Same as the external item number: sales picking and purchase order item/line and load receiving.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>USMF value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1</td>
+<td>US-001, W0001 Black/Large → number <code>CR-4471-BL</code>, description <code>Contoso Retail headset black L</code></td>
+</tr>
+<tr>
+<td>D6</td>
+<td>Sales order for US-001, warehouse 24, W0001 Black/Large; released</td>
+</tr>
+</tbody>
+</table>
+<h2 id="configure">Configure</h2>
+<p>The content option exists on two levels:</p>
+<table>
+<thead>
+<tr>
+<th>Where</th>
+<th>Field</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Item identity parameters</strong></td>
+<td><em>External item content</em></td>
+<td>Default for every profile line left at <em>Parameter default</em>. Ships as <em>Identifier</em>.</td>
+</tr>
+<tr>
+<td><strong>Item identity profiles</strong> &gt; line</td>
+<td><em>External item content</em></td>
+<td>Overrides the parameter for that line only.</td>
+</tr>
+</tbody>
+</table>
+<p>Values: <strong>Identifier</strong>, <strong>Description</strong>, <strong>Identifier and description</strong>.</p>
+<ol>
+<li>Profile <code>PARTNER</code> (10 External item number · 20 Variant product name with summary · 30 Item number) on <code>Sales Picking</code>, label override <code>Customer item</code>.</li>
+<li>Set line 10's <em>External item content</em> to <em>Description</em>; then to <em>Identifier and description</em>.</li>
+</ol>
+<h2 id="try-it-on-usmf">Try it on USMF</h2>
+<p>Pick D6 with <strong>Sales Picking</strong> (user <strong>24</strong>) after each change. Profile edits take effect on the next screen; a <strong>parameter</strong> change needs the cache to expire or any profile edit.</p>
+<h2 id="expected-results">Expected results</h2>
+<table>
+<thead>
+<tr>
+<th>Content option</th>
+<th>Worker sees</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Identifier</td>
+<td><code>CR-4471-BL</code></td>
+</tr>
+<tr>
+<td>Description</td>
+<td><code>Contoso Retail headset black L</code></td>
+</tr>
+<tr>
+<td>Identifier and description</td>
+<td><code>CR-4471-BL - Contoso Retail headset black L</code></td>
+</tr>
+<tr>
+<td>Identifier and description, record has no description</td>
+<td><code>CR-4471-BL</code></td>
+</tr>
+<tr>
+<td>Description, record has no description</td>
+<td>the line misses (<em>empty external item content</em>) and line 20 resolves</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-it-resolves">How it resolves</h2>
+<p>The record is found with the normal precedence (<a href="05-ExternalNumberPrecedence.html">scenario 05</a>); the option only decides which of its two fields is displayed. With <em>Identifier and description</em>, a missing part is dropped rather than leaving a dangling <code>-</code>.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Changed the parameter but the device still shows the old content</td>
+<td>Cache — the parameter is not part of the cache key. Edit the profile, or wait out the cache duration.</td>
+</tr>
+<tr>
+<td>Long descriptions are cut or wrap</td>
+<td>Device display width; prefer <em>Identifier</em> or keep descriptions short.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="related">Related</h2>
+<p>Validation: <a href="../ItemIdentityScenarios.html">scenario pack</a> scenario 2 (b).</p>
+
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Item Identity Scenario 10 — Show Several Identities at Once (Concatenate)</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="item-identity-scenario-10-show-several-identities-at-once-concatenate">Item Identity Scenario 10 — Show Several Identities at Once (Concatenate)</h1>
+<p>Part of the <a href="../ItemIdentityUseCases.html">item identity use case catalog</a>. Worked on the Contoso <strong>USMF</strong> demo company.</p>
+<h2 id="when-to-use">When to use</h2>
+<p>During a ramp-up, an audit, or for supervisors, the line should show every identity that exists — for example the customer's number, the variant, and the item number together.</p>
+<h2 id="what-the-worker-sees">What the worker sees</h2>
+<pre><code>Item identity:   CR-4471-BL | Wired Headset - Large / Black | W0001
+</code></pre>
+<h2 id="supported-flows">Supported flows</h2>
+<p>All supported flows. Partner-dependent lines simply drop out where there is no partner.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>USMF value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1</td>
+<td>US-001, W0001 Black/Large → <code>CR-4471-BL</code></td>
+</tr>
+<tr>
+<td>D6</td>
+<td>Sales order US-001, warehouse 24: W0001 Black/Large and A0001; released</td>
+</tr>
+<tr>
+<td>D8</td>
+<td>Sales order US-003, warehouse 24: W0001 Red/Small; released</td>
+</tr>
+</tbody>
+</table>
+<h2 id="configure">Configure</h2>
+<ol>
+<li><strong>Item identity profiles</strong>: <code>COMBINED</code> — <em>Resolution mode</em> = <strong>Concatenate</strong>, <em>Separator</em> = <code>|</code> (the shipped default); lines 10 <em>External item number</em>, 20 <em>Variant product name</em> (Append dimension summary), 30 <em>Item number</em>.</li>
+<li><strong>Item identity menu item settings</strong>: <code>Sales Picking</code> → <code>COMBINED</code>.</li>
+</ol>
+<h2 id="try-it-on-usmf">Try it on USMF</h2>
+<p>Pick D6 (both lines) and D8 with <strong>Sales Picking</strong> (user <strong>24</strong>).</p>
+<h2 id="expected-results">Expected results</h2>
+<table>
+<thead>
+<tr>
+<th>Pick</th>
+<th>Worker sees</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D6 W0001 Black/Large</td>
+<td><code>CR-4471-BL | Wired Headset - Large / Black | W0001</code></td>
+</tr>
+<tr>
+<td>D8 W0001 Red/Small</td>
+<td><code>Wired Headset - Small / Red | W0001</code></td>
+</tr>
+<tr>
+<td>D6 A0001</td>
+<td><code>A0001</code></td>
+</tr>
+<tr>
+<td>D6 with separator <code>/</code></td>
+<td><code>CR-4471-BL / Wired Headset - Large / Black / W0001</code> — ambiguous, see below</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-it-resolves">How it resolves</h2>
+<ul>
+<li>Every line runs in sequence order; each value that resolves is appended with the separator. Lines that miss contribute nothing (no empty separators).</li>
+<li>The <strong>first</strong> contributing line is reported as the winning source (in Test resolution); the value is the full joined text.</li>
+<li>The fallback applies only when <strong>no</strong> line resolves.</li>
+</ul>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Values are hard to tell apart</td>
+<td>The dimension summary uses <code>/</code> and <code>-</code> internally; pick a separator that differs from both (the default <code>|</code> does).</td>
+</tr>
+<tr>
+<td>Text wraps or is cut on the device</td>
+<td>Keep concatenating profiles to two or three short sources.</td>
+</tr>
+<tr>
+<td>The item number appears twice</td>
+<td>A source repeated on two lines; the profile form warns about duplicate sources on save.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="related">Related</h2>
+<p>Validation: <a href="../ItemIdentityScenarios.html">scenario pack</a> scenario 16. First-hit version: <a href="04-PartnerNumberWithFallbackChain.html">scenario 04</a>.</p>
+
+</body>
+</html>

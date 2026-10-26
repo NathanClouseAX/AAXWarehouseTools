@@ -40,7 +40,7 @@ public final class WHSWorkExecuteDisplayPOReceiving_AAXWarehouseTools_Extension
 				<Source><![CDATA[
     /// <summary>
     /// Appends the item identity line for the item being received when the pass carries an item
-    /// and the line is not yet on the page. Purchase lines resolve for the order's invoice vendor.
+    /// and the line is not yet on the page. Purchase lines resolve for the order vendor.
     /// </summary>
     /// <param name = "_displayCon">Container containing the built form state.</param>
     /// <returns>Container containing the form state with the identity line appended when resolved.</returns>
@@ -59,11 +59,11 @@ public final class WHSWorkExecuteDisplayPOReceiving_AAXWarehouseTools_Extension
                 CustVendAC                       partnerAccount;
                 WHSReceiptOrderLine              orderLine = this.receivingOrderLine(pass, false);
 
-                // Purchase lines resolve for the invoice vendor
+                // Purchase lines resolve for the order vendor
                 if (orderLine.TableId == tableNum(PurchLine) && orderLine.OrderNumber)
                 {
                     partnerContext = AAXWHSItemIdentityPartnerContext::Vendor;
-                    partnerAccount = PurchTable::find(orderLine.OrderNumber).InvoiceAccount;
+                    partnerAccount = PurchTable::find(orderLine.OrderNumber).OrderAccount;
                 }
 
                 container identityLine = AAXWHSItemIdentityInjectionService::identityLineForMenuItem(

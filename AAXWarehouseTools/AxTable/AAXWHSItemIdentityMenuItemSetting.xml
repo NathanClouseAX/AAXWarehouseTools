@@ -43,9 +43,9 @@ public class AAXWHSItemIdentityMenuItemSetting extends common
 				<Name>partnerContextForMenuItem</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Derives the partner context of a mobile app menu item from its work execution mode.
-    /// Purchase order receiving modes yield a vendor context, work execution modes yield a
-    /// customer context, and everything else yields no partner context.
+    /// Derives the partner context of a mobile app menu item. Purchase order and load receiving
+    /// modes yield a vendor context, work menu items that can execute sales work yield a customer
+    /// context, and everything else yields no partner context.
     /// </summary>
     /// <param name = "_name">The menu item name.</param>
     /// <returns>The partner context of the menu item.</returns>
@@ -64,17 +64,44 @@ public class AAXWHSItemIdentityMenuItemSetting extends common
             case WHSWorkExecuteMode::PurchaseOrderLineReceivingAndLocate:
             case WHSWorkExecuteMode::PurchaseOrderItemReceiving:
             case WHSWorkExecuteMode::PurchaseOrderItemReceivingAndLocate:
+            case WHSWorkExecuteMode::LoadItemReceiving:
+            case WHSWorkExecuteMode::LoadItemReceivingAndLocate:
                 return AAXWHSItemIdentityPartnerContext::Vendor;
+        }
 
-            case WHSWorkExecuteMode::UserDirected:
-            case WHSWorkExecuteMode::SystemDirected:
-            case WHSWorkExecuteMode::UserGrouping:
-            case WHSWorkExecuteMode::SystemGrouping:
-            case WHSWorkExecuteMode::PickPack:
-                return AAXWHSItemIdentityPartnerContext::Customer;
+        // Only sales work carries a customer at runtime
+        if (menuItemTable.MenuItemMode == WHSMenuItemMode::Work
+            && menuItemTable.UseExistingWork
+            && AAXWHSItemIdentityMenuItemSetting::menuItemAllowsSalesWork(_name))
+        {
+            return AAXWHSItemIdentityPartnerContext::Customer;
         }
 
         return AAXWHSItemIdentityPartnerContext::None;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>menuItemAllowsSalesWork</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Indicates whether a mobile app menu item lists a work class of the sales work transaction type.
+    /// </summary>
+    /// <param name = "_name">The menu item name.</param>
+    /// <returns>True if the menu item can execute sales work.</returns>
+    private static boolean menuItemAllowsSalesWork(WHSMenuItemName _name)
+    {
+        WHSRFMenuItemLine menuItemLine;
+        WHSWorkClassTable workClassTable;
+
+        select firstonly RecId from menuItemLine
+            where menuItemLine.MenuItemName == _name
+            exists join workClassTable
+                where workClassTable.WorkClassId   == menuItemLine.WorkClassId
+                   && workClassTable.WorkTransType == WHSWorkTransType::Sales;
+
+        return menuItemLine.RecId != 0;
     }
 
 ]]></Source>

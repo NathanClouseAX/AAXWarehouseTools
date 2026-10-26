@@ -128,9 +128,14 @@ $docs = @(
     @{ in = "$repo\docs\UserGuide.md";               out = "$repo\docs\UserGuide.html" },
     @{ in = "$repo\docs\ItemIdentitySetup.md";       out = "$repo\docs\ItemIdentitySetup.html" },
     @{ in = "$repo\docs\ItemIdentityUserGuide.md";   out = "$repo\docs\ItemIdentityUserGuide.html" },
+    @{ in = "$repo\docs\ItemIdentityUseCases.md";    out = "$repo\docs\ItemIdentityUseCases.html" },
     @{ in = "$repo\docs\ItemIdentityScenarios.md";   out = "$repo\docs\ItemIdentityScenarios.html" },
     @{ in = "$repo\docs\ItemIdentitySmokeTest.md";   out = "$repo\docs\ItemIdentitySmokeTest.html" },
     @{ in = "$repo\docs\BuildPipeline.md";           out = "$repo\docs\BuildPipeline.html" }
 )
+
+foreach ($f in Get-ChildItem "$repo\docs\ItemIdentity" -Filter '*.md' | Sort-Object Name) {
+    $docs += @{ in = $f.FullName; out = [System.IO.Path]::ChangeExtension($f.FullName, '.html') }
+}
 
 foreach ($d in $docs) { Convert-Doc $d.in $d.out }
