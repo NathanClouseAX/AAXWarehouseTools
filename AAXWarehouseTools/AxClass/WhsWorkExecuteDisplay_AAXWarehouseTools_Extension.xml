@@ -88,11 +88,11 @@ public final class WhsWorkExecuteDisplay_AAXWarehouseTools_Extension
                 AAXWHSItemIdentityPartnerContext partnerContext = AAXWHSItemIdentityPartnerContext::None;
                 CustVendAC                       partnerAccount;
 
-                // Sales work resolves for the order customer
+                // Sales work resolves for the customer of the work line's order
                 if (workTable.WorkTransType == WHSWorkTransType::Sales)
                 {
                     partnerContext = AAXWHSItemIdentityPartnerContext::Customer;
-                    partnerAccount = SalesTable::find(workTable.OrderNum).CustAccount;
+                    partnerAccount = SalesTable::find(workLine.OrderNum ? workLine.OrderNum : workTable.OrderNum).CustAccount;
                 }
 
                 container identityLine = AAXWHSItemIdentityInjectionService::identityLineForMenuItem(

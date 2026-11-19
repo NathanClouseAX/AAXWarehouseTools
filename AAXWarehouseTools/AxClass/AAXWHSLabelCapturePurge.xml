@@ -85,17 +85,16 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
     /// </summary>
     private void cleanup()
     {
-        // The cutoff is computed once from the retention parameter
-        utcDateTime cutoff = DateTimeUtil::addDays(DateTimeUtil::utcNow(), -WHSParameters::find().aaxPreviewRetentionDays());
-
-        DataArea dataArea;
+        utcDateTime now = DateTimeUtil::utcNow();
+        DataArea    dataArea;
 
         while select Id from dataArea
             where !dataArea.isVirtual
         {
             changecompany(dataArea.Id)
             {
-                this.purgeCompany(cutoff);
+                // Each company keeps its own retention window
+                this.purgeCompany(DateTimeUtil::addDays(now, -WHSParameters::find().aaxPreviewRetentionDays()));
             }
         }
     }
@@ -120,7 +119,9 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
                && docuRef.RefTableId      == tableNum(WHSWorkTable)
                && docuRef.createdDateTime <  _cutoff
         {
+            ttsbegin;
             docuRef.delete();
+            ttscommit;
         }
 
         // Only terminal staging rows are purged
@@ -129,7 +130,9 @@ public class AAXWHSLabelCapturePurge extends RunBaseBatch implements BatchRetrya
                 || staging.Status == AAXWHSLabelCaptureStatus::Poison)
                && staging.createdDateTime < _cutoff
         {
+            ttsbegin;
             staging.delete();
+            ttscommit;
         }
     }
 

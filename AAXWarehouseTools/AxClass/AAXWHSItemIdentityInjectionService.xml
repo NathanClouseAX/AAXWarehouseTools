@@ -88,6 +88,13 @@ public final class AAXWHSItemIdentityInjectionService
                         break;
                 }
             }
+
+            // Keep the value within the control length
+            if (identityLine != conNull())
+            {
+                int maxLength = new DictType(extendedTypeNum(AAXWHSItemIdentityValue)).stringLen();
+                identityLine = conPoke(identityLine, 2, subStr(conPeek(identityLine, 2), 1, maxLength));
+            }
         }
         catch
         {
