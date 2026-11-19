@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXBlindReceiptOrder</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Provides the checks that decide whether a purchase order is a blind receipt order and whether
+/// the Blind PO receiving mobile flow may add lines to it.
+/// </summary>
+public final class AAXBlindReceiptOrder
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>isBlindReceiptPool</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Indicates whether a purchase pool is the blind receipt pool of a warehouse that has blind PO
+    /// receiving turned on.
+    /// </summary>
+    /// <param name = "_purchPoolId">The purchase pool to check.</param>
+    /// <param name = "_inventLocationId">The warehouse whose setting applies.</param>
+    /// <returns>True if the pool marks blind receipt orders for the warehouse; otherwise, false.</returns>
+    public static boolean isBlindReceiptPool(PurchPoolId _purchPoolId, InventLocationId _inventLocationId)
+    {
+        InventLocation inventLocation = InventLocation::find(_inventLocationId);
+
+        return inventLocation.AAXBlindReceiptEnabled
+            && inventLocation.AAXBlindReceiptPurchPoolId
+            && _purchPoolId == inventLocation.AAXBlindReceiptPurchPoolId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isBlindReceiptOrder</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Indicates whether a purchase order is a blind receipt order.
+    /// </summary>
+    /// <param name = "_purchTable">The purchase order to check.</param>
+    /// <returns>True if the order is in the blind receipt pool of its warehouse; otherwise, false.</returns>
+    public static boolean isBlindReceiptOrder(PurchTable _purchTable)
+    {
+        return AAXBlindReceiptOrder::isBlindReceiptPool(_purchTable.PurchPoolId, _purchTable.InventLocationId);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>receivingError</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds why a worker cannot receive against a purchase order at a warehouse. The warehouse
+    /// must have blind PO receiving turned on, and the order must be for that warehouse, in its
+    /// blind receipt pool, and not cancelled; an order whose earlier lines are already received is
+    /// accepted.
+    /// </summary>
+    /// <param name = "_purchId">The purchase order number the worker scanned or keyed.</param>
+    /// <param name = "_inventLocationId">The worker's warehouse.</param>
+    /// <returns>The message to show the worker, or an empty string when the order can be received.</returns>
+    public static str receivingError(PurchId _purchId, InventLocationId _inventLocationId)
+    {
+        InventLocation inventLocation = InventLocation::find(_inventLocationId);
+
+        if (!inventLocation.AAXBlindReceiptEnabled)
+        {
+            return strFmt("@AAXBlindReceiving:ErrNotEnabled", _inventLocationId);
+        }
+
+        if (!inventLocation.AAXBlindReceiptPurchPoolId)
+        {
+            return strFmt("@AAXBlindReceiving:ErrNoPool", _inventLocationId);
+        }
+
+        PurchTable purchTable = PurchTable::find(_purchId);
+
+        if (!purchTable)
+        {
+            return strFmt("@AAXBlindReceiving:ErrOrderNotFound", _purchId);
+        }
+
+        if (!purchTable.InventLocationId)
+        {
+            return strFmt("@AAXBlindReceiving:ErrNoWarehouse", _purchId);
+        }
+
+        if (purchTable.InventLocationId != _inventLocationId)
+        {
+            return strFmt("@AAXBlindReceiving:ErrWrongWarehouse", _purchId, purchTable.InventLocationId, _inventLocationId);
+        }
+
+        if (purchTable.PurchaseType != PurchaseType::Purch
+            || purchTable.PurchPoolId != inventLocation.AAXBlindReceiptPurchPoolId)
+        {
+            return strFmt("@AAXBlindReceiving:ErrNotBlindOrder", _purchId);
+        }
+
+        if (purchTable.PurchStatus == PurchStatus::Canceled)
+        {
+            return strFmt("@AAXBlindReceiving:ErrOrderCancelled", _purchId);
+        }
+
+        return '';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>itemError</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds why an item cannot be received on a blind receipt order. The item must belong to the
+    /// order's vendor, which is its primary vendor, and must not be a catch weight item.
+    /// </summary>
+    /// <param name = "_purchId">The blind receipt order.</param>
+    /// <param name = "_itemId">The item the worker scanned.</param>
+    /// <returns>The message to show the worker, or an empty string when the item can be received.</returns>
+    public static str itemError(PurchId _purchId, ItemId _itemId)
+    {
+        if (!_purchId || !_itemId)
+        {
+            return '';
+        }
+
+        if (PdsGlobal::pdsIsCWItem(_itemId))
+        {
+            return strFmt("@AAXBlindReceiving:ErrCatchWeightItem", _itemId);
+        }
+
+        VendAccount vendAccount = PurchTable::find(_purchId).OrderAccount;
+
+        if (InventTable::find(_itemId).PrimaryVendorId != vendAccount)
+        {
+            return strFmt("@AAXBlindReceiving:ErrItemOtherVendor", _itemId, vendAccount);
+        }
+
+        return '';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>licensePlateError</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds why an order cannot be received onto a license plate. A license plate holds the items of
+    /// one order only.
+    /// </summary>
+    /// <param name = "_licensePlateId">The license plate being built.</param>
+    /// <param name = "_purchId">The order the worker scanned.</param>
+    /// <returns>The message to show the worker, or an empty string when the order fits the plate.</returns>
+    public static str licensePlateError(WHSLicensePlateId _licensePlateId, PurchId _purchId)
+    {
+        WHSMixedLicensePlateReceipt receipt = WHSMixedLicensePlateReceipt::findOpenByLicensePlateId(_licensePlateId);
+
+        if (!receipt.RecId)
+        {
+            return '';
+        }
+
+        PurchLine                       purchLine;
+        WHSMixedLicensePlateReceiptLine receiptLine;
+
+        select firstonly PurchId from purchLine
+            where purchLine.PurchId != _purchId
+            exists join receiptLine
+                where receiptLine.MixedLPReceivingTable == receipt.RecId
+                   && receiptLine.InventTransId         == purchLine.InventTransId;
+
+        if (purchLine.PurchId)
+        {
+            return strFmt("@AAXBlindReceiving:ErrLicensePlateOtherOrder", _licensePlateId, purchLine.PurchId);
+        }
+
+        return '';
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

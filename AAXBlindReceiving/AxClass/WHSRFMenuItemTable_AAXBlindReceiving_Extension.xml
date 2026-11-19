@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>WHSRFMenuItemTable_AAXBlindReceiving_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Extension of the <c>WHSRFMenuItemTable</c> table for the AAXBlindReceiving model. Makes a mixed
+/// license plate menu item in the Blind PO receiving mode receive purchase work.
+/// </summary>
+[ExtensionOf(tableStr(WHSRFMenuItemTable))]
+final class WHSRFMenuItemTable_AAXBlindReceiving_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>getWorkTransTypeForMixedLP</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Extends <c>getWorkTransTypeForMixedLP</c> to return purchase work for a Blind PO receiving
+    /// menu item, after the base implementation is called with <c>next</c>.
+    /// </summary>
+    /// <param name = "_menuItemName">The mobile device menu item.</param>
+    /// <param name = "_pass">The pass of the flow.</param>
+    /// <returns>The work transaction type the menu item receives.</returns>
+    public static WHSWorkTransType getWorkTransTypeForMixedLP(WHSMenuItemName _menuItemName, WhsrfPassthrough _pass)
+    {
+        WHSWorkTransType ret = next getWorkTransTypeForMixedLP(_menuItemName, _pass);
+
+        if (WHSRFMenuItemTable::find(_menuItemName).MixedLPReceivingMode == WHSMixedLPReceivingMode::AAXBlindPOItemReceiving)
+        {
+            ret = WHSWorkTransType::Purch;
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

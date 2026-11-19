@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>InventLocation_AAXBlindReceiving_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Extension of the <c>InventLocation</c> table for the AAXBlindReceiving model. Requires a blind
+/// receipt pool on a warehouse that has blind PO receiving turned on.
+/// </summary>
+[ExtensionOf(tableStr(InventLocation))]
+final class InventLocation_AAXBlindReceiving_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>validateWrite</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Extends <c>validateWrite</c> to refuse a warehouse that has blind PO receiving turned on
+    /// without a blind receipt pool, after the base implementation is called with <c>next</c>.
+    /// </summary>
+    /// <returns>True if the record is valid; otherwise, false.</returns>
+    public boolean validateWrite()
+    {
+        boolean ret = next validateWrite();
+
+        if (ret
+            && this.AAXBlindReceiptEnabled
+            && !this.AAXBlindReceiptPurchPoolId)
+        {
+            ret = checkFailed(strFmt("@AAXBlindReceiving:ErrNoPool", this.InventLocationId));
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

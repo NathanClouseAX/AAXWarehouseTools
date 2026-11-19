@@ -1,0 +1,58 @@
+BlindReceipt=Blind receipt
+ ;Field group caption for the blind receipt fields on purchase lines.
+Enabled=Enabled
+ ;Warehouse setting that switches blind PO receiving on for the warehouse.
+EnabledHelp=Allows the Blind PO receiving mobile flow to add lines to blind receipt orders for this warehouse.
+ ;Help text for the Enabled warehouse setting.
+ErrChangeManagement=Blind receipt orders can't use change management. Turn off change management on purchase order %1.
+ ;%1 = purchase order number.
+ErrCatchWeightItem=Item %1 is a catch weight item. Blind PO receiving can't receive it. Ask the lead.
+ ;%1 = item number.
+ErrItemOtherVendor=Item %1 doesn't belong to vendor %2, the vendor on this order. Set it aside and ask the lead.
+ ;%1 = item number, %2 = vendor account of the order.
+ErrLicensePlateOtherOrder=License plate %1 already holds items of purchase order %2. Complete it or use another license plate.
+ ;%1 = license plate, %2 = purchase order number already on the license plate.
+ErrNoWarehouse=Purchase order %1 has no warehouse. Ask the lead.
+ ;%1 = purchase order number.
+ErrNotBlindOrder=Purchase order %1 isn't a blind receipt order. Ask the lead.
+ ;%1 = purchase order number.
+ErrNotEnabled=Blind PO receiving isn't enabled for warehouse %1.
+ ;Shown on the device when the warehouse setting is off. %1 = worker warehouse.
+ErrNoPool=Set a blind receipt pool on warehouse %1.
+ ;Shown when the warehouse setting is on but no purchase pool is set. %1 = warehouse.
+ErrOrderCancelled=Purchase order %1 is cancelled. Ask the lead.
+ ;%1 = purchase order number.
+ErrOrderNotFound=Purchase order %1 doesn't exist. Ask the lead for the order number.
+ ;%1 = purchase order number.
+ErrWrongWarehouse=Purchase order %1 is for warehouse %2, not warehouse %3. Ask the lead.
+ ;%1 = purchase order number, %2 = order warehouse, %3 = worker warehouse.
+CleanupLineFailed=The empty blind receipt line with lot %1 wasn't deleted. The next run tries again.
+ ;%1 = inventory lot ID of the purchase line.
+DutyPost=Post blind receipts
+ ;Security duty for scheduling the blind receipt posting batch.
+FeatureGroup=Blind PO receiving
+ ;Field group caption for the blind receiving settings on the Warehouses form.
+MixedLPMode=Blind PO receiving
+ ;Mixed license plate receiving mode for receiving blind receipt orders on the mobile device.
+PostBatch=Post blind receipts
+ ;Action menu item label and caption of the blind receipt posting batch job.
+PostBatchHelp=Posts the product receipt for the registered quantity of blind receipt orders, and deletes device-added lines that were unregistered.
+ ;Help text for the blind receipt posting batch job.
+PostOrderFailed=The product receipt for purchase order %1 wasn't posted.
+ ;%1 = purchase order number.
+PostSummary=Blind receipt posting: %1 orders posted, %2 failed, %3 unregistered lines deleted.
+ ;%1 = orders posted, %2 = orders that failed, %3 = device-added lines deleted.
+PrivPost=Post blind receipts
+ ;Security privilege for the blind receipt posting batch job.
+PurchPool=Blind receipt pool
+ ;Warehouse setting that names the purchase pool of blind receipt orders.
+PurchPoolHelp=Purchase pool that marks an order for this warehouse as a blind receipt order. The lead creates each blind receipt order in this pool.
+ ;Help text for the blind receipt pool warehouse setting.
+ReceiptDateTime=Blind receipt added
+ ;Purchase line field: when the mobile worker added the line.
+ReceiptDateTimeHelp=Date and time the mobile worker added the line during Blind PO receiving.
+ ;Help text for the registration time field.
+ReceiptWorker=Blind receipt worker
+ ;Purchase line field: mobile worker who added the line.
+ReceiptWorkerHelp=Mobile worker who added the line during Blind PO receiving.
+ ;Help text for the worker field.

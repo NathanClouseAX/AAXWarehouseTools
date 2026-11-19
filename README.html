@@ -34,15 +34,16 @@ img { max-width: 100%; }
 </head>
 <body>
 <h1 id="aax-warehouse-tools">AAX Warehouse Tools</h1>
-<p>On-demand ZPL label preview and printer-free mobile-flow label capture for Microsoft Dynamics 365 Finance &amp; Operations (Warehouse management) — all rendering happens inside the AOS, with no label data leaving your environment.</p>
+<p>On-demand ZPL label preview, printer-free mobile-flow label capture, an item identity line on the warehouse app, and blind PO receiving for Microsoft Dynamics 365 Finance &amp; Operations (Warehouse management) — all label rendering happens inside the AOS, with no label data leaving your environment.</p>
 <h2 id="overview">Overview</h2>
-<p>AAX Warehouse Tools adds two label capabilities to Warehouse management:</p>
+<p>AAX Warehouse Tools adds these capabilities to Warehouse management:</p>
 <ul>
 <li><strong>Generate a label preview on demand</strong> — see exactly what a ZPL layout will produce, as a PNG image, without sending anything to a printer or to any external service.</li>
 <li><strong>Capture labels printed from mobile/RF flows and attach them to Work</strong> — when enabled, ZPL labels that are printed from warehouse mobile flows and that belong to a Work record are rendered to images and attached to that Work, even when no physical printer is configured.</li>
 <li><strong>Show an item identity line on the warehouse app</strong> — a configurable read-only line on picking and receiving screens that shows the identity the warehouse actually works with: the customer's or vendor's external item number, the variant's product name, a GTIN, an item barcode, or the search name.</li>
+<li><strong>Receive freight that arrives without a purchase order</strong> — the lead opens an empty purchase order for each unannounced arrival, and the warehouse worker builds its lines on the mobile device from what is actually delivered.</li>
 </ul>
-<p>Both label features render ZPL to images entirely in-process. The renderer is a single self-contained assembly (<code>AtomicAx.Zpl.Render.dll</code>) that ships in the model <code>bin</code> folder; there is nothing else to install.</p>
+<p>Both label features render ZPL to images entirely in-process. The renderer is a single self-contained assembly (<code>AtomicAx.Zpl.Render.dll</code>) that ships in the package <code>bin</code> folder; there is nothing else to install.</p>
 <h2 id="features">Features</h2>
 <h3 id="feature-a-on-demand-label-preview">Feature A — On-demand label preview</h3>
 <p>A <strong>Generate label preview</strong> action button is added to the action pane of the <strong>Label layout</strong> and <strong>Document routing layout</strong> forms. Selecting it opens the <strong>Label preview</strong> dialog, which:</p>
@@ -62,19 +63,29 @@ img { max-width: 100%; }
 <h3 id="feature-c-item-identity-line-on-the-warehouse-app">Feature C — Item identity line on the warehouse app</h3>
 <p>Warehouse Management mobile screens identify goods by the released product number. When the operative identity is something else — the variant, a trading partner's item number, a GTIN — workers cannot confirm they have the right goods without leaving the flow. Feature C injects <strong>one configurable, read-only item identity line</strong> into picking and receiving screens, resolved through an ordered chain of identity sources with partner context (the customer on sales picking, the vendor on purchase receiving). Placement and prominence use the standard <strong>Warehouse app field priority</strong> and promoted-fields mechanisms.</p>
 <p>The feature is dormant until configured, adds nothing to standard tables, and can never block a warehouse transaction — a resolution failure simply means the line is absent. See the <a href="docs/ItemIdentitySetup.html">Item identity setup guide</a>, the <a href="docs/ItemIdentityUserGuide.html">Item identity user guide</a>, the <a href="docs/ItemIdentityUseCases.html">use case catalog</a> (a step-by-step guide for each of the 18 supported scenarios, worked on Contoso USMF data), the <a href="docs/ItemIdentitySmokeTest.html">smoke test and diagnostics</a>, and the <a href="docs/ItemIdentityScenarios.html">validation scenarios</a>.</p>
+<h3 id="feature-d-blind-po-receiving">Feature D — Blind PO receiving</h3>
+<p>Freight sometimes arrives at the warehouse with no purchase order or advance notice. Standard mobile receiving needs purchase order lines to receive against, so this stock can't be received. Feature D creates the purchase order on demand and builds the receipt from what is delivered:</p>
+<ol>
+<li>For each arrival, the lead creates an empty purchase order in the warehouse's <strong>blind receipt pool</strong>.</li>
+<li>On the mobile device, the worker scans a license plate and that purchase order number, then identifies each item as it comes off the truck.</li>
+<li>Each confirmed item adds a zero-price line to the order and puts the quantity on the license plate. <strong>LP Complete</strong> registers the plate and creates its put-away work.</li>
+<li>A nightly batch, <strong>Post blind receipts</strong>, posts the product receipt for what was registered. Workers can still add lines to the same order afterwards.</li>
+</ol>
+<p>The flow runs on a standard <strong>Mixed license plate receiving</strong> menu item with its own identification method, <strong>Blind PO receiving</strong>, so standard receiving menu items are untouched. It is switched on per warehouse. The device refuses items whose primary vendor isn't the order's vendor, orders outside the warehouse's blind receipt pool, and a second order on the same license plate. Each device-added line records the mobile worker who added it and when it was registered. Cancelling the put-away work can unregister the receipt and delete the lines the device added.</p>
+<p>See the <a href="docs/BlindReceivingSetup.html">Blind PO receiving setup guide</a> and the <a href="docs/BlindReceivingUserGuide.html">Blind PO receiving user guide</a>. The feature was tracked in <a href="https://github.com/NathanClouseAX/AAXWarehouseTools/issues/7">issue #7</a>.</p>
 <h2 id="prerequisites">Prerequisites</h2>
 <ul>
 <li>Microsoft Dynamics 365 Finance &amp; Operations with the <strong>Warehouse management</strong> module enabled.</li>
-<li>Access to deploy a model into the environment and to run a database synchronization (a standard developer or admin task in a non-production environment, or a deployable package in production).</li>
+<li>Access to deploy a package into the environment and to run a database synchronization (a standard developer or admin task in a non-production environment, or a deployable package in production).</li>
 <li>System administrator (or equivalent) rights to configure Warehouse management parameters, Document routing, batch tasks, and security roles.</li>
 </ul>
 <p>No printer is required for any of these features.</p>
 <h2 id="installation-and-database-synchronization">Installation and database synchronization</h2>
 <ol>
-<li><strong>Deploy the <code>AAXWarehouseTools</code> model.</strong> The ZPL renderer ships as a single self-contained assembly, <code>AtomicAx.Zpl.Render.dll</code>, which is already present in the model <code>bin</code> folder. No separate native-library deployment is required.</li>
-<li><strong>Synchronize the database.</strong> This adds the Warehouse parameters fields used by the label-capture feature, the label-capture staging table that buffers labels between capture and rendering, and the item identity configuration tables.</li>
+<li><strong>Deploy the <code>AAXWarehouseTools</code> package.</strong> The package holds two models that deploy together: <code>AAXWarehouseTools</code> (Features A–C) and <code>AAXBlindReceiving</code> (Feature D). The ZPL renderer ships as a single self-contained assembly, <code>AtomicAx.Zpl.Render.dll</code>, which is already present in the package <code>bin</code> folder. No separate native-library deployment is required.</li>
+<li><strong>Synchronize the database.</strong> This adds the Warehouse parameters fields used by the label-capture feature, the label-capture staging table that buffers labels between capture and rendering, the item identity configuration tables, and the blind receiving fields on warehouses and purchase lines.</li>
 </ol>
-<p>After the model is deployed and the database is synchronized, all features are available; label capture and item identity still need to be enabled and configured (below).</p>
+<p>After the package is deployed and the database is synchronized, all features are available; label capture, item identity and blind PO receiving still need to be enabled and configured (below).</p>
 <h2 id="configuration">Configuration</h2>
 <h3 id="warehouse-management-parameters">Warehouse management parameters</h3>
 <p>Open <strong>Warehouse management &gt; Setup &gt; Warehouse management parameters</strong>, go to the <strong>Work</strong> tab, and find the <strong>Label preview to attachment</strong> group.</p>
@@ -140,6 +151,17 @@ img { max-width: 100%; }
 </ul>
 <h3 id="item-identity-display-feature-c">Item identity display (Feature C)</h3>
 <p>Configuration lives under <strong>Warehouse management &gt; Setup &gt; Mobile device</strong>: enable the feature in <strong>Item identity parameters</strong>, define an ordered source chain in <strong>Item identity profiles</strong>, assign profiles to menu items in <strong>Item identity menu item settings</strong>, and place the line with the standard <strong>Warehouse app field priority</strong> setup. The <a href="docs/ItemIdentitySetup.html">Item identity setup guide</a> walks through every step, including the recommended starting profile and how to move configuration between environments with data management.</p>
+<h3 id="blind-po-receiving-feature-d">Blind PO receiving (Feature D)</h3>
+<p>Blind PO receiving is set up per warehouse:</p>
+<ol>
+<li>Create a purchase pool for blind receipt orders under <strong>Procurement and sourcing &gt; Setup &gt; Purchase orders &gt; Purchase pools</strong>. Warehouses can share a pool or each use their own.</li>
+<li>Open <strong>Warehouse management &gt; Setup &gt; Warehouse &gt; Warehouses</strong> and select a warehouse that receives blind freight. On the <strong>Warehouse</strong> FastTab, in the <strong>Blind PO receiving</strong> group, turn on <strong>Enabled</strong> and set <strong>Blind receipt pool</strong> to that pool.</li>
+<li>Under <strong>Warehouse management &gt; Setup &gt; Mobile device &gt; Mobile device menu items</strong>, create a menu item with <strong>Mode</strong> <strong>Indirect</strong>, <strong>Work creation process</strong> <strong>Mixed license plate receiving</strong>, and <strong>Source document line identification method</strong> <strong>Blind PO receiving</strong>. Add it to the workers' <strong>Mobile device menu</strong>.</li>
+<li>Add a <strong>Document routing</strong> rule for the new menu item so license plate labels print. Put-away uses the existing purchase order work templates and location directives.</li>
+<li>Schedule <strong>Warehouse management &gt; Periodic tasks &gt; Post blind receipts</strong> nightly in batch, in each company that uses the feature.</li>
+<li>To let cancelled put-away work unregister a blind receipt and delete its lines, turn on <strong>Unregister receipt when canceling work</strong> in <strong>Warehouse management parameters</strong>.</li>
+</ol>
+<p>Blind receipt orders can't use change management: an order in the blind receipt pool can't be saved while change management is on for it. If your company uses change management, allow override per vendor and turn it off for the clients' vendor accounts. The <a href="docs/BlindReceivingSetup.html">setup guide</a> covers every step.</p>
 <h3 id="security">Security</h3>
 <p>Assign the <strong>Maintain warehouse label preview</strong> duty to the roles that need this functionality. The duty bundles two privileges:</p>
 <ul>
@@ -147,6 +169,7 @@ img { max-width: 100%; }
 <li><strong>Administer label preview capture</strong> — grants access to the capture toggle and the render/purge batch tasks (Feature B).</li>
 </ul>
 <p>For Feature C, assign the <strong>Maintain item identity configuration</strong> duty to the roles that configure the feature; it covers the three setup forms, the Test resolution diagnostic, and data management access to the item identity entities. Warehouse workers need no additional access — the identity line renders under their existing mobile-flow permissions.</p>
+<p>For Feature D, assign the <strong>Post blind receipts</strong> duty to the role that schedules batch jobs, for example the warehouse manager; it grants access to the <strong>Post blind receipts</strong> batch job and isn't on any role by default. The warehouse settings are on the standard <strong>Warehouses</strong> form, leads create blind receipt orders with their existing purchasing access, and warehouse workers need no additional access.</p>
 <p>Assign the duties (or the individual privileges) to your warehouse worker, supervisor, or administrator roles as appropriate.</p>
 <h2 id="usage">Usage</h2>
 <h3 id="feature-a-generate-a-label-preview">Feature A — Generate a label preview</h3>
@@ -179,12 +202,21 @@ img { max-width: 100%; }
 <li>Run a configured flow on the mobile app; the identity line appears with the item information. Use the <strong>Test resolution</strong> action on the profile to replay any resolution from the rich client, source by source.</li>
 </ol>
 <p>The <a href="docs/ItemIdentitySetup.html">setup guide</a> covers every option; the <a href="docs/ItemIdentityUserGuide.html">user guide</a> covers what workers see and troubleshooting. If the line does not appear, run the <a href="docs/ItemIdentitySmokeTest.html">smoke test</a> — it isolates deployment, configuration, injection and resolution problems in about twenty minutes.</p>
+<h3 id="feature-d-receive-freight-without-a-purchase-order">Feature D — Receive freight without a purchase order</h3>
+<ol>
+<li>When freight arrives, the lead creates a purchase order with the client as <strong>vendor account</strong>, the receiving site and warehouse, and the warehouse's blind receipt pool as <strong>purchase pool</strong>. The order has no lines and change management off. The lead saves it and passes the order number to the worker with the paperwork.</li>
+<li>On the mobile app, the worker opens the blind PO receiving menu item, scans the pallet's license plate, then scans or keys the order number.</li>
+<li>For each item, the worker scans it, enters any product dimensions, the quantity and unit, and selects <strong>OK</strong>. Each confirmation adds a zero-price line to the order. Use <strong>Show list</strong> and <strong>Modify</strong> to change a quantity before the plate is complete.</li>
+<li>The worker selects <strong>LP Complete</strong>. The plate is registered, one put-away work is created for it, and its label prints. The pallet is put away with the standard put-away flow.</li>
+<li>Overnight, <strong>Post blind receipts</strong> posts a product receipt for the registered quantity, numbered after the order (<code>&lt;PO number&gt;-1</code>, then <code>-2</code> for the next night's posting).</li>
+</ol>
+<p>The <a href="docs/BlindReceivingSetup.html">setup guide</a> covers every option and how to check the setup; the <a href="docs/BlindReceivingUserGuide.html">user guide</a> covers corrections and every message the device can show.</p>
 <h2 id="building-from-source">Building from source</h2>
-<p>The repository includes an Azure DevOps pipeline (<code>azure-pipelines.yml</code>) that builds the model from GitHub on a Microsoft-hosted agent and publishes deployable packages for both Lifecycle Services and Power Platform admin center environments — no build VM required. The one-time Azure DevOps setup (build tasks extension, package feed, GitHub connection) is described in the <a href="docs/BuildPipeline.html">build pipeline guide</a>.</p>
+<p>The repository includes an Azure DevOps pipeline (<code>azure-pipelines.yml</code>) that builds the package and both of its models from GitHub on a Microsoft-hosted agent and publishes deployable packages for both Lifecycle Services and Power Platform admin center environments — no build VM required. The one-time Azure DevOps setup (build tasks extension, package feed, GitHub connection) is described in the <a href="docs/BuildPipeline.html">build pipeline guide</a>.</p>
 <h2 id="how-it-works-and-data-privacy">How it works and data privacy</h2>
 <ul>
 <li><strong>100% in-process rendering.</strong> ZPL is resolved, token-substituted, and rendered to PNG entirely within the AOS process. No label content, ZPL, or image is sent to any external service, and the features make no outbound network calls for rendering.</li>
-<li><strong>Single bundled assembly.</strong> The renderer is delivered as one self-contained assembly, <code>AtomicAx.Zpl.Render.dll</code>, in the model <code>bin</code> folder. All of its managed dependencies are merged into that one file and the required native libraries are embedded in it, so there is no separate native-library deployment and no version conflict with other components in the AOS.</li>
+<li><strong>Single bundled assembly.</strong> The renderer is delivered as one self-contained assembly, <code>AtomicAx.Zpl.Render.dll</code>, in the package <code>bin</code> folder. All of its managed dependencies are merged into that one file and the required native libraries are embedded in it, so there is no separate native-library deployment and no version conflict with other components in the AOS.</li>
 <li><strong>Capture stays in your environment.</strong> Captured labels are buffered in a staging table inside your database and attached to the related Work record through standard Document handling. Capture is bounded by the auto-off and retention settings so data does not accumulate indefinitely.</li>
 </ul>
 <h2 id="troubleshooting">Troubleshooting</h2>
@@ -198,7 +230,7 @@ img { max-width: 100%; }
 <p><strong>A label renders smaller or larger than expected, or a layout that declares no size renders at 4×6.</strong> When a label does not declare its own dimensions (<code>^PW</code> / <code>^LL</code>), the render falls back to the parameter defaults — <strong>Default print density (DPI)</strong>, <strong>Default label width (in)</strong>, and <strong>Default label height (in)</strong> for capture, or 4×6 inches in the preview dialog if no size is otherwise specified. Set the parameter defaults to match your stock, or use <strong>Override label size</strong> in the preview dialog.</p>
 <p><strong>A layout cannot be previewed.</strong> The preview supports the <strong>ZPL</strong> definition type (including template blocks). Layouts whose definition type is <strong>Variables</strong> or <strong>VariablesScript</strong> are not previewable; the dialog reports this. If a layout has no active version, activate one first. If a template layout has no data source, add one to the layout so its template can be expanded.</p>
 <h2 id="third-party-components">Third-party components</h2>
-<p>This solution redistributes third-party components inside the model <code>bin</code> folder, all under terms that permit commercial redistribution. See <a href="THIRD-PARTY-NOTICES.html"><code>THIRD-PARTY-NOTICES.md</code></a> for the full list of components and their terms.</p>
+<p>This solution redistributes third-party components inside the package <code>bin</code> folder, all under terms that permit commercial redistribution. See <a href="THIRD-PARTY-NOTICES.html"><code>THIRD-PARTY-NOTICES.md</code></a> for the full list of components and their terms.</p>
 
 </body>
 </html>

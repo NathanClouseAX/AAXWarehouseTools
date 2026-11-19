@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTableExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>InventLocation.AAXBlindReceiving</Name>
+	<FieldGroupExtensions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AAXBlindReceipt</Name>
+			<Label>@AAXBlindReceiving:FeatureGroup</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>AAXBlindReceiptEnabled</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>AAXBlindReceiptPurchPoolId</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<FieldModifications />
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>AAXBlindReceiptEnabled</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>NoYesId</ExtendedDataType>
+			<HelpText>@AAXBlindReceiving:EnabledHelp</HelpText>
+			<Label>@AAXBlindReceiving:Enabled</Label>
+			<EnumType>NoYes</EnumType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>AAXBlindReceiptPurchPoolId</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>PurchPoolId</ExtendedDataType>
+			<HelpText>@AAXBlindReceiving:PurchPoolHelp</HelpText>
+			<Label>@AAXBlindReceiving:PurchPool</Label>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes />
+	<Mappings />
+	<PropertyModifications />
+	<RelationExtensions />
+	<RelationModifications />
+	<Relations>
+		<AxTableRelation xmlns=""
+			i:type="AxTableRelationForeignKey">
+			<Name>AAXBlindReceiptPurchPool</Name>
+			<Cardinality>ZeroMore</Cardinality>
+			<EDTRelation>Yes</EDTRelation>
+			<RelatedTable>PurchPool</RelatedTable>
+			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
+			<RelationshipType>Association</RelationshipType>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>AAXBlindReceiptPurchPoolId</Name>
+					<Field>AAXBlindReceiptPurchPoolId</Field>
+					<RelatedField>PurchPoolId</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+			<Index>PurchPoolIdx</Index>
+		</AxTableRelation>
+	</Relations>
+</AxTableExtension>

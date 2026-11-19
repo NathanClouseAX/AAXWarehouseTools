@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AAX Warehouse Tools — Blind PO Receiving User Guide</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="aax-warehouse-tools-blind-po-receiving-user-guide">AAX Warehouse Tools — Blind PO Receiving User Guide</h1>
+<p>This guide is for the people who receive freight that arrives with no purchase order or advance notice: the <strong>lead</strong> who opens the order, and the <strong>warehouse workers</strong> who receive it on the mobile app. For first-time setup, start with the <a href="BlindReceivingSetup.html">setup guide</a>.</p>
+<h2 id="how-it-works">1. How it works</h2>
+<p>Vendors ship and drop off goods without notice, so orders can't be opened ahead of time. Instead:</p>
+<ol>
+<li><strong>The lead</strong> creates one empty purchase order per arrival, in the warehouse's blind receipt pool, and passes its number to the worker with the paperwork.</li>
+<li><strong>The worker</strong> scans a license plate and the order number on the mobile device, then identifies each item as it comes off the truck.</li>
+<li><strong>Each confirmed item</strong> adds a zero-price line to the order and puts the quantity on the license plate.</li>
+<li><strong>LP Complete</strong> registers the plate, creates its put-away work and prints its label.</li>
+<li><strong>A nightly batch</strong> posts the product receipt for what was registered. Workers can still add lines to the same order the next day.</li>
+</ol>
+<p>Freight from a sender nobody can identify waits in the physical hold area until the lead knows whose it is.</p>
+<h2 id="for-the-lead-create-a-blind-receipt-order">2. For the lead: create a blind receipt order</h2>
+<p>When a shipment arrives:</p>
+<ol>
+<li>Go to <strong>Procurement and sourcing &gt; Purchase orders &gt; All purchase orders</strong> and create a purchase order.</li>
+<li>Set the <strong>vendor account</strong> to the client the goods belong to.</li>
+<li>Set the <strong>site and warehouse</strong> to the warehouse that receives the goods.</li>
+<li>Set the order's <strong>purchase pool</strong> to that warehouse's blind receipt pool. Ask your administrator which pool it is.</li>
+<li>Add <strong>no lines</strong>. Change management must be off on the order, or it can't be saved.</li>
+<li>Save the order and pass its number to the worker with the paperwork.</li>
+</ol>
+<p>One order covers one arrival at one warehouse. If a client's goods arrive at two warehouses, create an order for each.</p>
+<h2 id="for-the-worker-receive-on-the-device">3. For the worker: receive on the device</h2>
+<p>Open the <strong>Blind PO receiving</strong> menu item. Your administrator may have given it another name.</p>
+<ol>
+<li><strong>License plate.</strong> Scan or enter the pallet's license plate. Use a new one, or an open plate you are still building.</li>
+<li><strong>PO number.</strong> Scan or key the number the lead gave you. The device checks the order before you receive anything (see section 6, Messages). An order whose earlier lines were already posted overnight is still accepted.</li>
+<li><strong>Item.</strong> Scan the item. Its primary vendor must be the order's vendor. Any other item is refused.</li>
+<li><strong>Dimensions, quantity and unit.</strong> If the item has product dimensions, such as size or color, enter them. Then enter the quantity and unit. The unit is the purchase unit by default. Batch, serial number or expiry date screens appear when the item's tracking requires them.</li>
+<li><strong>OK.</strong> The device adds a line to the order at zero price, with no discount or charges. It records you and the time on the line, and puts the quantity on the license plate.</li>
+</ol>
+<p>Repeat steps 3 to 5 for each item on the pallet. Each confirmation adds its own line, even for the same item.</p>
+<ol start="6">
+<li><strong>Show list.</strong> Lists the lines on the plate. To fix a quantity, select the line and choose <strong>Modify</strong>. The order line is resized to match, in the item's inventory unit. Quantity 0 removes the line from the plate. The nightly run deletes its empty order line.</li>
+<li><strong>LP Complete.</strong> Registers everything on the plate, creates one put-away work for the plate and prints its label. Put the pallet away with your usual put-away menu item.</li>
+</ol>
+<p>A pallet holds items of one order only. Start a new license plate for the next order.</p>
+<h2 id="after-receiving">4. After receiving</h2>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Put-away</strong></td>
+<td>The put-away work from <strong>LP Complete</strong> is done with the standard put-away flow.</td>
+</tr>
+<tr>
+<td><strong>Posting</strong></td>
+<td>A nightly batch posts a product receipt for the registered quantity of each order. Receipts are numbered after the order: <code>&lt;PO number&gt;-1</code> for the first night, <code>&lt;PO number&gt;-2</code> for the next. Nobody needs to post at month end.</td>
+</tr>
+<tr>
+<td><strong>Adding more later</strong></td>
+<td>Workers can add lines to the same order on a later day. The next nightly run posts them as a new product receipt.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="corrections">5. Corrections</h2>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wrong quantity or item, plate not complete yet</td>
+<td>Use <strong>Show list</strong> and <strong>Modify</strong>. Set the quantity to 0 to take an item off the plate.</td>
+</tr>
+<tr>
+<td>Plate completed, product receipt not posted yet</td>
+<td>Cancel the plate's put-away work. If your administrator turned on <strong>Unregister receipt when canceling work</strong>, this unregisters the receipt and deletes the lines the device added. Then receive the pallet again.</td>
+</tr>
+<tr>
+<td>Receipt unregistered another way, for example from the registration form</td>
+<td>Nothing more to do. The empty line stays on the order until the next nightly run deletes it.</td>
+</tr>
+<tr>
+<td>Product receipt already posted</td>
+<td>Cancel or correct the product receipt first, as standard.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Audit.</strong> Each line the device added records the mobile worker who added it, in <strong>Blind receipt worker</strong>, and when, in <strong>Blind receipt added</strong>. Both show on the purchase order line under <strong>Line details &gt; General &gt; Blind receipt</strong>. The purchase line's standard <em>created by</em> shows the shared mobile account.</p>
+<h2 id="messages">6. Messages</h2>
+<p>The device checks the order number, the license plate and each item before anything is received. Each refusal names the problem:</p>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th>Cause</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>Blind PO receiving isn't enabled for warehouse ...</em></td>
+<td>Your warehouse doesn't use blind PO receiving.</td>
+<td>Ask your administrator to turn on <strong>Enabled</strong> for the warehouse.</td>
+</tr>
+<tr>
+<td><em>Set a blind receipt pool on warehouse ...</em></td>
+<td>The warehouse has the feature on but no pool.</td>
+<td>Ask your administrator to set the warehouse's <strong>Blind receipt pool</strong>.</td>
+</tr>
+<tr>
+<td><em>The purchase order number is not valid.</em></td>
+<td>The number was mistyped, or the order wasn't created.</td>
+<td>Check the paperwork, then ask the lead.</td>
+</tr>
+<tr>
+<td><em>Purchase order ... has no warehouse. Ask the lead.</em></td>
+<td>The order has no warehouse set.</td>
+<td>The lead sets the order's site and warehouse.</td>
+</tr>
+<tr>
+<td><em>Purchase order ... is for warehouse ..., not warehouse ... Ask the lead.</em></td>
+<td>The order is for another warehouse.</td>
+<td>The lead creates an order for your warehouse.</td>
+</tr>
+<tr>
+<td><em>Purchase order ... isn't a blind receipt order. Ask the lead.</em></td>
+<td>The order isn't in your warehouse's blind receipt pool, or isn't a regular purchase order.</td>
+<td>The lead creates the order in the right pool.</td>
+</tr>
+<tr>
+<td><em>The purchase order is not open and cannot be received.</em></td>
+<td>The order was cancelled or closed.</td>
+<td>The lead creates a new order.</td>
+</tr>
+<tr>
+<td><em>License plate ... already holds items of purchase order .... Complete it or use another license plate.</em></td>
+<td>The plate is being built for another order.</td>
+<td>Complete that plate, or start a new license plate for this order.</td>
+</tr>
+<tr>
+<td><em>Item ... doesn't belong to vendor ..., the vendor on this order. Set it aside and ask the lead.</em></td>
+<td>The item's primary vendor isn't the order's vendor.</td>
+<td>Set the item aside. The lead finds out whose it is.</td>
+</tr>
+<tr>
+<td><em>Item ... is a catch weight item. Blind PO receiving can't receive it. Ask the lead.</em></td>
+<td>Catch weight items can't be received with this flow.</td>
+<td>The lead receives the item another way.</td>
+</tr>
+</tbody>
+</table>
+<p>Leads can see one more message, when saving an order:</p>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th>Cause</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>Blind receipt orders can't use change management. Turn off change management on purchase order ...</em></td>
+<td>The order is in a blind receipt pool and has change management on.</td>
+<td>Turn change management off on the order. If you can't, ask your administrator (see <em>Change management</em> in the <a href="BlindReceivingSetup.html">setup guide</a>).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="good-to-know">7. Good to know</h2>
+<ul>
+<li>Catch weight items can't be received with this flow; the device refuses them.</li>
+<li><strong>Modify</strong> resizes the order line only while nothing on it is registered. After <strong>LP Complete</strong>, correct the receipt as described in section 5.</li>
+</ul>
+
+</body>
+</html>

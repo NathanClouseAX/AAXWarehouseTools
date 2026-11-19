@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxModelInfo xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<AppliedUpdates xmlns:d2p1="http://schemas.microsoft.com/2003/10/Serialization/Arrays" />
+	<Customization>Allow</Customization>
+	<Description>Blind purchase order receiving for unannounced freight in Warehouse management.</Description>
+	<DisplayName>AAXBlindReceiving</DisplayName>
+	<Id>896000933</Id>
+	<InternalsVisibleTo xmlns:d2p1="http://schemas.microsoft.com/2003/10/Serialization/Arrays" />
+	<Layer>14</Layer>
+	<Locked>false</Locked>
+	<ModelModule>AAXWarehouseTools</ModelModule>
+	<ModelReferences xmlns:d2p1="http://schemas.microsoft.com/2003/10/Serialization/Arrays"
+		i:nil="true" />
+	<ModuleReferences xmlns:d2p1="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+		<d2p1:string>ApplicationCommon</d2p1:string>
+		<d2p1:string>ApplicationFoundation</d2p1:string>
+		<d2p1:string>ApplicationPlatform</d2p1:string>
+		<d2p1:string>ApplicationSuite</d2p1:string>
+		<d2p1:string>ContactPerson</d2p1:string>
+		<d2p1:string>Currency</d2p1:string>
+		<d2p1:string>Dimensions</d2p1:string>
+		<d2p1:string>Directory</d2p1:string>
+		<d2p1:string>FiscalBooks</d2p1:string>
+		<d2p1:string>Ledger</d2p1:string>
+		<d2p1:string>SourceDocumentation</d2p1:string>
+		<d2p1:string>SourceDocumentationTypes</d2p1:string>
+		<d2p1:string>Tax</d2p1:string>
+		<d2p1:string>UnitOfMeasure</d2p1:string>
+	</ModuleReferences>
+	<Name>AAXBlindReceiving</Name>
+	<Publisher>www.atomicax.com</Publisher>
+	<VersionBuild>0</VersionBuild>
+	<VersionMajor>1</VersionMajor>
+	<VersionMinor>0</VersionMinor>
+	<VersionRevision>0</VersionRevision>
+</AxModelInfo>

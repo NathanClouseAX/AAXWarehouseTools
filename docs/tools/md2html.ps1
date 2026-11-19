@@ -134,6 +134,8 @@ $docs = @(
     @{ in = "$repo\docs\ItemIdentityUseCases.md";    out = "$repo\docs\ItemIdentityUseCases.html" },
     @{ in = "$repo\docs\ItemIdentityScenarios.md";   out = "$repo\docs\ItemIdentityScenarios.html" },
     @{ in = "$repo\docs\ItemIdentitySmokeTest.md";   out = "$repo\docs\ItemIdentitySmokeTest.html" },
+    @{ in = "$repo\docs\BlindReceivingSetup.md";     out = "$repo\docs\BlindReceivingSetup.html" },
+    @{ in = "$repo\docs\BlindReceivingUserGuide.md"; out = "$repo\docs\BlindReceivingUserGuide.html" },
     @{ in = "$repo\docs\BuildPipeline.md";           out = "$repo\docs\BuildPipeline.html" }
 )
 

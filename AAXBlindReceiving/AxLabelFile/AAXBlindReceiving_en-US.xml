@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxLabelFile xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXBlindReceiving_en-US</Name>
+	<LabelContentFileName>AAXBlindReceiving.en-US.label.txt</LabelContentFileName>
+	<LabelFileId>AAXBlindReceiving</LabelFileId>
+	<RelativeUriInModelStore>AAXWarehouseTools\AAXBlindReceiving\AxLabelFile\LabelResources\en-US\AAXBlindReceiving.en-US.label.txt</RelativeUriInModelStore>
+</AxLabelFile>

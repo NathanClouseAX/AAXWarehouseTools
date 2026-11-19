@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AAX Warehouse Tools — Blind PO Receiving Setup Guide</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="aax-warehouse-tools-blind-po-receiving-setup-guide">AAX Warehouse Tools — Blind PO Receiving Setup Guide</h1>
+<p>This guide is for the implementer setting up <strong>blind PO receiving</strong>: receiving freight that arrives with no purchase order or advance notice. The lead creates an empty purchase order for each arrival. The warehouse worker builds its lines on the mobile device from what is actually delivered. A nightly batch posts the product receipt. For day-to-day use, see the <a href="BlindReceivingUserGuide.html">user guide</a>.</p>
+<p>Blind PO receiving is switched on <strong>per warehouse</strong>. A warehouse without the setting receives exactly as it does today, and standard receiving menu items are untouched.</p>
+<h2 id="prerequisites">1. Prerequisites</h2>
+<ul>
+<li>The <code>AAXWarehouseTools</code> package is deployed, including its <code>AAXBlindReceiving</code> model, and the database has been synchronized. Sync adds two fields to warehouses and two to purchase lines.</li>
+<li>After deployment, restart the AOS once so the new label texts load.</li>
+<li>Your user can maintain purchase pools, warehouses and mobile device menu items. To schedule the posting batch, your role needs the <strong>Post blind receipts</strong> duty (see section 10, Security).</li>
+</ul>
+<h2 id="setup-at-a-glance">2. Setup at a glance</h2>
+<ol>
+<li>Create a purchase pool for blind receipt orders — <strong>Purchase pools</strong>.</li>
+<li>Turn blind PO receiving on for each receiving warehouse and name its pool — <strong>Warehouses</strong>.</li>
+<li>Make sure change management can be off for blind receipt orders — <strong>Procurement and sourcing parameters</strong>.</li>
+<li>Create the mobile device menu item and add it to the workers' menu — <strong>Mobile device menu items</strong> and <strong>Mobile device menu</strong>.</li>
+<li>Check the standard setup the flow reuses — put-away, receipt location and document routing.</li>
+<li>Schedule the nightly posting batch — <strong>Post blind receipts</strong>.</li>
+<li>Decide how cancelled work is corrected — <strong>Warehouse management parameters</strong>.</li>
+</ol>
+<h2 id="purchase-pool">3. Purchase pool</h2>
+<p>Blind receipt orders are told apart from every other purchase order by their purchase pool.</p>
+<ol>
+<li>Go to <strong>Procurement and sourcing &gt; Setup &gt; Purchase orders &gt; Purchase pools</strong>.</li>
+<li>Create a pool, for example <code>BLIND</code> with the name <em>Blind receipt orders</em>.</li>
+</ol>
+<p>Use the pool for blind receipt orders only. Every order in it, at a warehouse with the setting turned on, is treated as a blind receipt order. Warehouses can share one pool, or each can have its own.</p>
+<h2 id="warehouse-settings">4. Warehouse settings</h2>
+<ol>
+<li>Go to <strong>Warehouse management &gt; Setup &gt; Warehouse &gt; Warehouses</strong> and select the warehouse.</li>
+<li>On the <strong>Warehouse</strong> FastTab, find the <strong>Blind PO receiving</strong> group.</li>
+<li>Set the fields below and save.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Enabled</strong></td>
+<td>Turns blind PO receiving on for this warehouse. Off = the warehouse receives as standard, and its workers can't use the flow.</td>
+</tr>
+<tr>
+<td><strong>Blind receipt pool</strong></td>
+<td>The purchase pool that marks an order for this warehouse as a blind receipt order. Required when <strong>Enabled</strong> is on. Without it, saving the warehouse is refused: <em>Set a blind receipt pool on warehouse ...</em></td>
+</tr>
+</tbody>
+</table>
+<p>Repeat for each warehouse that receives blind freight. A client that ships to several warehouses gets a separate order per warehouse, because the order's warehouse must match the worker's.</p>
+<h2 id="change-management">5. Change management</h2>
+<p>Blind receipt orders can't use purchase order change management. With approval workflow on, every line the device adds would send the order back for approval. Saving a blind receipt order with change management on is refused:</p>
+<blockquote>
+<p>Blind receipt orders can't use change management. Turn off change management on purchase order <em>PO number</em>.</p>
+</blockquote>
+<p>If your company doesn't use change management, there is nothing to do. If it does:</p>
+<ol>
+<li>In <strong>Procurement and sourcing parameters</strong>, turn on <strong>Allow override of settings per vendor</strong>.</li>
+<li>For the vendor account of each blind receiving client, override the setting and turn change management off. Leads can also turn it off on each order.</li>
+</ol>
+<p>If override per vendor isn't allowed, change management can't be turned off on an order, and blind receipt orders can't be saved.</p>
+<h2 id="mobile-device-menu-item">6. Mobile device menu item</h2>
+<ol>
+<li>Go to <strong>Warehouse management &gt; Setup &gt; Mobile device &gt; Mobile device menu items</strong> and create a menu item. Give it a name and title your workers recognize, for example <em>Blind PO receiving</em>.</li>
+<li>Set the fields below and save.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mode</strong></td>
+<td><strong>Indirect</strong></td>
+</tr>
+<tr>
+<td><strong>Work creation process</strong></td>
+<td><strong>Mixed license plate receiving</strong></td>
+</tr>
+<tr>
+<td><strong>Source document line identification method</strong></td>
+<td><strong>Blind PO receiving</strong></td>
+</tr>
+</tbody>
+</table>
+<ol start="3">
+<li>Go to <strong>Warehouse management &gt; Setup &gt; Mobile device &gt; Mobile device menu</strong> and add the menu item to the menu your receiving workers use.</li>
+</ol>
+<p>The menu item receives only. <strong>LP Complete</strong> creates put-away work for the license plate, and workers put the pallet away afterwards with the standard put-away flow.</p>
+<h2 id="standard-setup-the-flow-reuses">7. Standard setup the flow reuses</h2>
+<p>Check these before going live:</p>
+<table>
+<thead>
+<tr>
+<th>Setup</th>
+<th>What the flow needs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Put-away</strong></td>
+<td>Blind receipts use the existing purchase order put-away work templates and location directives, unchanged.</td>
+</tr>
+<tr>
+<td><strong>Receipt location</strong></td>
+<td>Each warehouse needs a default receipt location, since no load or dock is assigned.</td>
+</tr>
+<tr>
+<td><strong>License plate labels</strong></td>
+<td>Labels print through document routing. Add a routing rule for the new menu item, or no label prints.</td>
+</tr>
+<tr>
+<td><strong>Item identity (optional)</strong></td>
+<td>To show the client's item number on the quantity screen, add the menu item to <strong>Item identity menu item settings</strong>. It resolves for the order's vendor. See the <a href="ItemIdentitySetup.html">item identity setup guide</a>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="nightly-posting">8. Nightly posting</h2>
+<p>Schedule the posting batch so registered receipts are posted without anyone posting by hand, and month end needs no posting step.</p>
+<ol>
+<li>Go to <strong>Warehouse management &gt; Periodic tasks &gt; Post blind receipts</strong>.</li>
+<li>Run it in batch with a nightly recurrence.</li>
+<li>Repeat in each company that uses blind PO receiving.</li>
+</ol>
+<p>Each run does three things:</p>
+<ol>
+<li><strong>Deletes empty lines.</strong> It deletes lines the device added that no longer have any registered or received quantity and were added more than 12 hours ago. Each line is deleted on its own, so a line that can't be deleted is logged and left for the next run. Lines still on a license plate that isn't complete are kept.</li>
+<li><strong>Confirms orders.</strong> It confirms each blind receipt order it's about to post, if the order isn't confirmed yet. Standard posts product receipts only for confirmed orders. Without change management, lines added later don't undo the confirmation.</li>
+<li><strong>Posts product receipts.</strong> It posts a product receipt for the registered quantity of each blind receipt order, one order at a time. Receipts are numbered after the order: <code>&lt;PO number&gt;-1</code> for the first night's posting, <code>&lt;PO number&gt;-2</code> for the next, and so on.</li>
+</ol>
+<p>If an order fails, the other orders still post. The run logs <em>The product receipt for purchase order ... wasn't posted.</em> for that order, and ends with an error so the batch job shows as failed:</p>
+<blockquote>
+<p>Blind receipt posting: <em>X</em> orders posted, <em>Y</em> failed, <em>Z</em> unregistered lines deleted.</p>
+</blockquote>
+<h2 id="corrections">9. Corrections</h2>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Put-away work of a blind receipt is cancelled</td>
+<td>With <strong>Unregister receipt when canceling work</strong> turned on in <strong>Warehouse management parameters</strong>, cancelling the work unregisters the receipt and deletes the lines the device added. Turn the parameter on if workers or leads correct receipts by cancelling work.</td>
+</tr>
+<tr>
+<td>A receipt is unregistered another way, for example from the registration form</td>
+<td>The line stays on the order until the next nightly run deletes it.</td>
+</tr>
+<tr>
+<td>The product receipt is already posted</td>
+<td>Cancel or correct the product receipt first, as standard.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="security">10. Security</h2>
+<table>
+<thead>
+<tr>
+<th>Element</th>
+<th>Grants</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Duty <strong>Post blind receipts</strong></td>
+<td>The <strong>Post blind receipts</strong> batch job. It isn't on any role. Assign it to the role that schedules batch jobs, for example the warehouse manager.</td>
+</tr>
+<tr>
+<td>Privilege <strong>Post blind receipts</strong></td>
+<td>Included in the duty; use it directly for finer-grained role design.</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Setup:</strong> the warehouse settings are on the standard <strong>Warehouses</strong> form, so anyone who can maintain warehouses can set them up.</li>
+<li><strong>Leads</strong> create blind receipt orders with their existing purchasing access.</li>
+<li><strong>Workers</strong> need no new access.</li>
+</ul>
+<h2 id="limitations">11. Limitations</h2>
+<ul>
+<li>Catch weight items aren't supported; the device refuses them with their own message.</li>
+<li>An order line is resized only while nothing on it is registered.</li>
+</ul>
+<h2 id="check-the-setup">12. Check the setup</h2>
+<ol>
+<li>Turn <strong>Enabled</strong> on for the warehouse and clear <strong>Blind receipt pool</strong>. Saving the warehouse is refused: <em>Set a blind receipt pool on warehouse ...</em></li>
+<li>Set the pool and save the warehouse.</li>
+<li>Create a test order for that warehouse, in its blind receipt pool, with no lines and change management off. Use a vendor that is the primary vendor of a test item.</li>
+<li>On the mobile device, sign in as a worker of that warehouse and open the new menu item. Enter a new license plate, the order number, the test item and a quantity, and select <strong>OK</strong>. The order now has a zero-price line for the item.</li>
+<li>Select <strong>LP Complete</strong>. The license plate gets one put-away work.</li>
+<li>Run <strong>Post blind receipts</strong>. The order has product receipt <code>&lt;PO number&gt;-1</code>.</li>
+</ol>
+
+</body>
+</html>

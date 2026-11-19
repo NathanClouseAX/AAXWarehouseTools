@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXBlindReceiptReceivingContext</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Marks the processing of a Blind PO receiving screen, so standard checks can treat a blind receipt
+/// order whose lines are all posted as still open for receiving. Use it in a <c>using</c> block.
+/// </summary>
+public final class AAXBlindReceiptReceivingContext implements System.IDisposable
+{
+    private static AAXBlindReceiptReceivingContext current;
+    private AAXBlindReceiptReceivingContext        previous;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>new</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Initializes a new instance of the <c>AAXBlindReceiptReceivingContext</c> class and makes it
+    /// the current context.
+    /// </summary>
+    private void new()
+    {
+        previous = current;
+        current  = this;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Starts a Blind PO receiving context.
+    /// </summary>
+    /// <returns>The new context; dispose it to end the context.</returns>
+    public static AAXBlindReceiptReceivingContext construct()
+    {
+        return new AAXBlindReceiptReceivingContext();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>dispose</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Ends the context and restores the previous one.
+    /// </summary>
+    public void dispose()
+    {
+        current = previous;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isActive</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Indicates whether a Blind PO receiving screen is being processed.
+    /// </summary>
+    /// <returns>True if a context is active; otherwise, false.</returns>
+    public static boolean isActive()
+    {
+        return current != null;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

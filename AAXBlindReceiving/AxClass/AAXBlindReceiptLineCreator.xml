@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXBlindReceiptLineCreator</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Creates and sizes the $0 purchase lines that Blind PO receiving adds to a blind receipt order, one
+/// line per confirmed item, stamped with the mobile worker and the time.
+/// </summary>
+public final class AAXBlindReceiptLineCreator
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>createLine</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds a $0 line for an item to a blind receipt order, at the order's site and warehouse. Price,
+    /// discount and charges are 0, and no charges are searched.
+    /// </summary>
+    /// <param name = "_purchTable">The blind receipt order.</param>
+    /// <param name = "_itemId">The item the worker confirmed.</param>
+    /// <param name = "_productDim">The inventory dimensions holding the item's product dimensions.</param>
+    /// <param name = "_qty">The quantity in <paramref name = "_unit"/>.</param>
+    /// <param name = "_unit">The unit the worker received in.</param>
+    /// <param name = "_userId">The mobile worker.</param>
+    /// <returns>The new purchase line.</returns>
+    public static PurchLine createLine(
+        PurchTable  _purchTable,
+        ItemId      _itemId,
+        InventDim   _productDim,
+        PurchQty    _qty,
+        PurchUnit   _unit,
+        WHSUserId   _userId)
+    {
+        PurchLine purchLine;
+
+        ttsbegin;
+
+        purchLine.initFromPurchTable(_purchTable);
+        purchLine.ItemId = _itemId;
+        purchLine.initFromInventTable(purchLine.inventTable());
+
+        // The order's site and warehouse, after the item defaults, and the item's product dimensions
+        InventDim inventDim = purchLine.inventDim();
+        inventDim.InventSiteId     = _purchTable.InventSiteId;
+        inventDim.InventLocationId = _purchTable.InventLocationId;
+        inventDim.copyProductDimensions(_productDim, _itemId);
+        purchLine.setInventDimIdFromInventDim(inventDim);
+
+        purchLine.PurchUnit  = _unit;
+        purchLine.PurchQty   = _qty;
+        purchLine.QtyOrdered = purchLine.calcQtyOrdered();
+
+        AAXBlindReceiptLineCreator::clearPrice(purchLine);
+
+        purchLine.AAXBlindReceiptWorker   = _userId;
+        purchLine.AAXBlindReceiptDateTime = DateTimeUtil::utcNow();
+
+        purchLine.createLine(true, false, false, false, false, false);
+
+        ttscommit;
+
+        return purchLine;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>syncLicensePlateLines</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Sizes each device-added line staged on an open license plate to the quantity staged for it,
+    /// after the worker changed a quantity on the plate.
+    /// </summary>
+    /// <param name = "_licensePlateId">The license plate being built.</param>
+    public static void syncLicensePlateLines(WHSLicensePlateId _licensePlateId)
+    {
+        WHSMixedLicensePlateReceipt receipt = WHSMixedLicensePlateReceipt::findOpenByLicensePlateId(_licensePlateId);
+
+        if (!receipt.RecId)
+        {
+            return;
+        }
+
+        PurchLine                       purchLine;
+        WHSMixedLicensePlateReceiptLine receiptLine;
+
+        while select InventTransId, ItemId, QtyOrdered from purchLine
+            where purchLine.AAXBlindReceiptWorker != ''
+            exists join receiptLine
+                where receiptLine.MixedLPReceivingTable == receipt.RecId
+                   && receiptLine.InventTransId         == purchLine.InventTransId
+        {
+            InventQty stagedQty = WHSMixedLicensePlateReceiptLine::getTotalOpenQtyOnTransId(purchLine.InventTransId);
+
+            if (stagedQty > 0 && stagedQty != purchLine.QtyOrdered)
+            {
+                AAXBlindReceiptLineCreator::setQuantity(
+                    purchLine.InventTransId,
+                    stagedQty,
+                    InventTableModule::find(purchLine.ItemId, ModuleInventPurchSales::Invent).UnitId);
+            }
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>setQuantity</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Sets the quantity and unit of a device-added line that has nothing registered yet, keeping it
+    /// at no cost.
+    /// </summary>
+    /// <param name = "_inventTransId">The lot of the line.</param>
+    /// <param name = "_qty">The new quantity in <paramref name = "_unit"/>.</param>
+    /// <param name = "_unit">The unit of the quantity.</param>
+    public static void setQuantity(InventTransId _inventTransId, PurchQty _qty, PurchUnit _unit)
+    {
+        ttsbegin;
+
+        PurchLine purchLine = PurchLine::findInventTransId(_inventTransId, true);
+
+        if (purchLine.AAXBlindReceiptWorker
+            && AAXBlindReceiptLineCleanup::hasOnlyOrderedTransactions(purchLine))
+        {
+            purchLine.PurchUnit = _unit;
+            purchLine.modifiedField(fieldNum(PurchLine, PurchUnit));
+            purchLine.PurchQty = _qty;
+            purchLine.modifiedField(fieldNum(PurchLine, PurchQty));
+
+            // A quantity change can search a price
+            AAXBlindReceiptLineCreator::clearPrice(purchLine);
+
+            purchLine.update();
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>clearPrice</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Sets the price, discounts, charges and amount of a line to 0.
+    /// </summary>
+    /// <param name = "_purchLine">The line to clear.</param>
+    private static void clearPrice(PurchLine _purchLine)
+    {
+        _purchLine.PurchPrice     = 0;
+        _purchLine.LinePercent    = 0;
+        _purchLine.LineDisc       = 0;
+        _purchLine.MultiLnDisc    = 0;
+        _purchLine.MultiLnPercent = 0;
+        _purchLine.PurchMarkup    = 0;
+        _purchLine.DiscAmount     = 0;
+        _purchLine.DiscPercent    = 0;
+        _purchLine.LineAmount     = 0;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

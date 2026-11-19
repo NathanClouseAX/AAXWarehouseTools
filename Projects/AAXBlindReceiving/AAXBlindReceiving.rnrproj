@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <BuildTasksDirectory Condition=" '$(BuildTasksDirectory)' == ''">$(MSBuildProgramFiles32)\MSBuild\Microsoft\Dynamics\AX</BuildTasksDirectory>
+    <Model>AAXBlindReceiving</Model>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <OutputPath>bin</OutputPath>
+    <SchemaVersion>2.0</SchemaVersion>
+    <GenerateCrossReferences>True</GenerateCrossReferences>
+    <ProjectGuid>{6dbb6b17-2098-41d1-a05f-d846b8d58f1c}</ProjectGuid>
+    <Name>AAXBlindReceiving</Name>
+    <RootNamespace>AAXBlindReceiving</RootNamespace>
+    <RunAppcheckerRules>False</RunAppcheckerRules>
+    <LogAppcheckerDiagsAsErrors>False</LogAppcheckerDiagsAsErrors>
+    <DeployOnline>False</DeployOnline>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
+    <Configuration>Debug</Configuration>
+    <DBSyncInBuild>True</DBSyncInBuild>
+    <GenerateFormAdaptors>False</GenerateFormAdaptors>
+    <Company>
+    </Company>
+    <Partition>initial</Partition>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DataEntityExpandParentChildRelations>False</DataEntityExpandParentChildRelations>
+    <DataEntityUseLabelTextAsFieldName>False</DataEntityUseLabelTextAsFieldName>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <ItemGroup>
+    <Folder Include="Action Menu Items\" />
+    <Folder Include="Base Enum Extensions\" />
+    <Folder Include="Classes\" />
+    <Folder Include="Extended Data Types\" />
+    <Folder Include="Form Extensions\" />
+    <Folder Include="Label Files\" />
+    <Folder Include="Menu Extensions\" />
+    <Folder Include="Security Duties\" />
+    <Folder Include="Security Privileges\" />
+    <Folder Include="Table Extensions\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="AxClass\AAXBlindReceiptLineCleanup">
+      <SubType>Content</SubType>
+      <Name>AAXBlindReceiptLineCleanup</Name>
+      <Link>Classes\AAXBlindReceiptLineCleanup</Link>
+    </Content>
+    <Content Include="AxClass\AAXBlindReceiptLineCreator">
+      <SubType>Content</SubType>
+      <Name>AAXBlindReceiptLineCreator</Name>
+      <Link>Classes\AAXBlindReceiptLineCreator</Link>
+    </Content>
+    <Content Include="AxClass\AAXBlindReceiptOrder">
+      <SubType>Content</SubType>
+      <Name>AAXBlindReceiptOrder</Name>
+      <Link>Classes\AAXBlindReceiptOrder</Link>
+    </Content>
+    <Content Include="AxClass\AAXBlindReceiptPostController">
+      <SubType>Content</SubType>
+      <Name>AAXBlindReceiptPostController</Name>
+      <Link>Classes\AAXBlindReceiptPostController</Link>
+    </Content>
+    <Content Include="AxClass\AAXBlindReceiptPostService">
+      <SubType>Content</SubType>
+      <Name>AAXBlindReceiptPostService</Name>
+      <Link>Classes\AAXBlindReceiptPostService</Link>
+    </Content>
+    <Content Include="AxClass\AAXBlindReceiptReceivingContext">
+      <SubType>Content</SubType>
+      <Name>AAXBlindReceiptReceivingContext</Name>
+      <Link>Classes\AAXBlindReceiptReceivingContext</Link>
+    </Content>
+    <Content Include="AxClass\AAXBlindReceiptWorkExecuteDisplay">
+      <SubType>Content</SubType>
+      <Name>AAXBlindReceiptWorkExecuteDisplay</Name>
+      <Link>Classes\AAXBlindReceiptWorkExecuteDisplay</Link>
+    </Content>
+    <Content Include="AxClass\InventLocation_AAXBlindReceiving_Extension">
+      <SubType>Content</SubType>
+      <Name>InventLocation_AAXBlindReceiving_Extension</Name>
+      <Link>Classes\InventLocation_AAXBlindReceiving_Extension</Link>
+    </Content>
+    <Content Include="AxClass\PurchTable_AAXBlindReceiving_Extension">
+      <SubType>Content</SubType>
+      <Name>PurchTable_AAXBlindReceiving_Extension</Name>
+      <Link>Classes\PurchTable_AAXBlindReceiving_Extension</Link>
+    </Content>
+    <Content Include="AxClass\WhsControlBatchId_AAXBlindReceiving_Extension">
+      <SubType>Content</SubType>
+      <Name>WhsControlBatchId_AAXBlindReceiving_Extension</Name>
+      <Link>Classes\WhsControlBatchId_AAXBlindReceiving_Extension</Link>
+    </Content>
+    <Content Include="AxClass\WHSRFMenuItemTable_AAXBlindReceiving_Extension">
+      <SubType>Content</SubType>
+      <Name>WHSRFMenuItemTable_AAXBlindReceiving_Extension</Name>
+      <Link>Classes\WHSRFMenuItemTable_AAXBlindReceiving_Extension</Link>
+    </Content>
+    <Content Include="AxClass\WhsWorkExecuteDisplayController_AAXBlindReceiving_Extension">
+      <SubType>Content</SubType>
+      <Name>WhsWorkExecuteDisplayController_AAXBlindReceiving_Extension</Name>
+      <Link>Classes\WhsWorkExecuteDisplayController_AAXBlindReceiving_Extension</Link>
+    </Content>
+    <Content Include="AxClass\WHSWorkTable_AAXBlindReceiving_Extension">
+      <SubType>Content</SubType>
+      <Name>WHSWorkTable_AAXBlindReceiving_Extension</Name>
+      <Link>Classes\WHSWorkTable_AAXBlindReceiving_Extension</Link>
+    </Content>
+    <Content Include="AxEdt\AAXBlindReceiptRegisteredDateTime">
+      <SubType>Content</SubType>
+      <Name>AAXBlindReceiptRegisteredDateTime</Name>
+      <Link>Extended Data Types\AAXBlindReceiptRegisteredDateTime</Link>
+    </Content>
+    <Content Include="AxEnumExtension\WHSMixedLPReceivingMode.AAXBlindReceiving">
+      <SubType>Content</SubType>
+      <Name>WHSMixedLPReceivingMode.AAXBlindReceiving</Name>
+      <Link>Base Enum Extensions\WHSMixedLPReceivingMode.AAXBlindReceiving</Link>
+    </Content>
+    <Content Include="AxFormExtension\InventLocation.AAXBlindReceiving">
+      <SubType>Content</SubType>
+      <Name>InventLocation.AAXBlindReceiving</Name>
+      <Link>Form Extensions\InventLocation.AAXBlindReceiving</Link>
+    </Content>
+    <Content Include="AxFormExtension\PurchTable.AAXBlindReceiving">
+      <SubType>Content</SubType>
+      <Name>PurchTable.AAXBlindReceiving</Name>
+      <Link>Form Extensions\PurchTable.AAXBlindReceiving</Link>
+    </Content>
+    <Content Include="AxLabelFile\AAXBlindReceiving_en-US">
+      <SubType>Content</SubType>
+      <Name>AAXBlindReceiving_en-US</Name>
+      <Link>Label Files\AAXBlindReceiving_en-US</Link>
+    </Content>
+    <Content Include="AxMenuExtension\WHS.AAXBlindReceiving">
+      <SubType>Content</SubType>
+      <Name>WHS.AAXBlindReceiving</Name>
+      <Link>Menu Extensions\WHS.AAXBlindReceiving</Link>
+    </Content>
+    <Content Include="AxMenuItemAction\AAXBlindReceiptPost">
+      <SubType>Content</SubType>
+      <Name>AAXBlindReceiptPost</Name>
+      <Link>Action Menu Items\AAXBlindReceiptPost</Link>
+    </Content>
+    <Content Include="AxSecurityDuty\AAXBlindReceiptPost">
+      <SubType>Content</SubType>
+      <Name>AAXBlindReceiptPost</Name>
+      <Link>Security Duties\AAXBlindReceiptPost</Link>
+    </Content>
+    <Content Include="AxSecurityPrivilege\AAXBlindReceiptPost">
+      <SubType>Content</SubType>
+      <Name>AAXBlindReceiptPost</Name>
+      <Link>Security Privileges\AAXBlindReceiptPost</Link>
+    </Content>
+    <Content Include="AxTableExtension\InventLocation.AAXBlindReceiving">
+      <SubType>Content</SubType>
+      <Name>InventLocation.AAXBlindReceiving</Name>
+      <Link>Table Extensions\InventLocation.AAXBlindReceiving</Link>
+    </Content>
+    <Content Include="AxTableExtension\PurchLine.AAXBlindReceiving">
+      <SubType>Content</SubType>
+      <Name>PurchLine.AAXBlindReceiving</Name>
+      <Link>Table Extensions\PurchLine.AAXBlindReceiving</Link>
+    </Content>
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
+  <Import Project="$(BuildTasksDirectory)\Microsoft.Dynamics.Framework.Tools.BuildTasks.17.0.targets" />
+</Project>

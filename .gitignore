@@ -4,6 +4,10 @@ obj/
 XppMetadata/
 BuildModelResult.*
 BuildProjectResult.*
+Dynamics.AX.*.xppc.*
+Dynamics.AX.*.xppbp.*
+Dynamics.AX.*.labelc.*
+Dynamics.AX.*.reportsc.*
 AppPackages/
 
 # IDE

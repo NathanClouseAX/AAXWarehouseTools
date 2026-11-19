@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXBlindReceiptWorkExecuteDisplay</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Executes the Blind PO receiving flow: mixed license plate receiving against a blind receipt order
+/// that starts with no lines. Each confirmed item adds a $0 line to the order, which the standard
+/// flow then stages onto the license plate and registers when the plate is completed.
+/// </summary>
+[WHSMixedLPReceivingMode(WHSMixedLPReceivingMode::AAXBlindPOItemReceiving)]
+public class AAXBlindReceiptWorkExecuteDisplay extends WHSWorkExecuteDisplayMixedLPPOItemReceiving
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>displayForm</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the next screen of the flow inside a Blind PO receiving context, then keeps the
+    /// device-added lines on the license plate sized to what is staged on it.
+    /// </summary>
+    /// <param name = "_con">Container holding the current screen.</param>
+    /// <param name = "_buttonClicked">The button the worker pressed.</param>
+    /// <returns>Container holding the next screen.</returns>
+    public container displayForm(container _con, str _buttonClicked = '')
+    {
+        container ret;
+
+        // A blind receipt order stays open after its lines are posted
+        using (AAXBlindReceiptReceivingContext context = AAXBlindReceiptReceivingContext::construct())
+        {
+            ret = super(_con, _buttonClicked);
+        }
+
+        AAXBlindReceiptLineCreator::syncLicensePlateLines(pass.lookupStr(#LicensePlateId));
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>processControl</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Validates the order number and the item before the standard processing. The order must be an
+    /// open blind receipt order for the worker's warehouse and the only order on the license plate,
+    /// and the item must belong to the order's vendor. A barcode that carries a quantity fills it in.
+    /// </summary>
+    /// <param name = "_control">The control to process.</param>
+    /// <param name = "_value">The value of the control.</param>
+    /// <returns>True if processing succeeded; otherwise, false.</returns>
+    public boolean processControl(WhsControl _control, str _value)
+    {
+        WHSRFPassthrough fieldValues = _control.parmContext().fieldValues;
+        str              error;
+
+        if (_control.parmName() == #PONum && _control.parmData())
+        {
+            PurchId purchId = _control.parmData();
+
+            error = AAXBlindReceiptOrder::receivingError(purchId, WHSWorkUserSession::find(pass.lookupStr(#UserId)).InventLocationId);
+
+            if (!error)
+            {
+                error = AAXBlindReceiptOrder::licensePlateError(pass.lookupStr(#LicensePlateId), purchId);
+            }
+        }
+        else if (_control is WhsControlItemId && !workLine)
+        {
+            PurchId purchId = pass.hasValue(#PONum) ? pass.lookupStr(#PONum) : fieldValues.lookupStr(#PONum);
+
+            error = AAXBlindReceiptOrder::itemError(purchId, fieldValues.lookupStr(#ItemId));
+
+            if (error)
+            {
+                fieldValues.insert(#ItemId, '');
+            }
+            else
+            {
+                Qty scannedQty = InventInventItemSearch::construct().search(_control.parmData()).parmQty();
+
+                if (scannedQty)
+                {
+                    WhsrfControlData controlData = _control.parmContext().controlData;
+                    controlData.qtyDefaultedFromScan = true;
+                    fieldValues.insert(#Qty, scannedQty);
+                }
+            }
+        }
+
+        if (error)
+        {
+            return _control.fail(error);
+        }
+
+        return super(_control, _value);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>buildRegistering</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the registering screen. Once the item is known, the product dimensions and then the
+    /// quantity are asked for, without looking for an existing line on the order.
+    /// </summary>
+    /// <param name = "_con">Container containing the screen built so far.</param>
+    /// <param name = "_extraText">Extra text to show.</param>
+    /// <param name = "_enableContainerType">Determines whether the container type can be changed.</param>
+    /// <returns>Container containing the registering screen.</returns>
+    protected container buildRegistering(container _con, str _extraText = '', boolean _enableContainerType = true)
+    {
+        if (pass.hasValue(#PONum) && pass.hasValue(#ItemId))
+        {
+            this.clearStaleLine();
+
+            if (!this.checkProductDimensionsInPass(pass.lookupStr(#ItemId)))
+            {
+                return this.buildProductDimensions(_con, _enableContainerType);
+            }
+
+            return this.buildQuantity(_con, _enableContainerType);
+        }
+
+        return super(_con, _extraText, _enableContainerType);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>buildHeader</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the title, license plate, order and item controls the registering screens start with.
+    /// </summary>
+    /// <param name = "_con">Container containing the screen built so far.</param>
+    /// <param name = "_enableContainerType">Determines whether the container type can be changed.</param>
+    /// <returns>Container containing the screen with the header controls.</returns>
+    private container buildHeader(container _con, boolean _enableContainerType)
+    {
+        WHSRFMenuItemTable rfMenuItem = WHSRFMenuItemTable::find(pass.lookupStr(#MenuItem));
+        ItemId             itemId     = pass.lookupStr(#ItemId);
+        container          ret        = _con;
+
+        ret += [this.buildControl(#RFLabel, #MixedLPReceiving, rfMenuItem.rfTitle, 1, '', #WHSRFUndefinedDataType, '', 0)];
+        ret += this.buildLPContainerControls(rfMenuItem.DisplayContainerTypeCode, _enableContainerType);
+        ret += [this.buildControl(#RFText, #PONum, "@WAX1235", 1, pass.lookupStr(#PONum), extendedTypeNum(PurchId), '', 0, false)];
+        ret += [this.buildControl(#RFText, #ItemId, "@SYS14428", 1, itemId, extendedTypeNum(InventInventItemSearchItem), '', 0)];
+        ret += this.buildItemDescription(itemId);
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>buildProductDimensions</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the screen that asks for the item's product dimensions, open for any variant.
+    /// </summary>
+    /// <param name = "_con">Container containing the screen built so far.</param>
+    /// <param name = "_enableContainerType">Determines whether the container type can be changed.</param>
+    /// <returns>Container containing the product dimension screen.</returns>
+    private container buildProductDimensions(container _con, boolean _enableContainerType)
+    {
+        container ret = this.buildHeader(_con, _enableContainerType);
+
+        ret = this.buildProductDimensionsFromInventDim(ret, pass.lookupStr(#ItemId), this.productDimFromPass(), true);
+        ret += [this.buildControl(#RFButton, #RFOK, "@SYS5473", 1, '', #WHSRFUndefinedDataType, '', 1)];
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>buildQuantity</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the quantity screen for an item and product variant.
+    /// </summary>
+    /// <param name = "_con">Container containing the screen built so far.</param>
+    /// <param name = "_enableContainerType">Determines whether the container type can be changed.</param>
+    /// <returns>Container containing the quantity screen.</returns>
+    private container buildQuantity(container _con, boolean _enableContainerType)
+    {
+        ItemId    itemId = pass.lookupStr(#ItemId);
+        container ret    = this.buildHeader(_con, _enableContainerType);
+
+        ret += this.buildItemIdentity(itemId);
+        ret = this.buildProductDimensionsFromInventDim(ret, itemId, this.productDimFromPass(), false);
+
+        if (pass.lookupStr(#SelectedValueUOM) == '')
+        {
+            pass.insert(#SelectedValueUOM, WHSUOMSeqGroupTable::getDefaultPurchUOM(itemId));
+        }
+
+        WHSProdQty defaultQty = WHSInventTable::find(itemId).ProdQty;
+
+        ret += [this.buildControl(#RFText, #Qty, "@SYS105177", 1, defaultQty ? WHSWorkExecuteDisplay::num2StrDisplay(defaultQty) : pass.lookupStr(#Qty), extendedTypeNum(Qty), '', 0)];
+        ret = this.buildUOM(ret, '', false, false, false, pass.lookupStr(#SelectedValueUOM));
+        ret = this.buildConversion(ret);
+        ret += [this.buildControl(#RFButton, #RFOK, "@SYS5473", 1, '', #WHSRFUndefinedDataType, '', 1)];
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>buildItemIdentity</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the item identity line for the item, resolved for the order's vendor, when the menu item
+    /// has item identity display set up.
+    /// </summary>
+    /// <param name = "_itemId">The item being received.</param>
+    /// <returns>Container holding the identity line, or an empty container.</returns>
+    private container buildItemIdentity(ItemId _itemId)
+    {
+        container identityLine = AAXWHSItemIdentityInjectionService::identityLineForMenuItem(
+            pass.lookupStr(#MenuItem),
+            _itemId,
+            InventDim::findOrCreate(this.productDimFromPass()).inventDimId,
+            AAXWHSItemIdentityPartnerContext::Vendor,
+            PurchTable::find(pass.lookupStr(#PONum)).OrderAccount);
+
+        if (identityLine == conNull())
+        {
+            return conNull();
+        }
+
+        // Read-only line typed with the identity EDT
+        return [this.buildControl(#RFText, AAXWHSItemIdentityInjectionService::ControlName, conPeek(identityLine, 1), 1, conPeek(identityLine, 2), extendedTypeNum(AAXWHSItemIdentityValue), '', 0, false)];
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>canGetOrderLine</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds the $0 line for the confirmed item and quantity to the order, then lets the standard
+    /// flow continue with that line. A line this worker added for the item in an earlier attempt that
+    /// didn't reach the license plate is reused and resized instead.
+    /// </summary>
+    /// <returns>True if the order line can be read; otherwise, false.</returns>
+    protected boolean canGetOrderLine()
+    {
+        if (pass.hasValue(#PONum)
+            && pass.hasValue(#ItemId)
+            && pass.hasValue(#Qty)
+            && pass.hasValue(#SelectedValueUOM))
+        {
+            if (pass.hasValue(#POLineNum))
+            {
+                AAXBlindReceiptLineCreator::setQuantity(
+                    this.getPurchLine().InventTransId,
+                    pass.lookupNum(#Qty),
+                    pass.lookupStr(#SelectedValueUOM));
+            }
+            else
+            {
+                PurchLine purchLine = AAXBlindReceiptLineCreator::createLine(
+                    PurchTable::find(pass.lookupStr(#PONum)),
+                    pass.lookupStr(#ItemId),
+                    this.productDimFromPass(),
+                    pass.lookupNum(#Qty),
+                    pass.lookupStr(#SelectedValueUOM),
+                    pass.lookupStr(#UserId));
+
+                pass.insert(#POLineNum, purchLine.LineNumber);
+            }
+        }
+
+        return super();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>clearStaleLine</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Forgets the order line in the pass unless it is a line this worker added for the current item
+    /// and variant that isn't on a license plate or registered yet. A changed order, item or variant,
+    /// or another worker's line, is never reused.
+    /// </summary>
+    private void clearStaleLine()
+    {
+        if (!pass.hasValue(#POLineNum))
+        {
+            return;
+        }
+
+        PurchLine purchLine = this.getPurchLine();
+        ItemId    itemId    = pass.lookupStr(#ItemId);
+
+        boolean reusable = purchLine.RecId
+            && purchLine.ItemId == itemId
+            && purchLine.AAXBlindReceiptWorker == pass.lookupStr(#UserId)
+            && InventDim::isInventDimEqualProductDim(EcoResProductDimGroupSetup::newItemId(itemId), purchLine.inventDim(), this.productDimFromPass())
+            && WHSMixedLicensePlateReceiptLine::getTotalOpenQtyOnTransId(purchLine.InventTransId) == 0
+            && AAXBlindReceiptLineCleanup::hasOnlyOrderedTransactions(purchLine);
+
+        if (!reusable)
+        {
+            pass.remove(#POLineNum);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>checkOverDeliveryMixedLP</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks whether raising the quantity of a license plate line over-delivers its order line. A
+    /// device-added line is resized to the new quantity instead, so it is never over-delivered.
+    /// </summary>
+    /// <param name = "_mixedLPLines">The license plate line being raised.</param>
+    /// <returns>True if the new quantity over-delivers; otherwise, false.</returns>
+    protected boolean checkOverDeliveryMixedLP(WHSMixedLicensePlateReceiptLine _mixedLPLines)
+    {
+        if (PurchLine::findInventTransId(_mixedLPLines.InventTransId).AAXBlindReceiptWorker)
+        {
+            return false;
+        }
+
+        return super(_mixedLPLines);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>productDimFromPass</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Reads the product dimensions the worker scanned or selected from the pass.
+    /// </summary>
+    /// <returns>An <c>InventDim</c> buffer holding the product dimensions.</returns>
+    private InventDim productDimFromPass()
+    {
+        InventDim     inventDim;
+        InventDimParm inventDimParm;
+
+        inventDimParm.setAllProductDimensions();
+        pass.initInventDimFromPassParm(inventDim, inventDimParm);
+
+        return inventDim;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

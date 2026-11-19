@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXBlindReceiptPostService</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Posts the product receipt for the registered quantity of each blind receipt order in the current
+/// company, and deletes device-added lines whose registration was reversed before posting.
+/// </summary>
+public class AAXBlindReceiptPostService extends SysOperationServiceBase
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>post</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Deletes unregistered device-added lines, then posts the registered quantity of every blind
+    /// receipt order, one order at a time so a failure leaves the other orders posted.
+    /// </summary>
+    public void post()
+    {
+        int deleted = AAXBlindReceiptLineCleanup::deleteUnregisteredLines();
+        int posted;
+        int failed;
+
+        ListEnumerator orders = AAXBlindReceiptPostService::ordersToPost().getEnumerator();
+
+        while (orders.moveNext())
+        {
+            if (this.postOrder(orders.current()))
+            {
+                posted++;
+            }
+            else
+            {
+                failed++;
+            }
+        }
+
+        if (failed)
+        {
+            throw error(strFmt("@AAXBlindReceiving:PostSummary", posted, failed, deleted));
+        }
+
+        info(strFmt("@AAXBlindReceiving:PostSummary", posted, failed, deleted));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>ordersToPost</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds the blind receipt orders in the current company that have registered quantity to post.
+    /// </summary>
+    /// <returns>A list of purchase order numbers.</returns>
+    public static List ordersToPost()
+    {
+        List              orders = new List(Types::String);
+        PurchTable        purchTable;
+        InventLocation    inventLocation;
+        PurchLine         purchLine;
+        InventTransOrigin inventTransOrigin;
+        InventTrans       inventTrans;
+
+        while select PurchId from purchTable
+            where purchTable.PurchStatus != PurchStatus::Canceled
+            exists join inventLocation
+                where inventLocation.InventLocationId           == purchTable.InventLocationId
+                   && inventLocation.AAXBlindReceiptEnabled     == NoYes::Yes
+                   && inventLocation.AAXBlindReceiptPurchPoolId == purchTable.PurchPoolId
+            exists join purchLine
+                where purchLine.PurchId   == purchTable.PurchId
+                   && purchLine.IsDeleted == NoYes::No
+            exists join inventTransOrigin
+                where inventTransOrigin.InventTransId == purchLine.InventTransId
+            exists join inventTrans
+                where inventTrans.InventTransOrigin == inventTransOrigin.RecId
+                   && inventTrans.StatusReceipt     == StatusReceipt::Registered
+        {
+            orders.addEnd(purchTable.PurchId);
+        }
+
+        return orders;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>postOrder</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Posts the product receipt for the registered quantity of one order.
+    /// </summary>
+    /// <param name = "_purchId">The blind receipt order.</param>
+    /// <returns>True if a product receipt was posted; otherwise, false.</returns>
+    protected boolean postOrder(PurchId _purchId)
+    {
+        #OCCRetryCount
+        boolean posted;
+
+        try
+        {
+            ttsbegin;
+
+            PurchTable purchTable = PurchTable::find(_purchId);
+
+            // Product receipts post only for confirmed orders
+            if (purchTable.DocumentState != VersioningDocumentState::Confirmed)
+            {
+                this.confirmOrder(purchTable);
+                purchTable = PurchTable::find(_purchId);
+            }
+
+            PackingSlipId receiptNumber = AAXBlindReceiptPostService::receiptNumber(purchTable);
+
+            PurchFormLetter formLetter = PurchFormLetter_PackingSlip::newPackingSlip();
+            formLetter.parmLoadFromSysLastValue(false);
+            formLetter.parmCallerTable(purchTable);
+            formLetter.purchTable(purchTable);
+            formLetter.parmParmTableNum(receiptNumber);
+            formLetter.sumNum(receiptNumber);
+            formLetter.transDate(DateTimeUtil::getSystemDate(DateTimeUtil::getUserPreferredTimeZone()));
+
+            // Registered quantity only
+            formLetter.specQty(PurchUpdate::Recorded);
+            formLetter.proforma(NoYes::No);
+            formLetter.printFormLetter(NoYes::No);
+            formLetter.usePrintManagement(false);
+            formLetter.printout(Printout::Current);
+            formLetter.chooseLines(true);
+            formLetter.runOperation();
+
+            VendPackingSlipJour vendPackingSlipJour;
+
+            select firstonly RecId from vendPackingSlipJour
+                where vendPackingSlipJour.PurchId       == _purchId
+                   && vendPackingSlipJour.PackingSlipId == receiptNumber;
+
+            posted = vendPackingSlipJour.RecId != 0;
+
+            ttscommit;
+        }
+        catch (Exception::Deadlock)
+        {
+            // Retry a few times, then leave the order for the next run
+            if (xSession::currentRetryCount() < #RetryNum)
+            {
+                retry;
+            }
+
+            posted = false;
+        }
+        catch (Exception::UpdateConflict)
+        {
+            if (xSession::currentRetryCount() < #RetryNum)
+            {
+                retry;
+            }
+
+            posted = false;
+        }
+        catch
+        {
+            posted = false;
+        }
+
+        if (!posted)
+        {
+            warning(strFmt("@AAXBlindReceiving:PostOrderFailed", _purchId));
+        }
+
+        return posted;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>confirmOrder</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Confirms a blind receipt order, so its product receipt can be posted.
+    /// </summary>
+    /// <param name = "_purchTable">The blind receipt order.</param>
+    protected void confirmOrder(PurchTable _purchTable)
+    {
+        PurchFormLetter confirmation = PurchFormLetter_PurchOrder::newPurchOrder();
+        confirmation.parmLoadFromSysLastValue(false);
+        confirmation.parmCallerTable(_purchTable);
+        confirmation.purchTable(_purchTable);
+        confirmation.transDate(DateTimeUtil::getSystemDate(DateTimeUtil::getUserPreferredTimeZone()));
+        confirmation.specQty(PurchUpdate::All);
+        confirmation.proforma(NoYes::No);
+        confirmation.printFormLetter(NoYes::No);
+        confirmation.usePrintManagement(false);
+        confirmation.printout(Printout::Current);
+        confirmation.chooseLines(true);
+        confirmation.runOperation();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>receiptNumber</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the next unused product receipt number of an order: the order number followed by a
+    /// sequence number, such as <c>00000123-2</c> for its second nightly posting. When that doesn't
+    /// fit the field, the start of the order number is cut.
+    /// </summary>
+    /// <param name = "_purchTable">The blind receipt order.</param>
+    /// <returns>A product receipt number not yet used.</returns>
+    public static PackingSlipId receiptNumber(PurchTable _purchTable)
+    {
+        VendPackingSlipJour vendPackingSlipJour;
+        PackingSlipId       receiptNumber;
+        int                 maxLength = new DictType(extendedTypeNum(PackingSlipId)).stringLen();
+        int                 sequence;
+
+        do
+        {
+            sequence++;
+            str suffix  = strFmt('-%1', sequence);
+            str orderId = _purchTable.PurchId;
+
+            // Keep the end of the order number, which tells orders apart
+            if (strLen(orderId) + strLen(suffix) > maxLength)
+            {
+                orderId = subStr(orderId, strLen(orderId) - (maxLength - strLen(suffix)) + 1, maxLength - strLen(suffix));
+            }
+
+            receiptNumber = orderId + suffix;
+
+            select firstonly RecId from vendPackingSlipJour
+                where vendPackingSlipJour.PackingSlipId == receiptNumber;
+        }
+        while (vendPackingSlipJour.RecId);
+
+        return receiptNumber;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTableExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>PurchLine.AAXBlindReceiving</Name>
+	<FieldGroupExtensions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AAXBlindReceipt</Name>
+			<Label>@AAXBlindReceiving:BlindReceipt</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>AAXBlindReceiptWorker</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>AAXBlindReceiptDateTime</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<FieldModifications />
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>AAXBlindReceiptWorker</Name>
+			<AllowEdit>No</AllowEdit>
+			<AllowEditOnCreate>No</AllowEditOnCreate>
+			<AssetClassification>End User Pseudonymous Identifier</AssetClassification>
+			<ExtendedDataType>WHSUserId</ExtendedDataType>
+			<HelpText>@AAXBlindReceiving:ReceiptWorkerHelp</HelpText>
+			<Label>@AAXBlindReceiving:ReceiptWorker</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldUtcDateTime">
+			<Name>AAXBlindReceiptDateTime</Name>
+			<AllowEdit>No</AllowEdit>
+			<AllowEditOnCreate>No</AllowEditOnCreate>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>AAXBlindReceiptRegisteredDateTime</ExtendedDataType>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>AAXBlindReceiptWorkerIdx</Name>
+			<AllowDuplicates>Yes</AllowDuplicates>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>AAXBlindReceiptWorker</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>AAXBlindReceiptDateTime</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<PropertyModifications />
+	<RelationExtensions />
+	<RelationModifications />
+	<Relations />
+</AxTableExtension>

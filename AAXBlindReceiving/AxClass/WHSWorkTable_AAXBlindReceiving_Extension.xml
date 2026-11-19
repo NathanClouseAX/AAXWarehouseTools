@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>WHSWorkTable_AAXBlindReceiving_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Extension of the <c>WHSWorkTable</c> table for the AAXBlindReceiving model. Deletes the lines
+/// Blind PO receiving added when cancelling their put-away work unregisters the receipt.
+/// </summary>
+[ExtensionOf(tableStr(WHSWorkTable))]
+final class WHSWorkTable_AAXBlindReceiving_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>performWorkCancelation</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Extends <c>performWorkCancelation</c> to delete the device-added purchase lines of the work
+    /// after the base implementation, called with <c>next</c>, has unregistered them.
+    /// </summary>
+    /// <param name = "_workTable">The work to cancel.</param>
+    /// <param name = "_allowCancelClosed">Determines whether closed work can be cancelled.</param>
+    /// <param name = "_cancelReplenishmentWorkWithDependentWork">Determines whether replenishment work with dependent work is cancelled.</param>
+    /// <param name = "_cancellingProductReceipt">Determines whether the cancel comes from cancelling a product receipt.</param>
+    /// <param name = "_decrementLoadLineWorkCreatedQty">Determines whether the work created quantity on load lines is decremented.</param>
+    public static void performWorkCancelation(
+        WHSWorkTable _workTable,
+        boolean      _allowCancelClosed,
+        UnknownNoYes _cancelReplenishmentWorkWithDependentWork,
+        boolean      _cancellingProductReceipt,
+        boolean      _decrementLoadLineWorkCreatedQty)
+    {
+        // The base implementation reassigns the buffer
+        WHSWorkId workId     = _workTable.WorkId;
+        boolean   unregister = !_cancellingProductReceipt
+                            && _workTable.WorkTransType == WHSWorkTransType::Purch
+                            && WHSParameters::find().UnregisterAtWorkCancel;
+
+        next performWorkCancelation(_workTable, _allowCancelClosed, _cancelReplenishmentWorkWithDependentWork, _cancellingProductReceipt, _decrementLoadLineWorkCreatedQty);
+
+        if (unregister)
+        {
+            AAXBlindReceiptLineCleanup::deleteLinesForWork(workId);
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

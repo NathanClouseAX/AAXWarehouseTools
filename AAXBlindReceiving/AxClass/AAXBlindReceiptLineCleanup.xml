@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXBlindReceiptLineCleanup</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Deletes the purchase lines that Blind PO receiving added once their registration is reversed,
+/// so an unregistered blind receipt leaves no empty line behind on the order.
+/// </summary>
+public final class AAXBlindReceiptLineCleanup
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>deleteLinesForWork</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Deletes the device-added lines of a cancelled work whose registration was reversed.
+    /// </summary>
+    /// <param name = "_workId">The cancelled work.</param>
+    public static void deleteLinesForWork(WHSWorkId _workId)
+    {
+        PurchLine   purchLine;
+        WHSWorkLine workLine;
+
+        ttsbegin;
+
+        while select InventTransId from purchLine
+            where purchLine.AAXBlindReceiptWorker != ''
+            exists join workLine
+                where workLine.WorkId        == _workId
+                   && workLine.InventTransId == purchLine.InventTransId
+        {
+            AAXBlindReceiptLineCleanup::deleteIfUnregistered(purchLine.InventTransId);
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>deleteUnregisteredLines</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Deletes every open device-added line in the current company that has no registered or
+    /// received quantity left, each in its own transaction. Lines added in the last 12 hours are
+    /// skipped, since a worker may still be confirming them, and a line that fails is left for the
+    /// next run.
+    /// </summary>
+    /// <returns>The number of lines deleted.</returns>
+    public static int deleteUnregisteredLines()
+    {
+        PurchLine   purchLine;
+        utcDateTime addedBefore = DateTimeUtil::addHours(DateTimeUtil::utcNow(), -12);
+        List        candidates  = new List(Types::String);
+        int         deleted;
+
+        while select InventTransId from purchLine
+            where purchLine.AAXBlindReceiptWorker   != ''
+               && purchLine.RemainPurchPhysical     != 0
+               && purchLine.AAXBlindReceiptDateTime <  addedBefore
+        {
+            candidates.addEnd(purchLine.InventTransId);
+        }
+
+        ListEnumerator enumerator = candidates.getEnumerator();
+
+        while (enumerator.moveNext())
+        {
+            InventTransId inventTransId = enumerator.current();
+
+            try
+            {
+                ttsbegin;
+
+                if (AAXBlindReceiptLineCleanup::deleteIfUnregistered(inventTransId))
+                {
+                    deleted++;
+                }
+
+                ttscommit;
+            }
+            catch
+            {
+                warning(strFmt("@AAXBlindReceiving:CleanupLineFailed", inventTransId));
+            }
+        }
+
+        return deleted;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>deleteIfUnregistered</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Deletes a device-added line when all of its inventory transactions are back to ordered and
+    /// nothing references it any more.
+    /// </summary>
+    /// <param name = "_inventTransId">The lot of the line; called inside a transaction.</param>
+    /// <returns>True if the line was deleted; otherwise, false.</returns>
+    public static boolean deleteIfUnregistered(InventTransId _inventTransId)
+    {
+        PurchLine purchLine = PurchLine::findInventTransId(_inventTransId, true);
+
+        if (!purchLine.AAXBlindReceiptWorker
+            || !AAXBlindReceiptLineCleanup::hasOnlyOrderedTransactions(purchLine)
+            || purchLine.existInvoice()
+            || AAXBlindReceiptLineCleanup::isReferenced(purchLine))
+        {
+            return false;
+        }
+
+        // Receipt lines of completed pallets are history of the reversed receipt
+        WHSMixedLicensePlateReceiptLine receiptLine;
+        WHSMixedLicensePlateReceipt     receipt;
+
+        delete_from receiptLine
+            where receiptLine.InventTransId == purchLine.InventTransId
+            exists join receipt
+                where receipt.RecId           == receiptLine.MixedLPReceivingTable
+                   && receipt.MixedLPComplete == NoYes::Yes;
+
+        if (!purchLine.validateDelete())
+        {
+            return false;
+        }
+
+        purchLine.delete();
+
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>hasOnlyOrderedTransactions</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Indicates whether every inventory transaction of a purchase line is still ordered, so nothing
+    /// is registered, arrived or received on it.
+    /// </summary>
+    /// <param name = "_purchLine">The purchase line to check.</param>
+    /// <returns>True if only ordered transactions exist; otherwise, false.</returns>
+    public static boolean hasOnlyOrderedTransactions(PurchLine _purchLine)
+    {
+        InventTrans       inventTrans;
+        InventTransOrigin inventTransOrigin;
+
+        select firstonly RecId from inventTrans
+            where inventTrans.StatusReceipt != StatusReceipt::Ordered
+            exists join inventTransOrigin
+                where inventTransOrigin.RecId         == inventTrans.InventTransOrigin
+                   && inventTransOrigin.InventTransId == _purchLine.InventTransId;
+
+        return !inventTrans.RecId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isReferenced</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Indicates whether open warehouse records still point at a purchase line: a load line, or a
+    /// line on a pallet that is still being built.
+    /// </summary>
+    /// <param name = "_purchLine">The purchase line to check.</param>
+    /// <returns>True if the line is still referenced; otherwise, false.</returns>
+    private static boolean isReferenced(PurchLine _purchLine)
+    {
+        WHSMixedLicensePlateReceiptLine receiptLine;
+        WHSMixedLicensePlateReceipt     receipt;
+
+        select firstonly RecId from receiptLine
+            where receiptLine.InventTransId == _purchLine.InventTransId
+            exists join receipt
+                where receipt.RecId           == receiptLine.MixedLPReceivingTable
+                   && receipt.MixedLPComplete == NoYes::No;
+
+        return receiptLine.RecId != 0
+            || WHSLoadLine::existsForInventTransId(_purchLine.InventTransId);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

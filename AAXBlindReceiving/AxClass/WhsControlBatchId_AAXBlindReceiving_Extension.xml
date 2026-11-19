@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>WhsControlBatchId_AAXBlindReceiving_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Extension of the <c>WhsControlBatchId</c> class for the AAXBlindReceiving model. Accepts new
+/// batch numbers in the Blind PO receiving flow, as purchase order item receiving does.
+/// </summary>
+[ExtensionOf(classStr(WhsControlBatchId))]
+final class WhsControlBatchId_AAXBlindReceiving_Extension
+{
+    #WHSRF
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>isValidationRequired</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Replaces <c>isValidationRequired</c> in the Blind PO receiving flow, where a received batch
+    /// doesn't have to exist yet, as in purchase order item receiving. Other flows call the base
+    /// implementation with <c>next</c>; for this mode it can't resolve the work type.
+    /// </summary>
+    /// <returns>True if validation is required; otherwise, false.</returns>
+    protected boolean isValidationRequired()
+    {
+        if ((mode == WHSWorkExecuteMode::MixedLPReceiving || mode == WHSWorkExecuteMode::MixedLPReceivingAndLocate)
+            && WHSRFMenuItemTable::find(pass.lookupStr(#MenuItem)).MixedLPReceivingMode == WHSMixedLPReceivingMode::AAXBlindPOItemReceiving)
+        {
+            return false;
+        }
+
+        return next isValidationRequired();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

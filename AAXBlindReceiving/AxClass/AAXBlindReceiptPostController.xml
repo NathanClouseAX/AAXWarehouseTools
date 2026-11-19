@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>AAXBlindReceiptPostController</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Controller for the blind receipt posting batch.
+/// Extends the SysOperation framework to run <c>AAXBlindReceiptPostService.post</c> and supports retryable batch operations.
+/// </summary>
+public final class AAXBlindReceiptPostController extends SysOperationServiceController implements BatchRetryable
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>new</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Initializes a new instance of the <c>AAXBlindReceiptPostController</c> class.
+    /// </summary>
+    /// <param name = "_className">The name of the service class.</param>
+    /// <param name = "_methodName">The name of the service method.</param>
+    /// <param name = "_executionMode">The SysOperation execution mode.</param>
+    private void new(IdentifierName _className, IdentifierName _methodName, SysOperationExecutionMode _executionMode)
+    {
+        super(_className, _methodName, _executionMode);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Constructs a new instance of the <c>AAXBlindReceiptPostController</c> class.
+    /// </summary>
+    /// <param name = "_executionMode">The SysOperation execution mode.</param>
+    /// <returns>A new <c>AAXBlindReceiptPostController</c> instance.</returns>
+    public static AAXBlindReceiptPostController construct(SysOperationExecutionMode _executionMode = SysOperationExecutionMode::Synchronous)
+    {
+        AAXBlindReceiptPostController controller =
+            new AAXBlindReceiptPostController(
+                classStr(AAXBlindReceiptPostService),
+                methodStr(AAXBlindReceiptPostService, post),
+                _executionMode);
+
+        return controller;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>caption</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Provides a description or caption for the batch task.
+    /// </summary>
+    /// <returns>A string description of the batch task.</returns>
+    [Hookable(false)]
+    public ClassDescription caption()
+    {
+        return "@AAXBlindReceiving:PostBatch";
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmDialogCaption</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the caption of the dialog.
+    /// </summary>
+    /// <param name = "_dialogCaption">The dialog caption.</param>
+    /// <returns>The caption of the batch task, which is used as the dialog title.</returns>
+    [Hookable(false)]
+    public LabelType parmDialogCaption(LabelType _dialogCaption = dialogCaption)
+    {
+        // The dialog title is based on the caption
+        return this.caption();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isRetryable</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Indicates whether the batch job is retryable. A retry posts only what is still registered.
+    /// </summary>
+    /// <returns>True, indicating the batch job can be retried.</returns>
+    [Hookable(false)]
+    public boolean isRetryable()
+    {
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>canRunInNewSession</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Determines if the job can run in a new session.
+    /// </summary>
+    /// <returns>True if the job can run in a new session.</returns>
+    [Hookable(false)]
+    protected boolean canRunInNewSession()
+    {
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Entry point invoked by the AAXBlindReceiptPost menu item.
+    /// </summary>
+    /// <param name = "_args">Framework arguments from the caller.</param>
+    public static void main(Args _args)
+    {
+        AAXBlindReceiptPostController controller = AAXBlindReceiptPostController::construct();
+        controller.parmArgs(_args);
+        controller.startOperation();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

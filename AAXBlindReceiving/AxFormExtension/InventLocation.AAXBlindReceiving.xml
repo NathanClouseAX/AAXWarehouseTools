@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxFormExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
+	<Name>InventLocation.AAXBlindReceiving</Name>
+	<ControlModifications />
+	<Controls>
+		<AxFormExtensionControl xmlns="">
+			<Name>AAXBlindReceiptGroupExtension</Name>
+			<FormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>AAXBlindReceiptGroup</Name>
+				<Type>Group</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormCheckBoxControl">
+						<Name>AAXBlindReceiptGroup_AAXBlindReceiptEnabled</Name>
+						<Type>CheckBox</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>AAXBlindReceiptEnabled</DataField>
+						<DataSource>InventLocation</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>AAXBlindReceiptGroup_AAXBlindReceiptPurchPoolId</Name>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>AAXBlindReceiptPurchPoolId</DataField>
+						<DataSource>InventLocation</DataSource>
+					</AxFormControl>
+				</Controls>
+				<DataGroup>AAXBlindReceipt</DataGroup>
+				<DataSource>InventLocation</DataSource>
+			</FormControl>
+			<Parent>WHS</Parent>
+		</AxFormExtensionControl>
+	</Controls>
+	<DataSourceModifications />
+	<DataSourceReferences />
+	<DataSources />
+	<Parts />
+	<PropertyModifications />
+</AxFormExtension>

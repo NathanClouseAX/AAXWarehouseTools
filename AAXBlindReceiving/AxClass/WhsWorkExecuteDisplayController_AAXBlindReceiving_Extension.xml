@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>WhsWorkExecuteDisplayController_AAXBlindReceiving_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Extension of the <c>WhsWorkExecuteDisplayController</c> class for the AAXBlindReceiving model.
+/// Offers disposition codes in the Blind PO receiving flow as purchase order item receiving does.
+/// </summary>
+[ExtensionOf(classStr(WhsWorkExecuteDisplayController))]
+final class WhsWorkExecuteDisplayController_AAXBlindReceiving_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>canShowDispositionCodeForMixedLPMode</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Extends <c>canShowDispositionCodeForMixedLPMode</c> to treat the Blind PO receiving mode as
+    /// purchase order item receiving when the base implementation is called with <c>next</c>.
+    /// </summary>
+    /// <param name = "_mode">The work execute mode.</param>
+    /// <param name = "_dispositionTable">The disposition code.</param>
+    /// <param name = "_mixedLPMode">The mixed license plate receiving mode.</param>
+    /// <returns>True when the disposition code can be shown; otherwise, false.</returns>
+    public boolean canShowDispositionCodeForMixedLPMode(
+        WHSWorkExecuteMode      _mode,
+        WHSDispositionTable     _dispositionTable,
+        WHSMixedLPReceivingMode _mixedLPMode)
+    {
+        WHSMixedLPReceivingMode mixedLPMode = _mixedLPMode == WHSMixedLPReceivingMode::AAXBlindPOItemReceiving
+            ? WHSMixedLPReceivingMode::POItemReceiving
+            : _mixedLPMode;
+
+        return next canShowDispositionCodeForMixedLPMode(_mode, _dispositionTable, mixedLPMode);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

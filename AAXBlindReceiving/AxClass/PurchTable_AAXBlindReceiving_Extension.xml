@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>PurchTable_AAXBlindReceiving_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Extension of the <c>PurchTable</c> table for the AAXBlindReceiving model. Keeps change
+/// management off on blind receipt orders, and keeps a received blind receipt order open for Blind
+/// PO receiving.
+/// </summary>
+[ExtensionOf(tableStr(PurchTable))]
+final class PurchTable_AAXBlindReceiving_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>validateWrite</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Extends <c>validateWrite</c> to refuse a blind receipt order that has change management
+    /// turned on, after the base implementation is called with <c>next</c>.
+    /// </summary>
+    /// <returns>True if the record is valid; otherwise, false.</returns>
+    public boolean validateWrite()
+    {
+        boolean ret = next validateWrite();
+
+        if (ret
+            && this.ChangeRequestRequired
+            && AAXBlindReceiptOrder::isBlindReceiptOrder(this))
+        {
+            ret = checkFailed(strFmt("@AAXBlindReceiving:ErrChangeManagement", this.PurchId));
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isOpenOrder</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Extends <c>isOpenOrder</c> so that, while a Blind PO receiving screen is processed, a blind
+    /// receipt order whose lines are all received stays open for new lines. The base implementation
+    /// is called with <c>next</c>.
+    /// </summary>
+    /// <returns>True if the purchase order is an open order; otherwise, false.</returns>
+    public boolean isOpenOrder()
+    {
+        boolean ret = next isOpenOrder();
+
+        if (!ret
+            && this.PurchStatus == PurchStatus::Received
+            && AAXBlindReceiptReceivingContext::isActive()
+            && AAXBlindReceiptOrder::isBlindReceiptOrder(this))
+        {
+            ret = true;
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

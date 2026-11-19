@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxFormExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
+	<Name>PurchTable.AAXBlindReceiving</Name>
+	<ControlModifications />
+	<Controls>
+		<AxFormExtensionControl xmlns="">
+			<Name>AAXBlindReceiptGroupExtension</Name>
+			<FormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>AAXBlindReceiptGroup</Name>
+				<Type>Group</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>AAXBlindReceiptGroup_AAXBlindReceiptWorker</Name>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>AAXBlindReceiptWorker</DataField>
+						<DataSource>PurchLine</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormDateTimeControl">
+						<Name>AAXBlindReceiptGroup_AAXBlindReceiptDateTime</Name>
+						<Type>DateTime</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>AAXBlindReceiptDateTime</DataField>
+						<DataSource>PurchLine</DataSource>
+					</AxFormControl>
+				</Controls>
+				<DataGroup>AAXBlindReceipt</DataGroup>
+				<DataSource>PurchLine</DataSource>
+			</FormControl>
+			<Parent>TabLineGeneral</Parent>
+		</AxFormExtensionControl>
+	</Controls>
+	<DataSourceModifications />
+	<DataSourceReferences />
+	<DataSources />
+	<Parts />
+	<PropertyModifications />
+</AxFormExtension>
