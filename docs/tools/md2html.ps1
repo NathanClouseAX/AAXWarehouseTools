@@ -129,6 +129,7 @@ $docs = @(
     @{ in = "$repo\README.md";                       out = "$repo\README.html" },
     @{ in = "$repo\THIRD-PARTY-NOTICES.md";          out = "$repo\THIRD-PARTY-NOTICES.html" },
     @{ in = "$repo\docs\UserGuide.md";               out = "$repo\docs\UserGuide.html" },
+    @{ in = "$repo\docs\DeployPipeline.md";          out = "$repo\docs\DeployPipeline.html" },
     @{ in = "$repo\docs\ItemIdentitySetup.md";       out = "$repo\docs\ItemIdentitySetup.html" },
     @{ in = "$repo\docs\ItemIdentityUserGuide.md";   out = "$repo\docs\ItemIdentityUserGuide.html" },
     @{ in = "$repo\docs\ItemIdentityUseCases.md";    out = "$repo\docs\ItemIdentityUseCases.html" },

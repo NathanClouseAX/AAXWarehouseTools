@@ -1,0 +1,46 @@
+# Azure DevOps deployment of the AAXWarehouseTools package to the nclouse-uat environment.
+#
+# Runs in the MVP-FO project beside the build pipeline (azure-pipelines.yml, registered there as
+# NathanClouseAX.AAXWarehouseTools). Each successful build of main triggers it. It deploys the
+# build's CloudDeployablePackage through the NClouse-UAT Power Platform service connection, using
+# the deploy template in the MVP-FO repository. The Nclouse-uat environment's checks apply: the run
+# must come from main and be approved. Azure DevOps setup is described in docs/DeployPipeline.md.
+
+name: deploy-uat-$(Date:yy.MM.dd)$(Rev:.r)
+
+trigger: none
+pr: none
+
+resources:
+  pipelines:
+    # The alias names the folder the build's artifacts download to, which PackageFile below uses
+    - pipeline: build
+      source: NathanClouseAX.AAXWarehouseTools
+      trigger:
+        branches:
+          include:
+            - main
+  repositories:
+    - repository: cicd
+      type: git
+      name: MVP-FO
+      ref: refs/heads/main
+
+variables:
+  # PowerPlatform-Auth serves the template's readiness and verify checks, Teams-Secrets its notifications
+  - group: PowerPlatform-Auth
+  - group: Teams-Secrets
+  - name: PackageFile
+    value: $(Pipeline.Workspace)/build/drop/CloudDeployablePackage/TemplatePackage.dll
+
+stages:
+  - stage: DeployUAT
+    displayName: Deploy to UAT
+    jobs:
+      - template: Pipelines/templates/deploy-finops-package.yml@cicd
+        parameters:
+          stageLabel: UAT
+          environmentName: Nclouse-uat
+          serviceConnectionName: NClouse-UAT
+          environmentUrl: https://nclouse-uat.crm.dynamics.com
+          packageFile: $(PackageFile)

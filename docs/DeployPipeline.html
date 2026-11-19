@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AAX Warehouse Tools — Deploy Pipeline</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0 auto; padding: 2rem 2.5rem 4rem; max-width: 920px;
+  font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.55; color: #1f2328; background: #ffffff; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.25; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.9em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin-top: 0.4em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h3 { font-size: 1.2em; }
+p, ul, ol { margin: 0.5em 0 1em; }
+li { margin: 0.25em 0; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 0.9em;
+  background: #f0f2f5; border-radius: 4px; padding: 0.15em 0.4em; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+  padding: 12px 16px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; font-size: 0.88em; }
+table { border-collapse: collapse; margin: 1em 0 1.4em; width: 100%; display: block; overflow-x: auto; }
+th, td { border: 1px solid #d1d9e0; padding: 7px 12px; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) td { background: #fafbfc; }
+blockquote { margin: 1em 0; padding: 0.2em 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 2em 0; }
+img { max-width: 100%; }
+@media print { body { max-width: none; padding: 0; font-size: 12px; } }
+</style>
+</head>
+<body>
+<h1 id="aax-warehouse-tools-deploy-pipeline">AAX Warehouse Tools — Deploy Pipeline</h1>
+<p>The deploy pipeline sends each successful build of <code>main</code> to the <strong>nclouse-uat</strong> finance and operations environment, which is managed in the Power Platform admin center. It runs in the <strong>MVP-FO</strong> Azure DevOps project, beside the build pipeline, and reuses the deploy template in the MVP-FO repository. For the build itself, see the <a href="BuildPipeline.html">build pipeline guide</a>.</p>
+<h2 id="what-is-in-the-repository">What is in the repository</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pipeline/deploy-uat.yml</code></td>
+<td>The deploy pipeline: wait for the environment's checks, then deploy the build's <code>CloudDeployablePackage</code> and verify the result.</td>
+</tr>
+</tbody>
+</table>
+<p>The deployment steps live in <code>Pipelines/templates/deploy-finops-package.yml</code> in the MVP-FO repository, the same template that deploys MVP-FO's own builds.</p>
+<h2 id="how-it-runs">How it runs</h2>
+<ol>
+<li>The build pipeline, <code>NathanClouseAX.AAXWarehouseTools</code>, finishes a successful build of <code>main</code>. Pull request builds and builds of other branches don't trigger a deploy.</li>
+<li>The run waits on the <strong>Nclouse-uat</strong> environment's checks. It must come from <code>main</code>, and an approver must approve it.</li>
+<li><strong>Submit &amp; Wait</strong> checks the <code>NClouse-UAT</code> service connection, waits until the environment is ready, and deploys the package. It waits up to 3 hours for the deployment to finish.</li>
+<li><strong>Verify</strong> reads the environment's state in the Power Platform admin center and fails the run if the deployment failed.</li>
+</ol>
+<p>When the <code>TeamsWebhookUrl</code> variable is set in the <code>Teams-Secrets</code> variable group, the run also posts its start and its result to Teams.</p>
+<p>To deploy an earlier build, run the pipeline manually and pick the build under <strong>Resources</strong>.</p>
+<h2 id="one-time-setup-in-azure-devops">One-time setup in Azure DevOps</h2>
+<p>Both pipelines must be in the project that holds the environment. A pipeline can only deploy to an environment in its own project.</p>
+<ol>
+<li><strong>Build pipeline.</strong> In MVP-FO: Pipelines &gt; New pipeline &gt; <strong>GitHub</strong> &gt; select the repository &gt; <strong>Existing Azure Pipelines YAML file</strong> &gt; <code>/azure-pipelines.yml</code>. Keep the name <code>NathanClouseAX.AAXWarehouseTools</code>, because the deploy pipeline's <code>source:</code> uses it. This also creates MVP-FO's GitHub connection.</li>
+<li><strong>Deploy pipeline.</strong> The same steps with <code>/pipeline/deploy-uat.yml</code>. Save it without running it.</li>
+<li><strong>Resource access.</strong> The deploy pipeline needs permission to use the <code>Nclouse-uat</code> environment, the <code>NClouse-UAT</code> service connection, the <code>PowerPlatform-Auth</code> and <code>Teams-Secrets</code> variable groups, and the <code>MVP-FO</code> repository. Grant it on each resource's <strong>Security &gt; Pipeline permissions</strong>, or approve the prompts on the first run.</li>
+</ol>
+<p>The pipeline relies on what MVP-FO's own deployments already use:</p>
+<ul>
+<li>The <strong>Power Platform Build Tools</strong> extension in the organization (<code>PowerPlatformToolInstaller@2</code>, <code>PowerPlatformDeployPackage@2</code>).</li>
+<li>The <code>NClouse-UAT</code> Power Platform service connection.</li>
+<li><code>PP_TENANT_ID</code>, <code>PP_APPLICATION_ID</code> and <code>PP_CLIENT_SECRET</code> in the <code>PowerPlatform-Auth</code> variable group, for a service principal registered as a Power Platform management app.</li>
+</ul>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause and fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A build of <code>main</code> succeeds but no deploy starts</td>
+<td>The build pipeline was renamed or is in another project, so it no longer matches <code>source:</code> in <code>pipeline/deploy-uat.yml</code>. Or <code>pipeline/deploy-uat.yml</code> isn't on <code>main</code> yet.</td>
+</tr>
+<tr>
+<td>The run waits with <em>This pipeline needs permission to access a resource</em></td>
+<td>Grant the access in setup step 3.</td>
+</tr>
+<tr>
+<td>The run is blocked by the branch control check</td>
+<td>The run doesn't come from <code>main</code>. Only <code>main</code> may deploy to the environment.</td>
+</tr>
+<tr>
+<td><em>Deploy package</em> can't find <code>TemplatePackage.dll</code></td>
+<td>The build didn't publish <code>drop/CloudDeployablePackage</code>. Check the build's <em>Create deployable packages</em> step.</td>
+</tr>
+<tr>
+<td><em>Environment not found in PPAC</em></td>
+<td>The environment URL in <code>pipeline/deploy-uat.yml</code> doesn't match the environment, or the service principal can't see it.</td>
+</tr>
+</tbody>
+</table>
+
+</body>
+</html>

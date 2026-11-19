@@ -139,6 +139,8 @@ The [setup guide](docs/ItemIdentitySetup.md) covers every option; the [user guid
 
 The repository includes an Azure DevOps pipeline (`azure-pipelines.yml`) that builds the model from GitHub on a Microsoft-hosted agent and publishes deployable packages for both Lifecycle Services and Power Platform admin center environments — no build VM required. The one-time Azure DevOps setup (build tasks extension, package feed, GitHub connection) is described in the [build pipeline guide](docs/BuildPipeline.md).
 
+A second pipeline (`pipeline/deploy-uat.yml`) deploys each successful build of `main` to the UAT environment once it's approved. Its setup is described in the [deploy pipeline guide](docs/DeployPipeline.md).
+
 ## How it works and data privacy
 
 - **100% in-process rendering.** ZPL is resolved, token-substituted, and rendered to PNG entirely within the AOS process. No label content, ZPL, or image is sent to any external service, and the features make no outbound network calls for rendering.
