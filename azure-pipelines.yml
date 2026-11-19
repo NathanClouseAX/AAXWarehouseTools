@@ -1,8 +1,9 @@
-# Azure DevOps build for the AAXWarehouseTools model.
+# Azure DevOps build for the AAXWarehouseTools package and its models (AAXWarehouseTools and
+# AAXBlindReceiving).
 #
 # Runs on a Microsoft-hosted agent with no Finance and Operations installation: the X++ build
 # packages are restored from the Azure Artifacts feed in pipeline/nuget.config, the ZPL renderer
-# is built into the model bin folder, the model is compiled, and the deployable packages are
+# is built into the package bin folder, the package is compiled, and the deployable packages are
 # published. Azure DevOps setup is described in docs/BuildPipeline.md.
 
 name: $(Date:yy.MM.dd)$(Rev:.r)
@@ -31,12 +32,12 @@ pool:
   vmImage: windows-2022
 
 variables:
-  ModelName: AAXWarehouseTools
-  # The repository root is the model folder, so it is checked out below a Metadata folder to give
-  # the X++ build its <Metadata>\<Model> layout. Paths derive from Pipeline.Workspace because a
+  PackageName: AAXWarehouseTools
+  # The repository root is the package folder, so it is checked out below a Metadata folder to give
+  # the X++ build its <Metadata>\<Package> layout. Paths derive from Pipeline.Workspace because a
   # single checkout with a custom path repoints Build.SourcesDirectory at the checkout folder.
   MetadataPath: $(Pipeline.Workspace)\s\Metadata
-  ModelPath: $(Pipeline.Workspace)\s\Metadata\AAXWarehouseTools
+  PackagePath: $(Pipeline.Workspace)\s\Metadata\AAXWarehouseTools
   NugetConfigsPath: $(Pipeline.Workspace)\s\Metadata\AAXWarehouseTools\pipeline
   NugetsPath: $(Pipeline.Workspace)\NuGets
   ToolsPackage: Microsoft.Dynamics.AX.Platform.CompilerPackage
@@ -61,6 +62,16 @@ steps:
   - task: NuGetAuthenticate@1
     displayName: Authenticate to Azure Artifacts
 
+  # Fails fast with the identity and permission to fix when the build identity can't read the feed
+  - task: PowerShell@2
+    displayName: Check feed access
+    condition: ne(variables.NUGET_CACHE_RESTORED, 'true')
+    inputs:
+      filePath: $(NugetConfigsPath)\Test-FeedAccess.ps1
+      arguments: -NugetConfigPath "$(NugetConfigsPath)\nuget.config"
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
   - task: NuGetCommand@2
     displayName: Install build packages
     condition: ne(variables.NUGET_CACHE_RESTORED, 'true')
@@ -75,47 +86,65 @@ steps:
         -ExcludeVersion
         -OutputDirectory "$(NugetsPath)"
 
+  # Stamps every model descriptor in the package with the build number
   - task: XppUpdateModelVersion@0
     displayName: Update model version
     inputs:
       XppSourcePath: $(MetadataPath)
       VersionNumber: $(Build.BuildNumber)
 
-  # The renderer project's post-build step places the merged assembly in the model bin folder,
-  # which the X++ build copies into the compiled model.
+  # The renderer project's post-build step places the merged assembly in the package bin folder,
+  # which the X++ build copies into the compiled package.
   - task: VSBuild@1
     displayName: Build ZPL renderer
     inputs:
-      solution: $(ModelPath)\Projects\AAXWarehouseTools\AtomicAx.Zpl.Render\AtomicAx.Zpl.Render.csproj
+      solution: $(PackagePath)\Projects\AAXWarehouseTools\AtomicAx.Zpl.Render\AtomicAx.Zpl.Render.csproj
       vsVersion: '17.0'
       configuration: Release
       msbuildArgs: '-restore -p:TargetFramework=net472'
 
-  # ReferencePath includes the compiled model bin folder so the compiler resolves the model's own
-  # assemblies (the renderer and the project's referenced assemblies).
+  # The X++ build compiles the whole package, so this one project builds every model in it into
+  # Dynamics.AX.AAXWarehouseTools.dll. ReferencePath includes the compiled package bin folder so the
+  # compiler resolves the package's own assemblies (the renderer and the project's referenced
+  # assemblies). AddAdditionalExplicitAssemblyReferences=false keeps MSBuild's implicit System.Core
+  # reference assembly out of the package bin folder, where the build copies every resolved reference.
+  # BuildProjectReferences=false stops the project's renderer reference from rebuilding the renderer
+  # in Debug over the Release assembly built above.
   - task: VSBuild@1
-    displayName: Build X++ model
+    displayName: Build X++ package
     inputs:
-      solution: $(ModelPath)\Projects\AAXWarehouseTools\AAXWarehouseTools\AAXWarehouseTools.rnrproj
+      solution: $(PackagePath)\Projects\AAXWarehouseTools\AAXWarehouseTools\AAXWarehouseTools.rnrproj
       vsVersion: '17.0'
       msbuildArgs: >-
         /p:BuildTasksDirectory="$(NugetsPath)\$(ToolsPackage)\DevAlm"
         /p:MetadataDirectory="$(MetadataPath)"
         /p:FrameworkDirectory="$(NugetsPath)\$(ToolsPackage)"
         /p:ReferenceFolder="$(NugetsPath)\$(PlatPackage)\ref\net40;$(NugetsPath)\$(App1Package)\ref\net40;$(NugetsPath)\$(App2Package)\ref\net40;$(NugetsPath)\$(AppSuitePackage)\ref\net40;$(MetadataPath);$(Build.BinariesDirectory)"
-        /p:ReferencePath="$(NugetsPath)\$(ToolsPackage);$(Build.BinariesDirectory)\$(ModelName)\bin"
+        /p:ReferencePath="$(NugetsPath)\$(ToolsPackage);$(Build.BinariesDirectory)\$(PackageName)\bin"
         /p:OutputDirectory="$(Build.BinariesDirectory)"
+        /p:AddAdditionalExplicitAssemblyReferences=false
+        /p:BuildProjectReferences=false
 
   - task: CopyFiles@2
     displayName: Collect compile logs
     condition: succeededOrFailed()
     inputs:
-      SourceFolder: $(ModelPath)
+      SourceFolder: $(PackagePath)
       Contents: |
         **\Dynamics.AX.*.xppc.*
         **\Dynamics.AX.*.labelc.*
         **\Dynamics.AX.*.reportsc.*
       TargetFolder: $(Build.ArtifactStagingDirectory)\Logs
+
+  # Fails when a model descriptor is missing from the compiled package
+  - task: PowerShell@2
+    displayName: Check package models
+    inputs:
+      filePath: $(NugetConfigsPath)\Test-PackageModels.ps1
+      arguments: >-
+        -DescriptorPath "$(PackagePath)\Descriptor"
+        -BinPath "$(Build.BinariesDirectory)\$(PackageName)\bin"
+        -PackageName "$(PackageName)"
 
   - task: XppCreatePackage@2
     displayName: Create deployable packages
@@ -123,7 +152,7 @@ steps:
       XppToolsPath: $(NugetsPath)\$(ToolsPackage)
       XppBinariesPath: $(Build.BinariesDirectory)
       XppBinariesSearch: '*'
-      DeployablePackagePath: $(Build.ArtifactStagingDirectory)\AXDeployableRuntime_$(ModelName)_$(Build.BuildNumber).zip
+      DeployablePackagePath: $(Build.ArtifactStagingDirectory)\AXDeployableRuntime_$(PackageName)_$(Build.BuildNumber).zip
       CreateRegularPackage: true
       CreateCloudPackage: true
 
