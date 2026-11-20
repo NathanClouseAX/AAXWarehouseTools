@@ -50,7 +50,7 @@ img { max-width: 100%; }
 </tr>
 </tbody>
 </table>
-<p>The deployment steps are in the file itself. They are the steps of <code>Pipelines/templates/deploy-finops-package.yml</code> in the MVP-FO repository, the template that deploys MVP-FO's own builds, without its Teams notifications. The run sends no notifications, so a notification problem can't stop a deployment. A change to that template doesn't reach this pipeline until it is copied here.</p>
+<p>The deployment steps are in the file itself. They are copied from <code>Pipelines/templates/deploy-finops-package.yml</code> in the MVP-FO repository, the template that deploys MVP-FO's own builds, without its notification steps. A change to that template doesn't reach this pipeline until it is copied here.</p>
 <h2 id="how-it-runs">How it runs</h2>
 <ol>
 <li>The build pipeline, <code>NathanClouseAX.AAXWarehouseTools</code>, finishes a successful build of <code>main</code>. Pull request builds and builds of other branches don't trigger a deploy.</li>
@@ -86,8 +86,16 @@ img { max-width: 100%; }
 <td>The build pipeline was renamed or is in another project, so it no longer matches <code>source:</code> in <code>pipeline/deploy-uat.yml</code>. Or <code>pipeline/deploy-uat.yml</code> isn't on <code>main</code> yet.</td>
 </tr>
 <tr>
+<td>One build of <code>main</code> starts two deploys</td>
+<td>A second pipeline was created from <code>pipeline/deploy-uat.yml</code>. Disable or delete it, so that only one pipeline deploys each build.</td>
+</tr>
+<tr>
 <td>The run waits with <em>This pipeline needs permission to access a resource</em></td>
 <td>Grant the access in setup step 3.</td>
+</tr>
+<tr>
+<td><em>Validate service connection</em> fails with <em>AADSTS7000215: Invalid client secret provided</em></td>
+<td>The <code>NClouse-UAT</code> service connection holds a secret that the app registration no longer accepts. Create a client secret on the app registration and paste its <strong>Value</strong>, not its <strong>Secret ID</strong>, into the service connection. If <code>PP_CLIENT_SECRET</code> in <code>PowerPlatform-Auth</code> is for the same app, update it too.</td>
 </tr>
 <tr>
 <td>The run is blocked by the branch control check</td>

@@ -35,6 +35,42 @@ img { max-width: 100%; }
 <body>
 <h1 id="aax-warehouse-tools-build-pipeline">AAX Warehouse Tools — Build Pipeline</h1>
 <p>The repository carries everything Azure DevOps needs to build the model from GitHub on a Microsoft-hosted agent and produce deployable packages — no build VM and no Finance and Operations installation on the agent.</p>
+<p>The build also compiles the other packages that are deployed to the same environments, and puts every package into one deployable package. Applying a deployable package replaces the environment's custom packages, so a package left out of it would be removed from the environment.</p>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AAXWarehouseTools</code></td>
+<td>This repository</td>
+</tr>
+<tr>
+<td><code>AAXFOIndexSentinel</code></td>
+<td>GitHub <code>NathanClouseAX/AAXFOIndexSentinel</code>, branch <code>main</code></td>
+</tr>
+<tr>
+<td><code>AAXWarehouseDimensionLink</code></td>
+<td>GitHub <code>NathanClouseAX/AAXWarehouseDimensionLink</code>, branch <code>master</code></td>
+</tr>
+<tr>
+<td><code>AAXPOCloseHelper</code></td>
+<td>GitHub <code>NathanClouseAX/AAXPOCloseHelper</code>, branch <code>master</code></td>
+</tr>
+<tr>
+<td><code>AAXDataEntities</code></td>
+<td>GitHub <code>NathanClouseAX/AAXDataEntities</code>, branch <code>master</code></td>
+</tr>
+<tr>
+<td><code>AAXParameterWorkflow</code></td>
+<td>Azure Repos <code>MVP-FO</code>, branch <code>main</code>, folder <code>src/xpp/models/AAXParameterWorkflow</code></td>
+</tr>
+</tbody>
+</table>
+<p>Pushes to the other repositories don't start a build. Their changes go out with the next build of this repository.</p>
 <h2 id="what-is-in-the-repository">What is in the repository</h2>
 <table>
 <thead>
@@ -46,7 +82,11 @@ img { max-width: 100%; }
 <tbody>
 <tr>
 <td><code>azure-pipelines.yml</code></td>
-<td>The pipeline: restore the X++ build packages, stamp the model version, build the ZPL renderer, compile the model, create and publish the deployable packages.</td>
+<td>The pipeline: check out every package, restore the X++ build packages, stamp the model versions, build the ZPL renderer, compile the packages, create and publish the deployable packages. It lists the other repositories and each package's project.</td>
+</tr>
+<tr>
+<td><code>pipeline/build-packages.yml</code></td>
+<td>The steps that compile each package and check that every model of each package was compiled.</td>
 </tr>
 <tr>
 <td><code>pipeline/packages.config</code></td>
@@ -72,18 +112,20 @@ img { max-width: 100%; }
 </li>
 <li><p><strong>Create the pipeline.</strong> Pipelines &gt; New pipeline &gt; <strong>GitHub</strong> &gt; select the repository &gt; <strong>Existing Azure Pipelines YAML file</strong> &gt; <code>/azure-pipelines.yml</code>. Run it; on the first run, approve the pipeline's access to the service connection when prompted.</p>
 </li>
+<li><p><strong>Access to the other repositories.</strong> The <em>Azure Pipelines</em> GitHub App must be allowed to read every private repository in the package table: on GitHub, <strong>Settings &gt; Applications &gt; Azure Pipelines &gt; Configure &gt; Repository access</strong>. The pipeline also needs permission to use the <code>github.com_NathanClouseAX</code> service connection and the <code>MVP-FO</code> repository. Grant it on each resource's <strong>Security &gt; Pipeline permissions</strong>, or approve the prompts on the first run.</p>
+</li>
 </ol>
 <p>No pipeline variables are required.</p>
 <h2 id="what-the-pipeline-does">What the pipeline does</h2>
 <ol>
-<li>Checks the repository out under <code>Metadata\AAXWarehouseTools</code>. The repository root is the model folder, so this gives the X++ build its usual <code>&lt;Metadata&gt;\&lt;Model&gt;</code> layout.</li>
+<li>Checks the repository out under <code>Metadata\AAXWarehouseTools</code>. The repository root is the model folder, so this gives the X++ build its usual <code>&lt;Metadata&gt;\&lt;Model&gt;</code> layout. Each other GitHub repository is checked out the same way under <code>Metadata\&lt;Package&gt;</code>. <code>AAXParameterWorkflow</code> is copied there from the MVP-FO checkout.</li>
 <li>Restores the build packages into the agent workspace, reusing a cached copy while <code>packages.config</code> is unchanged.</li>
-<li>Stamps the model descriptor with the build number (<code>yy.MM.dd.n</code>).</li>
+<li>Stamps every model descriptor with the build number (<code>yy.MM.dd.n</code>).</li>
 <li>Builds the ZPL renderer for .NET Framework 4.7.2. Its post-build step merges the dependencies into one assembly and places it in the model <code>bin</code> folder.</li>
-<li>Compiles the model. The X++ build copies the model <code>bin</code> folder and the project's referenced assemblies into the compiled model, so both custom assemblies travel with it.</li>
-<li>Creates two deployable packages and publishes them, with the compile logs, as the <code>drop</code> artifact:
+<li>Compiles each package. The X++ build copies the model <code>bin</code> folder and the project's referenced assemblies into the compiled model, so both custom assemblies travel with it. It then checks that every model of each package was compiled.</li>
+<li>Creates two deployable packages holding every compiled package, and publishes them, with the compile logs, as the <code>drop</code> artifact:
 <ul>
-<li><code>AXDeployableRuntime_AAXWarehouseTools_&lt;build&gt;.zip</code> — for environments managed in Lifecycle Services.</li>
+<li><code>AXDeployableRuntime_&lt;build&gt;.zip</code> — for environments managed in Lifecycle Services.</li>
 <li><code>CloudDeployablePackage</code> — for environments managed in the Power Platform admin center.</li>
 </ul>
 </li>
@@ -117,6 +159,14 @@ img { max-width: 100%; }
 <tr>
 <td><em>Update Model Version</em> reports no descriptor</td>
 <td>The checkout path changed; the descriptor is expected at <code>Metadata\AAXWarehouseTools\Descriptor</code>.</td>
+</tr>
+<tr>
+<td>A checkout of another repository fails with <em>Repository not found</em> or a permission prompt</td>
+<td>The Azure Pipelines GitHub App can't read that repository, or the pipeline isn't permitted to use the service connection or the MVP-FO repository. See setup step 5.</td>
+</tr>
+<tr>
+<td><em>Build X++ package</em> fails for one of the other packages</td>
+<td>Read that package's compile log in the <code>drop</code> artifact's <code>Logs</code> folder. A package that references Microsoft packages outside the restored build packages needs those packages added to <code>pipeline/packages.config</code>.</td>
 </tr>
 </tbody>
 </table>

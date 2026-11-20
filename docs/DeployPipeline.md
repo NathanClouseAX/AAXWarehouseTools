@@ -8,7 +8,7 @@ The deploy pipeline sends each successful build of `main` to the **nclouse-uat**
 |---|---|
 | `pipeline/deploy-uat.yml` | The deploy pipeline: wait for the environment's checks, then deploy the build's `CloudDeployablePackage` and verify the result. |
 
-The deployment steps are in the file itself. They are the steps of `Pipelines/templates/deploy-finops-package.yml` in the MVP-FO repository, the template that deploys MVP-FO's own builds, without its Teams notifications. The run sends no notifications, so a notification problem can't stop a deployment. A change to that template doesn't reach this pipeline until it is copied here.
+The deployment steps are in the file itself. They are copied from `Pipelines/templates/deploy-finops-package.yml` in the MVP-FO repository, the template that deploys MVP-FO's own builds, without its notification steps. A change to that template doesn't reach this pipeline until it is copied here.
 
 ## How it runs
 
@@ -38,7 +38,9 @@ The pipeline relies on what MVP-FO's own deployments already use:
 | Symptom | Cause and fix |
 |---|---|
 | A build of `main` succeeds but no deploy starts | The build pipeline was renamed or is in another project, so it no longer matches `source:` in `pipeline/deploy-uat.yml`. Or `pipeline/deploy-uat.yml` isn't on `main` yet. |
+| One build of `main` starts two deploys | A second pipeline was created from `pipeline/deploy-uat.yml`. Disable or delete it, so that only one pipeline deploys each build. |
 | The run waits with *This pipeline needs permission to access a resource* | Grant the access in setup step 3. |
+| *Validate service connection* fails with *AADSTS7000215: Invalid client secret provided* | The `NClouse-UAT` service connection holds a secret that the app registration no longer accepts. Create a client secret on the app registration and paste its **Value**, not its **Secret ID**, into the service connection. If `PP_CLIENT_SECRET` in `PowerPlatform-Auth` is for the same app, update it too. |
 | The run is blocked by the branch control check | The run doesn't come from `main`. Only `main` may deploy to the environment. |
 | *Deploy package* can't find `TemplatePackage.dll` | The build didn't publish `drop/CloudDeployablePackage`. Check the build's *Create deployable packages* step. |
 | *Environment not found in PPAC* | The environment URL in `pipeline/deploy-uat.yml` doesn't match the environment, or the service principal can't see it. |

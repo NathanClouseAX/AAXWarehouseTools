@@ -1,0 +1,53 @@
+# Steps template: compiles each package of the deployable package, then checks that every model of
+# each package was compiled. azure-pipelines.yml lists the packages.
+
+parameters:
+  # Each entry names a package folder under MetadataPath and its X++ project, relative to that folder
+  - name: packages
+    type: object
+
+steps:
+  # The X++ build compiles the whole package, so one project per package builds every model in it into
+  # Dynamics.AX.<package>.dll. ReferencePath includes the compiled package bin folder so the compiler
+  # resolves the package's own assemblies (the ZPL renderer and the projects' referenced assemblies).
+  # AddAdditionalExplicitAssemblyReferences=false keeps MSBuild's implicit System.Core reference
+  # assembly out of the package bin folder, where the build copies every resolved reference.
+  # BuildProjectReferences=false stops the AAXWarehouseTools project's renderer reference from
+  # rebuilding the renderer in Debug over the Release assembly built before.
+  - ${{ each package in parameters.packages }}:
+      - task: VSBuild@1
+        displayName: Build X++ package ${{ package.name }}
+        inputs:
+          solution: $(MetadataPath)\${{ package.name }}\${{ package.project }}
+          vsVersion: '17.0'
+          msbuildArgs: >-
+            /p:BuildTasksDirectory="$(NugetsPath)\$(ToolsPackage)\DevAlm"
+            /p:MetadataDirectory="$(MetadataPath)"
+            /p:FrameworkDirectory="$(NugetsPath)\$(ToolsPackage)"
+            /p:ReferenceFolder="$(NugetsPath)\$(PlatPackage)\ref\net40;$(NugetsPath)\$(App1Package)\ref\net40;$(NugetsPath)\$(App2Package)\ref\net40;$(NugetsPath)\$(AppSuitePackage)\ref\net40;$(MetadataPath);$(Build.BinariesDirectory)"
+            /p:ReferencePath="$(NugetsPath)\$(ToolsPackage);$(Build.BinariesDirectory)\${{ package.name }}\bin"
+            /p:OutputDirectory="$(Build.BinariesDirectory)"
+            /p:AddAdditionalExplicitAssemblyReferences=false
+            /p:BuildProjectReferences=false
+
+  - task: CopyFiles@2
+    displayName: Collect compile logs
+    condition: succeededOrFailed()
+    inputs:
+      SourceFolder: $(MetadataPath)
+      Contents: |
+        **\Dynamics.AX.*.xppc.*
+        **\Dynamics.AX.*.labelc.*
+        **\Dynamics.AX.*.reportsc.*
+      TargetFolder: $(Build.ArtifactStagingDirectory)\Logs
+
+  # Fails when a model descriptor is missing from a compiled package
+  - ${{ each package in parameters.packages }}:
+      - task: PowerShell@2
+        displayName: Check package models ${{ package.name }}
+        inputs:
+          filePath: $(NugetConfigsPath)\Test-PackageModels.ps1
+          arguments: >-
+            -DescriptorPath "$(MetadataPath)\${{ package.name }}\Descriptor"
+            -BinPath "$(Build.BinariesDirectory)\${{ package.name }}\bin"
+            -PackageName "${{ package.name }}"

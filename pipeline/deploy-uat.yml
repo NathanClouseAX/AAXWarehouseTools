@@ -1,4 +1,4 @@
-# Azure DevOps deployment of the AAXWarehouseTools package to the nclouse-uat environment.
+# Azure DevOps deployment of the packages built by azure-pipelines.yml to the nclouse-uat environment.
 #
 # Runs in the MVP-FO project beside the build pipeline (azure-pipelines.yml, registered there as
 # NathanClouseAX.AAXWarehouseTools). Each successful build of main triggers it. It deploys the
@@ -6,9 +6,8 @@
 # checks the environment's state. The Nclouse-uat environment's checks apply: the run must come
 # from main and be approved. Azure DevOps setup is described in docs/DeployPipeline.md.
 #
-# The steps are those of the deploy template in the MVP-FO repository
-# (Pipelines/templates/deploy-finops-package.yml) without its Teams notifications. They are kept
-# here, not referenced, so that a notification problem can never stop a deployment.
+# The steps are copied from the deploy template in the MVP-FO repository
+# (Pipelines/templates/deploy-finops-package.yml), without its notification steps.
 
 name: deploy-uat-$(Date:yy.MM.dd)$(Rev:.r)
 
