@@ -2,9 +2,13 @@
 #
 # Runs in the MVP-FO project beside the build pipeline (azure-pipelines.yml, registered there as
 # NathanClouseAX.AAXWarehouseTools). Each successful build of main triggers it. It deploys the
-# build's CloudDeployablePackage through the NClouse-UAT Power Platform service connection, using
-# the deploy template in the MVP-FO repository. The Nclouse-uat environment's checks apply: the run
-# must come from main and be approved. Azure DevOps setup is described in docs/DeployPipeline.md.
+# build's CloudDeployablePackage through the NClouse-UAT Power Platform service connection and then
+# checks the environment's state. The Nclouse-uat environment's checks apply: the run must come
+# from main and be approved. Azure DevOps setup is described in docs/DeployPipeline.md.
+#
+# The steps are those of the deploy template in the MVP-FO repository
+# (Pipelines/templates/deploy-finops-package.yml) without its Teams notifications. They are kept
+# here, not referenced, so that a notification problem can never stop a deployment.
 
 name: deploy-uat-$(Date:yy.MM.dd)$(Rev:.r)
 
@@ -20,27 +24,171 @@ resources:
         branches:
           include:
             - main
-  repositories:
-    - repository: cicd
-      type: git
-      name: MVP-FO
-      ref: refs/heads/main
 
 variables:
-  # PowerPlatform-Auth serves the template's readiness and verify checks, Teams-Secrets its notifications
+  # The readiness and verify checks read the environment's state with this service principal
   - group: PowerPlatform-Auth
-  - group: Teams-Secrets
   - name: PackageFile
     value: $(Pipeline.Workspace)/build/drop/CloudDeployablePackage/TemplatePackage.dll
+  - name: EnvironmentUrl
+    value: https://nclouse-uat.crm.dynamics.com
+  # How long to wait for the environment to be ready, and then for the deployment to finish
+  - name: ReadinessTimeoutMinutes
+    value: 30
+  - name: MaxDeployWaitMinutes
+    value: 180
 
 stages:
   - stage: DeployUAT
     displayName: Deploy to UAT
     jobs:
-      - template: Pipelines/templates/deploy-finops-package.yml@cicd
-        parameters:
-          stageLabel: UAT
-          environmentName: Nclouse-uat
-          serviceConnectionName: NClouse-UAT
-          environmentUrl: https://nclouse-uat.crm.dynamics.com
-          packageFile: $(PackageFile)
+
+      # Job 1 of 2: checks the service connection, waits until the environment is ready, submits
+      # the package and waits for the deployment to finish. As a deployment job it downloads the
+      # build's artifacts itself and is subject to the environment's checks.
+      - deployment: Submit_UAT
+        displayName: 1/2 Submit and wait - UAT
+        timeoutInMinutes: 240
+        pool:
+          vmImage: windows-2022
+        environment: Nclouse-uat
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: PowerPlatformToolInstaller@2
+                  displayName: Install Power Platform tools
+
+                - task: PowerPlatformWhoAmi@2
+                  displayName: Validate service connection - UAT
+                  inputs:
+                    authenticationType: PowerPlatformSPN
+                    PowerPlatformSPN: NClouse-UAT
+
+                - pwsh: |
+                    $ErrorActionPreference = "Stop"
+                    $timeoutMin = $(ReadinessTimeoutMinutes)
+                    $pollSec    = 30
+                    $deadline   = (Get-Date).AddMinutes($timeoutMin)
+
+                    $tenantId  = "$(PP_TENANT_ID)"
+                    $clientId  = "$(PP_APPLICATION_ID)"
+                    $secret    = "$(PP_CLIENT_SECRET)"
+                    $envUrl    = "$(EnvironmentUrl)".TrimEnd('/')
+
+                    $orgKey = ([uri]$envUrl).Host -replace '\..*$'
+                    Write-Host "Checking readiness for environment: $envUrl (host key: $orgKey)"
+
+                    # Authenticate with the PowerApps administration module
+                    Install-Module -Name Microsoft.PowerApps.Administration.PowerShell -Force -Scope CurrentUser -AllowClobber
+                    Add-PowerAppsAccount -Endpoint prod -TenantID $tenantId -ApplicationId $clientId -ClientSecret $secret
+
+                    # Find the environment by its URL
+                    Write-Host "Resolving PPAC environment GUID..."
+                    $allEnvs = Get-AdminPowerAppEnvironment
+                    $target = $allEnvs | Where-Object {
+                      $_.Internal.properties.linkedEnvironmentMetadata.instanceUrl -like "*$orgKey*"
+                    } | Select-Object -First 1
+
+                    if (-not $target) {
+                      Write-Host "##[error]Environment not found in PPAC for host key '$orgKey'. Verify the EnvironmentUrl variable."
+                      exit 1
+                    }
+
+                    $envId = $target.EnvironmentName
+                    Write-Host "Resolved PPAC environment: $envId"
+
+                    # Poll until the environment is ready
+                    $readyStates = @('Ready', 'Enabled', 'Succeeded')
+                    while ((Get-Date) -lt $deadline) {
+                      $env = Get-AdminPowerAppEnvironment -EnvironmentName $envId
+                      $state = $env.Internal.properties.states.runtime.id ?? $env.Internal.properties.provisioningState ?? "Unknown"
+                      Write-Host "Environment state: $state ($(Get-Date -Format 'HH:mm:ss'))"
+
+                      if ($state -in $readyStates) {
+                        Write-Host "Environment is ready for deployment."
+                        exit 0
+                      }
+
+                      Write-Host "Waiting ${pollSec}s for environment to leave '$state' state..."
+                      Start-Sleep -Seconds $pollSec
+                    }
+
+                    Write-Host "##[error]Environment still not ready after ${timeoutMin} minutes (last state: $state). Cannot deploy."
+                    exit 1
+                  displayName: Wait for environment readiness - UAT
+                  name: readinessCheck
+
+                - task: PowerPlatformDeployPackage@2
+                  displayName: Deploy package to PPAC - UAT
+                  inputs:
+                    authenticationType: PowerPlatformSPN
+                    PowerPlatformSPN: NClouse-UAT
+                    PackageFile: $(PackageFile)
+                    MaxAsyncWaitTime: $(MaxDeployWaitMinutes)
+
+      # Job 2 of 2: reads the environment's state in the Power Platform admin center and fails the
+      # run if the deployment left it in a failed state.
+      - job: Verify_UAT
+        displayName: 2/2 Verify - UAT
+        dependsOn: Submit_UAT
+        condition: in(dependencies.Submit_UAT.result, 'Succeeded', 'SucceededWithIssues')
+        pool:
+          vmImage: windows-2022
+        steps:
+          # Nothing from the repository is needed here
+          - checkout: none
+
+          - pwsh: |
+              $ErrorActionPreference = "Stop"
+
+              $tenantId  = "$(PP_TENANT_ID)"
+              $clientId  = "$(PP_APPLICATION_ID)"
+              $secret    = "$(PP_CLIENT_SECRET)"
+
+              $envUrl = "$(EnvironmentUrl)".TrimEnd('/')
+              $orgKey = ([uri]$envUrl).Host -replace '\..*$'
+              Write-Host "Verifying deployment for environment: $envUrl (host key: $orgKey)"
+
+              try {
+                # Authenticate with the PowerApps administration module
+                Install-Module -Name Microsoft.PowerApps.Administration.PowerShell -Force -Scope CurrentUser -AllowClobber
+                Add-PowerAppsAccount -Endpoint prod -TenantID $tenantId -ApplicationId $clientId -ClientSecret $secret
+
+                # Find the environment by its URL
+                $allEnvs = Get-AdminPowerAppEnvironment
+                $target = $allEnvs | Where-Object {
+                  $_.Internal.properties.linkedEnvironmentMetadata.instanceUrl -like "*$orgKey*"
+                } | Select-Object -First 1
+
+                if (-not $target) {
+                  Write-Host "##vso[task.logissue type=warning]PPAC environment not found for host key '$orgKey'. Verify the deployment in the Power Platform admin center."
+                  exit 0
+                }
+
+                $envId = $target.EnvironmentName
+                Write-Host "Resolved PPAC environment GUID: $envId"
+
+                # Read the environment's state
+                $env = Get-AdminPowerAppEnvironment -EnvironmentName $envId
+                $state = $env.Internal.properties.provisioningState ?? "Unknown"
+                $runtimeState = $env.Internal.properties.states.runtime.id ?? "Unknown"
+                Write-Host "EnvironmentId=$envId | ProvisioningState=$state | RuntimeState=$runtimeState"
+
+                # Evaluate the outcome
+                $successStates = @('Succeeded', 'Completed', 'Ready', 'Enabled')
+                $failStates    = @('Failed', 'Error')
+
+                if ($runtimeState -in $failStates -or $state -in $failStates) {
+                  Write-Host "##vso[task.logissue type=error]Deployment outcome for UAT is '$state / $runtimeState'. Review in the Power Platform admin center."
+                  exit 1
+                }
+
+                if ($runtimeState -notin $successStates -and $state -notin $successStates) {
+                  Write-Host "##vso[task.logissue type=warning]Environment state is '$state / $runtimeState'; it may still be processing."
+                }
+
+              } catch {
+                Write-Host "##vso[task.logissue type=warning]PPAC status check failed: $($_.Exception.Message). Verify the deployment in the Power Platform admin center."
+              }
+            displayName: Check the deployment outcome in PPAC

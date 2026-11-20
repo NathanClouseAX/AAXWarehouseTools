@@ -1,6 +1,6 @@
 # AAX Warehouse Tools — Deploy Pipeline
 
-The deploy pipeline sends each successful build of `main` to the **nclouse-uat** finance and operations environment, which is managed in the Power Platform admin center. It runs in the **MVP-FO** Azure DevOps project, beside the build pipeline, and reuses the deploy template in the MVP-FO repository. For the build itself, see the [build pipeline guide](BuildPipeline.md).
+The deploy pipeline sends each successful build of `main` to the **nclouse-uat** finance and operations environment, which is managed in the Power Platform admin center. It runs in the **MVP-FO** Azure DevOps project, beside the build pipeline. For the build itself, see the [build pipeline guide](BuildPipeline.md).
 
 ## What is in the repository
 
@@ -8,7 +8,7 @@ The deploy pipeline sends each successful build of `main` to the **nclouse-uat**
 |---|---|
 | `pipeline/deploy-uat.yml` | The deploy pipeline: wait for the environment's checks, then deploy the build's `CloudDeployablePackage` and verify the result. |
 
-The deployment steps live in `Pipelines/templates/deploy-finops-package.yml` in the MVP-FO repository, the same template that deploys MVP-FO's own builds.
+The deployment steps are in the file itself. They are the steps of `Pipelines/templates/deploy-finops-package.yml` in the MVP-FO repository, the template that deploys MVP-FO's own builds, without its Teams notifications. The run sends no notifications, so a notification problem can't stop a deployment. A change to that template doesn't reach this pipeline until it is copied here.
 
 ## How it runs
 
@@ -16,8 +16,6 @@ The deployment steps live in `Pipelines/templates/deploy-finops-package.yml` in 
 2. The run waits on the **Nclouse-uat** environment's checks. It must come from `main`, and an approver must approve it.
 3. **Submit & Wait** checks the `NClouse-UAT` service connection, waits until the environment is ready, and deploys the package. It waits up to 3 hours for the deployment to finish.
 4. **Verify** reads the environment's state in the Power Platform admin center and fails the run if the deployment failed.
-
-When the `TeamsWebhookUrl` variable is set in the `Teams-Secrets` variable group, the run also posts its start and its result to Teams.
 
 To deploy an earlier build, run the pipeline manually and pick the build under **Resources**.
 
@@ -27,7 +25,7 @@ Both pipelines must be in the project that holds the environment. A pipeline can
 
 1. **Build pipeline.** In MVP-FO: Pipelines > New pipeline > **GitHub** > select the repository > **Existing Azure Pipelines YAML file** > `/azure-pipelines.yml`. Keep the name `NathanClouseAX.AAXWarehouseTools`, because the deploy pipeline's `source:` uses it. This also creates MVP-FO's GitHub connection.
 2. **Deploy pipeline.** The same steps with `/pipeline/deploy-uat.yml`. Save it without running it.
-3. **Resource access.** The deploy pipeline needs permission to use the `Nclouse-uat` environment, the `NClouse-UAT` service connection, the `PowerPlatform-Auth` and `Teams-Secrets` variable groups, and the `MVP-FO` repository. Grant it on each resource's **Security > Pipeline permissions**, or approve the prompts on the first run.
+3. **Resource access.** The deploy pipeline needs permission to use the `Nclouse-uat` environment, the `NClouse-UAT` service connection and the `PowerPlatform-Auth` variable group. Grant it on each resource's **Security > Pipeline permissions**, or approve the prompts on the first run.
 
 The pipeline relies on what MVP-FO's own deployments already use:
 
