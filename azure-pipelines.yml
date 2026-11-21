@@ -54,6 +54,11 @@ resources:
       endpoint: github.com_NathanClouseAX
       name: NathanClouseAX/AAXDataEntities
       ref: refs/heads/master
+    # Holds the AAXParameterWorkflow package under src/xpp/models
+    - repository: MVPFO
+      type: git
+      name: MVP-FO
+      ref: refs/heads/main
 
 pool:
   vmImage: windows-2022
